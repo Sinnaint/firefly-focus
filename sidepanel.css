@@ -325,7 +325,9 @@ p {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
-  width: 150px;
+  /* Grows with the text-size setting — a fixed 150px clips long language
+     names ("Українська", "Slovenčina") once the user scales text up. */
+  width: calc(150px * var(--text-scale, 1));
   max-width: 100%;
 }
 
@@ -340,8 +342,8 @@ p {
 .theme-select,
 .view-toggle,
 .mode-chip {
-  max-width: 150px;
-  min-height: 32px;
+  max-width: calc(150px * var(--text-scale, 1));
+  min-height: calc(32px * var(--text-scale, 1));
   padding: 7px 12px;
   border: 1px solid var(--stroke);
   border-radius: 999px;

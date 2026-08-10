@@ -55,6 +55,15 @@
     </button>
   </div>
 
+  <!-- Draggable task card. Position is remembered in chrome.storage.local. -->
+  <aside id="taskCard" class="fs-tasks" hidden>
+    <div id="taskCardDrag" class="fs-tasks-head">
+      <span id="taskCardTitle" class="fs-tasks-title">Задачі</span>
+      <span id="taskCardDragLabel" class="fs-tasks-drag">Перетягни</span>
+    </div>
+    <ul id="taskCardList" class="tasks fs-tasks-list"></ul>
+  </aside>
+
   <!-- The form inside is cloned from sidepanel.html at runtime, so there is
        exactly one copy of the settings markup in the project. -->
   <div id="settingsOverlay" class="fs-overlay" hidden>

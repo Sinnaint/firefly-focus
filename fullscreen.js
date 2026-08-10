@@ -32,10 +32,21 @@ const els = {
   settingsSheet: $("settingsSheet"),
   settingsClose: $("settingsClose"),
   settingsMount: $("settingsMount"),
-  openPanelBtn: $("openPanelBtn")
+  openPanelBtn: $("openPanelBtn"),
+  taskCard: $("taskCard"),
+  taskCardDrag: $("taskCardDrag"),
+  taskCardTitle: $("taskCardTitle"),
+  taskCardDragLabel: $("taskCardDragLabel"),
+  taskCardList: $("taskCardList")
 };
 
+const TASKS_POSITION_KEY = "fullscreenTasksPosition";
+
 let settingsReady = false;
+let cardSignature = null;
+let sheetSignature = null;
+let cardPosition = null;
+let drag = null;
 
 function getLanguage() {
   const lang = state?.settings?.language;
@@ -213,15 +224,135 @@ async function buildSettingsSheet() {
   const parsed = new DOMParser().parseFromString(markup, "text/html");
 
   const selects = parsed.querySelector(".top-selects");
+  const tasks = parsed.querySelector(".tasks-card");
   const card = parsed.querySelector(".settings-card");
   if (!card) throw new Error("settings markup not found in sidepanel.html");
 
   els.settingsMount.replaceChildren();
   if (selects) els.settingsMount.appendChild(document.importNode(selects, true));
+  if (tasks) els.settingsMount.appendChild(document.importNode(tasks, true));
   els.settingsMount.appendChild(document.importNode(card, true));
 
   bindSettingsSheet();
+  bindSheetTasks();
   settingsReady = true;
+}
+
+/* Task editing inside the sheet — same messages the panel sends. */
+function bindSheetTasks() {
+  const mount = els.settingsMount;
+  const form = mount.querySelector("#taskForm");
+  const input = mount.querySelector("#taskInput");
+  const list = mount.querySelector("#tasksList");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const response = await send("ADD_TASK", { text });
+    if (response?.ok) state = response.state;
+    input.value = "";
+    renderTaskSurfaces(true);
+  });
+
+  mount.querySelector("#clearDoneBtn")?.addEventListener("click", async () => {
+    const response = await send("CLEAR_DONE_TASKS");
+    if (response?.ok) state = response.state;
+    renderTaskSurfaces(true);
+  });
+
+  list?.addEventListener("click", async (event) => {
+    const li = event.target.closest(".task");
+    if (!li?.dataset.id) return;
+
+    if (event.target.matches("input[type='checkbox']")) {
+      const response = await send("TOGGLE_TASK", { id: li.dataset.id });
+      if (response?.ok) state = response.state;
+      renderTaskSurfaces(true);
+    }
+
+    if (event.target.matches("button")) {
+      const response = await send("DELETE_TASK", { id: li.dataset.id });
+      if (response?.ok) state = response.state;
+      renderTaskSurfaces(true);
+    }
+  });
+
+  list?.addEventListener("change", async (event) => {
+    const li = event.target.closest(".task");
+    if (!li?.dataset.id || !event.target.matches("input[type='date']")) return;
+    const response = await send("SET_TASK_DEADLINE", {
+      id: li.dataset.id,
+      deadline: event.target.value || null
+    });
+    if (response?.ok) state = response.state;
+    renderTaskSurfaces(true);
+  });
+}
+
+/* ---------- Floating task card ---------- */
+function renderTaskSurfaces(force = false) {
+  if (!state) return;
+
+  const dictionary = t();
+  const lang = getLanguage();
+  const tasks = state.tasks || [];
+
+  // The card lists only what is still open — it is a glance surface.
+  const open = tasks.filter((task) => !task.done);
+  const cardKey = tasksSignature(open, lang, "card");
+  if (force || cardKey !== cardSignature) {
+    cardSignature = cardKey;
+    renderTasksInto(els.taskCardList, open, dictionary, {
+      simple: true,
+      emptyText: dictionary.noTaskYet
+    });
+  }
+
+  if (settingsReady) {
+    const list = els.settingsMount.querySelector("#tasksList");
+    const sheetKey = tasksSignature(tasks, lang, "sheet");
+    if (list && (force || sheetKey !== sheetSignature)) {
+      sheetSignature = sheetKey;
+      renderTasksInto(list, tasks, dictionary);
+    }
+  }
+}
+
+function clampCardPosition() {
+  const card = els.taskCard;
+  if (card.hidden) return;
+
+  const rect = card.getBoundingClientRect();
+  const pad = 12;
+  const maxX = Math.max(pad, window.innerWidth - rect.width - pad);
+  const maxY = Math.max(pad, window.innerHeight - rect.height - pad);
+
+  if (!cardPosition) cardPosition = { x: maxX, y: pad };
+
+  cardPosition.x = Math.min(Math.max(pad, cardPosition.x), maxX);
+  cardPosition.y = Math.min(Math.max(pad, cardPosition.y), maxY);
+
+  card.style.left = `${Math.round(cardPosition.x)}px`;
+  card.style.top = `${Math.round(cardPosition.y)}px`;
+}
+
+async function saveCardPosition() {
+  if (!cardPosition) return;
+  try {
+    await chrome.storage.local.set({ [TASKS_POSITION_KEY]: cardPosition });
+  } catch (error) {
+    // Storage can be unavailable while the extension reloads.
+  }
+}
+
+async function loadCardPosition() {
+  try {
+    const data = await chrome.storage.local.get(TASKS_POSITION_KEY);
+    cardPosition = data[TASKS_POSITION_KEY] || null;
+  } catch (error) {
+    cardPosition = null;
+  }
 }
 
 function bindSettingsSheet() {
@@ -334,6 +465,12 @@ function render() {
   els.settingsClose.setAttribute("aria-label", dictionary.close);
   els.openPanelBtn.textContent = dictionary.openPanel;
 
+  els.taskCard.hidden = state.settings.fullscreenTasksEnabled === false;
+  els.taskCardTitle.textContent = dictionary.tasksTitle;
+  els.taskCardDragLabel.textContent = dictionary.tasksDrag;
+  renderTaskSurfaces();
+  clampCardPosition();
+
   syncFireflyTimer();
 }
 
@@ -396,6 +533,51 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isSettingsOpen()) closeSettings();
 });
 
+/* Ticking a task straight off the floating card. */
+els.taskCardList.addEventListener("click", async (event) => {
+  const checkbox = event.target.closest("input[type='checkbox']");
+  if (!checkbox) return;
+  const li = checkbox.closest(".task");
+  if (!li?.dataset.id) return;
+
+  const response = await send("TOGGLE_TASK", { id: li.dataset.id });
+  if (response?.ok) state = response.state;
+  renderTaskSurfaces(true);
+  render();
+});
+
+/* ---------- Dragging the task card ---------- */
+els.taskCardDrag.addEventListener("pointerdown", (event) => {
+  const rect = els.taskCard.getBoundingClientRect();
+  drag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  els.taskCardDrag.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+});
+
+window.addEventListener("pointermove", (event) => {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  cardPosition = { x: event.clientX - drag.offsetX, y: event.clientY - drag.offsetY };
+  clampCardPosition();
+  markActive();
+  event.preventDefault();
+}, { passive: false });
+
+window.addEventListener("pointerup", async (event) => {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  els.taskCardDrag.releasePointerCapture?.(event.pointerId);
+  drag = null;
+  await saveCardPosition();
+});
+
+window.addEventListener("resize", () => {
+  clampCardPosition();
+  saveCardPosition();
+});
+
 document.addEventListener("fullscreenchange", () => {
   document.body.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
   render();
@@ -415,6 +597,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 async function loadState() {
+  await loadCardPosition();
   const response = await send("GET_STATE");
   if (!response?.ok) throw new Error(response?.error || "Could not load timer state");
   state = response.state;

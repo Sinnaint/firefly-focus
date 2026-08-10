@@ -248,86 +248,14 @@ function applyLanguage() {
   els.taskForm.querySelector("button").setAttribute("aria-label", dictionary.addTaskAria);
 }
 
-function deadlineUrgency(deadline, done) {
-  if (!deadline || done) return "";
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const due = new Date(`${deadline}T00:00:00`);
-  if (Number.isNaN(due.getTime())) return "";
-
-  const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
-  if (diffDays < 0) return "overdue";
-  if (diffDays <= 2) return "soon";
-  return "";
-}
-
-function tasksSignature() {
-  // A fingerprint of everything that affects how the task list is drawn.
-  // The 500ms timer tick re-renders for the countdown; without this guard the
-  // task rows (and any open native date picker) would be rebuilt every tick.
-  const lang = getLanguage();
-  const today = new Date().toDateString();
-  const list = (state.tasks || [])
-    .map((task) => `${task.id}~${task.text}~${task.done ? 1 : 0}~${task.deadline || ""}`)
-    .join("|");
-  return `${lang}##${today}##${list}`;
-}
-
 function renderTasks() {
-  const signature = tasksSignature();
+  // Guarded by a fingerprint: the 500ms tick would otherwise rebuild the rows
+  // constantly and slam any open native date picker shut.
+  const signature = tasksSignature(state.tasks, getLanguage());
   if (signature === lastTasksSignature) return;
   lastTasksSignature = signature;
 
-  const dictionary = t();
-  els.tasksList.innerHTML = "";
-
-  if (!state.tasks.length) {
-    const empty = document.createElement("li");
-    empty.className = "task";
-    empty.innerHTML = `<span></span><span>${dictionary.emptyTask}</span><span></span>`;
-    els.tasksList.appendChild(empty);
-    return;
-  }
-
-  for (const task of state.tasks) {
-    const li = document.createElement("li");
-    li.className = `task ${task.done ? "done" : ""}`;
-    if (deadlineUrgency(task.deadline, task.done) === "overdue") li.classList.add("has-overdue");
-    li.dataset.id = task.id;
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = task.done;
-    checkbox.title = dictionary.markDoneTitle;
-
-    const body = document.createElement("div");
-    body.className = "task-body";
-
-    const text = document.createElement("span");
-    text.textContent = task.text;
-
-    const deadline = document.createElement("input");
-    deadline.type = "date";
-    deadline.className = "task-deadline";
-    deadline.value = task.deadline || "";
-    deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
-
-    const urgency = deadlineUrgency(task.deadline, task.done);
-    if (urgency) deadline.classList.add(urgency);
-    if (!task.deadline) deadline.classList.add("is-empty");
-
-    body.append(text, deadline);
-
-    const del = document.createElement("button");
-    del.type = "button";
-    del.textContent = "×";
-    del.title = dictionary.deleteTaskTitle;
-
-    li.append(checkbox, body, del);
-    els.tasksList.appendChild(li);
-  }
+  renderTasksInto(els.tasksList, state.tasks || [], t());
 }
 
 function render() {

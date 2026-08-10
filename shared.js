@@ -81,7 +81,9 @@ const i18n = {
     sessionsToday: "сесій сьогодні",
     focusToday: "фокусу сьогодні",
     noTaskYet: "Задачу не обрано",
-    openPanel: "Відкрити повну панель із задачами"
+    openPanel: "Відкрити повну панель із задачами",
+    fullscreenTasksLabel: "Показувати задачі в повноекранному режимі",
+    tasksDrag: "Перетягни"
   },
   en: {
     eyebrow: "Side panel widget",
@@ -159,7 +161,9 @@ const i18n = {
     sessionsToday: "sessions today",
     focusToday: "focused today",
     noTaskYet: "No task picked",
-    openPanel: "Open the full panel with tasks"
+    openPanel: "Open the full panel with tasks",
+    fullscreenTasksLabel: "Show tasks in fullscreen mode",
+    tasksDrag: "Drag"
   },
   de: {
     eyebrow: "Seitenleisten-Widget",
@@ -233,7 +237,9 @@ const i18n = {
     sessionsToday: "Sitzungen heute",
     focusToday: "Fokus heute",
     noTaskYet: "Keine Aufgabe gewählt",
-    openPanel: "Volles Panel mit Aufgaben öffnen"
+    openPanel: "Volles Panel mit Aufgaben öffnen",
+    fullscreenTasksLabel: "Aufgaben im Vollbild anzeigen",
+    tasksDrag: "Ziehen"
   },
   es: {
     eyebrow: "Widget del panel lateral",
@@ -307,7 +313,9 @@ const i18n = {
     sessionsToday: "sesiones hoy",
     focusToday: "de enfoque hoy",
     noTaskYet: "Sin tarea elegida",
-    openPanel: "Abrir el panel completo con tareas"
+    openPanel: "Abrir el panel completo con tareas",
+    fullscreenTasksLabel: "Mostrar tareas en pantalla completa",
+    tasksDrag: "Arrastrar"
   },
   it: {
     eyebrow: "Widget del pannello laterale",
@@ -381,7 +389,9 @@ const i18n = {
     sessionsToday: "sessioni oggi",
     focusToday: "di concentrazione oggi",
     noTaskYet: "Nessuna attività scelta",
-    openPanel: "Apri il pannello completo con le attività"
+    openPanel: "Apri il pannello completo con le attività",
+    fullscreenTasksLabel: "Mostra le attività a schermo intero",
+    tasksDrag: "Trascina"
   },
   sk: {
     eyebrow: "Widget bočného panela",
@@ -455,7 +465,9 @@ const i18n = {
     sessionsToday: "relácií dnes",
     focusToday: "sústredenia dnes",
     noTaskYet: "Nevybraná úloha",
-    openPanel: "Otvoriť celý panel s úlohami"
+    openPanel: "Otvoriť celý panel s úlohami",
+    fullscreenTasksLabel: "Zobraziť úlohy na celej obrazovke",
+    tasksDrag: "Presuň"
   },
   cs: {
     eyebrow: "Widget bočního panelu",
@@ -529,7 +541,9 @@ const i18n = {
     sessionsToday: "relací dnes",
     focusToday: "soustředění dnes",
     noTaskYet: "Nevybraný úkol",
-    openPanel: "Otevřít celý panel s úkoly"
+    openPanel: "Otevřít celý panel s úkoly",
+    fullscreenTasksLabel: "Zobrazit úkoly na celé obrazovce",
+    tasksDrag: "Táhni"
   }
 };
 
@@ -614,6 +628,7 @@ function collectSettingsFrom(root, settings = {}) {
     notificationsEnabled: bool("notificationsEnabled", settings.notificationsEnabled),
     soundEnabled: bool("soundEnabled", settings.soundEnabled),
     floatingWidgetEnabled: bool("floatingWidgetEnabled", settings.floatingWidgetEnabled),
+    fullscreenTasksEnabled: bool("fullscreenTasksEnabled", settings.fullscreenTasksEnabled),
     fireflyAnimationEnabled: bool("fireflyAnimationEnabled", settings.fireflyAnimationEnabled),
     // No input anywhere in the UI — carried through so no save resets them.
     widgetMode: settings.widgetMode || "full",
@@ -652,6 +667,7 @@ function applySettingsTo(root, settings) {
   setChecked("notificationsEnabled", settings.notificationsEnabled);
   setChecked("soundEnabled", settings.soundEnabled);
   setChecked("floatingWidgetEnabled", settings.floatingWidgetEnabled !== false);
+  setChecked("fullscreenTasksEnabled", settings.fullscreenTasksEnabled !== false);
   setChecked("fireflyAnimationEnabled", settings.fireflyAnimationEnabled !== false);
 }
 
@@ -663,4 +679,98 @@ function applyI18nIn(root, dictionary) {
       node.textContent = dictionary[key];
     }
   });
+}
+
+/*
+ * Task list rendering, shared by the side panel, the fullscreen settings sheet
+ * and the fullscreen floating card. `simple` drops the deadline picker and the
+ * delete button — the floating card is a glance-and-tick surface, not an editor.
+ */
+function deadlineUrgency(deadline, done) {
+  if (!deadline || done) return "";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const due = new Date(`${deadline}T00:00:00`);
+  if (Number.isNaN(due.getTime())) return "";
+
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 2) return "soon";
+  return "";
+}
+
+/*
+ * A fingerprint of everything that changes how the list is drawn. Callers
+ * compare it before rebuilding: the 500ms tick would otherwise re-create the
+ * rows constantly and slam any open native date picker shut.
+ */
+function tasksSignature(tasks, lang, extra = "") {
+  const list = (tasks || [])
+    .map((task) => `${task.id}~${task.text}~${task.done ? 1 : 0}~${task.deadline || ""}`)
+    .join("|");
+  return `${lang}##${new Date().toDateString()}##${extra}##${list}`;
+}
+
+function renderTasksInto(listEl, tasks, dictionary, { simple = false, emptyText } = {}) {
+  listEl.replaceChildren();
+
+  if (!tasks.length) {
+    const empty = document.createElement("li");
+    if (simple) {
+      empty.className = "empty";
+      empty.textContent = emptyText ?? dictionary.emptyTask;
+    } else {
+      empty.className = "task";
+      empty.innerHTML = `<span></span><span>${emptyText ?? dictionary.emptyTask}</span><span></span>`;
+    }
+    listEl.appendChild(empty);
+    return;
+  }
+
+  for (const task of tasks) {
+    const li = document.createElement("li");
+    const urgency = deadlineUrgency(task.deadline, task.done);
+    li.className = `task ${task.done ? "done" : ""}`;
+    li.dataset.id = task.id;
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = task.done;
+    checkbox.title = dictionary.markDoneTitle;
+
+    const text = document.createElement("span");
+    text.textContent = task.text;
+
+    if (simple) {
+      if (urgency) li.classList.add(urgency);
+      li.append(checkbox, text);
+      listEl.appendChild(li);
+      continue;
+    }
+
+    if (urgency === "overdue") li.classList.add("has-overdue");
+
+    const body = document.createElement("div");
+    body.className = "task-body";
+
+    const deadline = document.createElement("input");
+    deadline.type = "date";
+    deadline.className = "task-deadline";
+    deadline.value = task.deadline || "";
+    deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
+    if (urgency) deadline.classList.add(urgency);
+    if (!task.deadline) deadline.classList.add("is-empty");
+
+    body.append(text, deadline);
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.textContent = "×";
+    del.title = dictionary.deleteTaskTitle;
+
+    li.append(checkbox, body, del);
+    listEl.appendChild(li);
+  }
 }

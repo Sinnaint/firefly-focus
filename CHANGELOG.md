@@ -15,7 +15,8 @@ First Chrome Web Store release.
 - **Adjustable text size** — a "Text size" setting (80–140%) scales the interface text in both the side panel and the floating widget, with live preview. The large timer digits stay fixed so they never overflow the ring.
 - **Close button (×)** on the floating widget — a non-destructive dismiss that hides it on the current page only; it returns on reload, and the settings toggle remains the permanent on/off.
 - **Fullscreen mode** — a "Fullscreen" button in the panel header opens the timer in its own tab as an ambient, whole-screen clock: a large ring, the current task, and today's progress. After four idle seconds the controls fade away and only the timer remains; any mouse move brings them back. It stays open and in sync when the side panel is closed.
-- **Settings without leaving fullscreen** — a gear in the corner opens the full settings form in a sheet over the timer, so durations, theme, language and sounds can be changed without dropping out of the ambient view. A link at the bottom steps out of fullscreen and opens the side panel when tasks are needed.
+- **Settings without leaving fullscreen** — a gear in the corner opens the full settings form, plus the task list, in a sheet over the timer. Durations, theme, language, sounds and tasks can all be changed without dropping out of the ambient view.
+- **Draggable task card in fullscreen** — the open tasks sit in a small card you can drag anywhere on the screen; its position is remembered, and ticking one off works right there. A "Show tasks in fullscreen mode" setting hides it for a bare timer.
 - **Collapse button on the floating widget** — a chevron next to × shrinks it to just the timer and Start/Pause, hiding the task list (345 px tall → 186 px). The choice is remembered across pages and restarts.
 
 ### Changed

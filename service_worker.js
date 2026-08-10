@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   widgetMode: "full",
   floatingWidgetEnabled: true,
   floatingWidgetCompact: false,
+  fullscreenTasksEnabled: true,
   fireflyAnimationEnabled: true,
   fireflyIntervalValue: 10,
   fireflyIntervalUnit: "seconds",
@@ -279,6 +280,7 @@ function normalizeSettings(settings = {}) {
     // Collapsed floating widget: timer + Start/Pause only, no task list.
     // Toggled from the widget's own header, not from the settings panel.
     floatingWidgetCompact: settings.floatingWidgetCompact === true,
+    fullscreenTasksEnabled: settings.fullscreenTasksEnabled !== false,
     fireflyAnimationEnabled: settings.fireflyAnimationEnabled !== false,
     fireflyIntervalValue,
     fireflyIntervalUnit,

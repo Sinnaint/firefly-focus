@@ -26,16 +26,24 @@
 /* ---------- Ring ---------- */
 .fs-ring {
   /* Never taller than the viewport, never wider than half of it. */
-  width: min(58vh, 46vw, 620px);
+  --fs-ring: min(58vh, 46vw, 620px);
+  width: var(--fs-ring);
   margin: 0;
 }
 
 .fs-ring-inner {
-  padding: clamp(20px, 4vh, 56px);
+  padding: calc(var(--fs-ring) * 0.055);
 }
 
 .fs-timer {
-  font-size: min(19vh, 14vw, 190px);
+  /*
+   * Sized from the ring, never from the viewport. The digits sit in a grid
+   * cell inside the inner circle: once they are wider than that cell the
+   * column stretches and the whole overflow lands on the right, so the time
+   * visibly drifts as it goes from 5:00 to 25:00 to 120:00. At 0.2 of the ring
+   * even a six-character "120:00" clears the inner circle.
+   */
+  font-size: calc(var(--fs-ring) * 0.2);
   line-height: 0.9;
 }
 
@@ -178,11 +186,7 @@ body.is-idle {
 /* Short and wide (a laptop in fullscreen): put the ring beside the text. */
 @media (min-aspect-ratio: 16/10) and (max-height: 560px) {
   .fs-ring {
-    width: min(64vh, 32vw, 420px);
-  }
-
-  .fs-timer {
-    font-size: min(22vh, 11vw, 140px);
+    --fs-ring: min(64vh, 32vw, 420px);
   }
 }
 
@@ -230,6 +234,9 @@ body.is-idle {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  /* The panel pins this to 150px; without resetting it the two columns come
+     out ~68px each and the language names get clipped. */
+  width: 100%;
   margin-bottom: 16px;
 }
 
@@ -285,4 +292,101 @@ body.is-settings-open {
   .fs-sheet .top-selects {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- Draggable task card ---------- */
+.fs-tasks {
+  position: fixed;
+  z-index: 40;
+  width: min(300px, 78vw);
+  max-height: 46vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--stroke);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 22px 50px var(--shadow);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: opacity .6s ease;
+}
+
+.fs-tasks[hidden] {
+  display: none;
+}
+
+.fs-tasks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.fs-tasks-head:active {
+  cursor: grabbing;
+}
+
+.fs-tasks-title {
+  color: var(--muted);
+  font-size: calc(11px * var(--text-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fs-tasks-drag {
+  padding: 3px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--subtle);
+  font-size: calc(9px * var(--text-scale, 1));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fs-tasks-list {
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+  gap: 6px;
+  scrollbar-width: thin;
+}
+
+.fs-tasks-list .task {
+  grid-template-columns: 20px 1fr;
+  min-height: 36px;
+  border-radius: 12px;
+}
+
+.fs-tasks-list .task.soon {
+  box-shadow: inset 3px 0 0 0 var(--warn-stroke);
+}
+
+.fs-tasks-list .task.overdue {
+  box-shadow: inset 3px 0 0 0 var(--danger-stroke);
+}
+
+.fs-tasks-list .empty {
+  padding: 4px 2px;
+  color: var(--subtle);
+  font-size: calc(11.5px * var(--text-scale, 1));
+  line-height: 1.4;
+  list-style: none;
+}
+
+/* Fades with the rest of the chrome when the screen goes ambient. */
+body.is-idle .fs-tasks {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.is-settings-open .fs-tasks {
+  opacity: 1;
+  pointer-events: auto;
 }
