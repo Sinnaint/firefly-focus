@@ -21,6 +21,7 @@ First Chrome Web Store release.
 - **Firefly animation reworked** — fireflies are now continuous and stay around the widget/panel instead of scattering across the screen; their colour follows the active theme and mode.
 - **Sound signals redesigned** — warmer, more expressive melodic phrases with soft envelopes and a low-pass filter so they are pleasant, not harsh.
 - **Refined visual design** — softer glass surfaces, smoother buttons, glowing progress ring, styled dropdowns and improved typography.
+- **One typographic system across the panel and the floating widget** — matching weights and em-relative tracking, so the widget no longer reads as a different typeface. Both timers use tabular figures, so the digits stop shifting as the countdown runs.
 - Theme names (**Midnight / Daylight / Sage**) and sound-style names (**Bright clean / Arcade / Bell / Soft**) now stay in English across every language, including Ukrainian.
 
 ### Removed

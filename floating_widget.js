@@ -508,15 +508,15 @@
         color: var(--w-title);
         font-size: calc(13px * var(--text-scale, 1));
         font-weight: 800;
-        letter-spacing: -0.2px;
+        letter-spacing: -0.03em;
       }
 
       .drag-label {
         color: var(--w-subtle);
         font-size: calc(9px * var(--text-scale, 1));
-        font-weight: 700;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.04em;
         padding: 3px 8px;
         border-radius: 999px;
         background: var(--w-soft);
@@ -619,20 +619,22 @@
         box-shadow: inset 0 0 14px var(--w-shadow-2);
       }
 
+      /* Type below mirrors the side panel's treatment (weights and em-relative
+         tracking) so the widget and the panel read as one design. */
       .mini-time {
         color: var(--w-text);
         font-size: calc(12px * var(--text-scale, 1));
-        font-weight: 800;
-        letter-spacing: -0.3px;
+        font-weight: 950;
+        letter-spacing: -0.03em;
         font-variant-numeric: tabular-nums;
       }
 
       .time {
         color: var(--w-text);
         font-size: 38px;
-        font-weight: 800;
-        letter-spacing: -1.5px;
-        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -0.06em;
+        line-height: 0.92;
         font-variant-numeric: tabular-nums;
         text-shadow: 0 6px 20px var(--w-shadow-2);
       }
@@ -641,9 +643,9 @@
         margin-top: 6px;
         color: var(--accent);
         font-size: calc(11px * var(--text-scale, 1));
-        font-weight: 800;
+        font-weight: 900;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.03em;
       }
 
       /* ---------- Controls ---------- */
@@ -662,7 +664,7 @@
         border-radius: 12px;
         font: inherit;
         font-size: calc(12px * var(--text-scale, 1));
-        font-weight: 800;
+        font-weight: 900;
         cursor: pointer;
         transition: transform .15s ease, background .2s ease, box-shadow .2s ease, opacity .2s ease;
       }
@@ -723,7 +725,7 @@
         font-size: calc(10px * var(--text-scale, 1));
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.04em;
       }
 
       .open {
@@ -800,7 +802,7 @@
         min-width: 0;
         color: var(--w-text);
         font-size: calc(12px * var(--text-scale, 1));
-        line-height: 1.25;
+        line-height: 1.35;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

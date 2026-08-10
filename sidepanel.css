@@ -437,7 +437,11 @@ p {
   font-size: clamp(52px, 15vw, 74px);
   font-weight: 950;
   line-height: 0.92;
-  letter-spacing: -3px;
+  /* em, not px: the size is clamped, so pixel tracking would drift with the
+     panel width. Same value in the floating widget — one typographic system.
+     Do not loosen: at a 380px panel "120:00" clears the ring by only ~5px. */
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
   text-shadow: 0 10px 22px var(--timer-shadow);
 }
 
@@ -911,7 +915,6 @@ body[data-view="compact"] .ring-inner {
 
 body[data-view="compact"] .timer {
   font-size: clamp(42px, 14vw, 58px);
-  letter-spacing: -2px;
 }
 
 body[data-view="compact"] .mode {
