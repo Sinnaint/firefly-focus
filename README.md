@@ -11,12 +11,15 @@
 ![License](https://img.shields.io/badge/license-MIT-f59e0b)
 ![Privacy](https://img.shields.io/badge/data-100%25%20local-22c55e)
 
-<!-- Add real captures to docs/screenshots/ and update these paths before publishing. -->
+<!--
+  Screenshots — uncomment once real captures land in docs/screenshots/.
+  Until then these files do not exist and GitHub renders three broken images.
 <p align="center">
   <img src="docs/screenshots/side-panel.png" alt="Side panel" width="30%" />
   <img src="docs/screenshots/floating-widget.png" alt="Floating widget" width="30%" />
   <img src="docs/screenshots/themes.png" alt="Themes" width="30%" />
 </p>
+-->
 
 ---
 
