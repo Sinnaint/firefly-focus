@@ -357,33 +357,33 @@
       }
 
       .widget[data-mode="work"] {
-        --accent: #c965cb;
-        --accent-soft: #f0c4f1;
-        --accent-bg: rgba(201, 101, 203, 0.22);
-        --accent-text: #2b0630;
+        --accent: #d45fce;
+        --accent-soft: #f3c7f0;
+        --accent-bg: rgba(212, 95, 206, 0.22);
+        --accent-text: #2e0630;
       }
 
       .widget[data-mode="shortBreak"] {
-        --accent: #8e90d4;
-        --accent-soft: #d2d3f2;
-        --accent-bg: rgba(142, 144, 212, 0.22);
-        --accent-text: #16173f;
-        --on-accent: #16173f;
+        --accent: #4fc9e0;
+        --accent-soft: #bfedf5;
+        --accent-bg: rgba(79, 201, 224, 0.22);
+        --accent-text: #04252c;
+        --on-accent: #04252c;
       }
 
       .widget[data-mode="longBreak"] {
-        --accent: #f5d5e0;
-        --accent-soft: #fbeaf0;
-        --accent-bg: rgba(245, 213, 224, 0.22);
-        --accent-text: #3a0a24;
-        --on-accent: #3a0a24;
+        --accent: #9a8cf2;
+        --accent-soft: #dcd6fd;
+        --accent-bg: rgba(154, 140, 242, 0.22);
+        --accent-text: #1a1650;
+        --on-accent: #1a1650;
       }
 
       /* Per-theme accent palettes */
       .widget[data-theme="daylight"] { --on-accent: #ffffff; }
-      .widget[data-theme="daylight"][data-mode="work"] { --accent: #b44e56; --accent-bg: rgba(180, 78, 86, 0.16); }
-      .widget[data-theme="daylight"][data-mode="shortBreak"] { --accent: #5560b4; --accent-bg: rgba(85, 96, 180, 0.16); }
-      .widget[data-theme="daylight"][data-mode="longBreak"] { --accent: #8e4796; --accent-bg: rgba(142, 71, 150, 0.16); }
+      .widget[data-theme="daylight"][data-mode="work"] { --accent: #b84a5c; --accent-bg: rgba(184, 74, 92, 0.16); }
+      .widget[data-theme="daylight"][data-mode="shortBreak"] { --accent: #3c63c8; --accent-bg: rgba(60, 99, 200, 0.16); }
+      .widget[data-theme="daylight"][data-mode="longBreak"] { --accent: #9333a5; --accent-bg: rgba(147, 51, 165, 0.16); }
       .widget[data-theme="sage"][data-mode="work"] { --accent: #f59e0b; --accent-bg: rgba(245, 158, 11, 0.20); }
       .widget[data-theme="sage"][data-mode="shortBreak"] { --accent: #34d399; --accent-bg: rgba(52, 211, 153, 0.20); }
       .widget[data-theme="sage"][data-mode="longBreak"] { --accent: #a78bfa; --accent-bg: rgba(167, 139, 250, 0.20); }
@@ -1022,14 +1022,14 @@
 
   const FIREFLY_PALETTE = {
     midnight: {
-      work: { core: "rgba(255, 224, 245, 1)", halo: "rgba(201, 101, 203, .64)", glow: "rgba(160, 60, 170, .72)" },
-      shortBreak: { core: "rgba(228, 229, 255, 1)", halo: "rgba(142, 144, 212, .62)", glow: "rgba(102, 103, 171, .70)" },
-      longBreak: { core: "rgba(255, 240, 246, 1)", halo: "rgba(245, 213, 224, .60)", glow: "rgba(226, 170, 196, .66)" }
+      work: { core: "rgba(255, 230, 250, 1)", halo: "rgba(212, 95, 206, .64)", glow: "rgba(178, 50, 175, .72)" },
+      shortBreak: { core: "rgba(214, 250, 255, 1)", halo: "rgba(79, 201, 224, .62)", glow: "rgba(40, 170, 196, .70)" },
+      longBreak: { core: "rgba(232, 228, 255, 1)", halo: "rgba(154, 140, 242, .62)", glow: "rgba(116, 100, 224, .70)" }
     },
     daylight: {
-      work: { core: "rgba(180, 78, 86, 1)", halo: "rgba(150, 58, 66, .55)", glow: "rgba(180, 78, 86, .48)" },
-      shortBreak: { core: "rgba(85, 96, 180, 1)", halo: "rgba(60, 70, 150, .55)", glow: "rgba(85, 96, 180, .48)" },
-      longBreak: { core: "rgba(142, 71, 150, 1)", halo: "rgba(110, 50, 118, .55)", glow: "rgba(142, 71, 150, .48)" }
+      work: { core: "rgba(184, 74, 92, 1)", halo: "rgba(154, 54, 72, .55)", glow: "rgba(184, 74, 92, .48)" },
+      shortBreak: { core: "rgba(60, 99, 200, 1)", halo: "rgba(44, 76, 168, .55)", glow: "rgba(60, 99, 200, .48)" },
+      longBreak: { core: "rgba(147, 51, 165, 1)", halo: "rgba(118, 36, 134, .55)", glow: "rgba(147, 51, 165, .48)" }
     },
     sage: {
       work: { core: "rgba(255, 237, 190, 1)", halo: "rgba(245, 158, 11, .60)", glow: "rgba(217, 119, 6, .66)" },

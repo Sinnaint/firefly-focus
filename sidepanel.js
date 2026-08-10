@@ -590,15 +590,15 @@ function prefersReducedMotion() {
 const FIREFLY_PALETTE = {
   // Midnight ("Moon"): pale cores over the deep violet, halos on the mode accent.
   midnight: {
-    work: { core: "rgba(255, 224, 245, 1)", halo: "rgba(201, 101, 203, .64)", glow: "rgba(160, 60, 170, .72)" },
-    shortBreak: { core: "rgba(228, 229, 255, 1)", halo: "rgba(142, 144, 212, .62)", glow: "rgba(102, 103, 171, .70)" },
-    longBreak: { core: "rgba(255, 240, 246, 1)", halo: "rgba(245, 213, 224, .60)", glow: "rgba(226, 170, 196, .66)" }
+    work: { core: "rgba(255, 230, 250, 1)", halo: "rgba(212, 95, 206, .64)", glow: "rgba(178, 50, 175, .72)" },
+    shortBreak: { core: "rgba(214, 250, 255, 1)", halo: "rgba(79, 201, 224, .62)", glow: "rgba(40, 170, 196, .70)" },
+    longBreak: { core: "rgba(232, 228, 255, 1)", halo: "rgba(154, 140, 242, .62)", glow: "rgba(116, 100, 224, .70)" }
   },
   // Daylight ("Twine"): the deepened hues — the pastels themselves vanish on pastel.
   daylight: {
-    work: { core: "rgba(180, 78, 86, 1)", halo: "rgba(150, 58, 66, .55)", glow: "rgba(180, 78, 86, .48)" },
-    shortBreak: { core: "rgba(85, 96, 180, 1)", halo: "rgba(60, 70, 150, .55)", glow: "rgba(85, 96, 180, .48)" },
-    longBreak: { core: "rgba(142, 71, 150, 1)", halo: "rgba(110, 50, 118, .55)", glow: "rgba(142, 71, 150, .48)" }
+    work: { core: "rgba(184, 74, 92, 1)", halo: "rgba(154, 54, 72, .55)", glow: "rgba(184, 74, 92, .48)" },
+    shortBreak: { core: "rgba(60, 99, 200, 1)", halo: "rgba(44, 76, 168, .55)", glow: "rgba(60, 99, 200, .48)" },
+    longBreak: { core: "rgba(147, 51, 165, 1)", halo: "rgba(118, 36, 134, .55)", glow: "rgba(147, 51, 165, .48)" }
   },
   // Sage: warm amber / emerald cores tuned to the green surface.
   sage: {

@@ -9,9 +9,9 @@
   z-index: 40;
   overflow: hidden;
   pointer-events: none;
-  --firefly-core: rgba(255, 224, 245, 1);
-  --firefly-halo: rgba(201, 101, 203, 0.62);
-  --firefly-glow: rgba(160, 60, 170, 0.7);
+  --firefly-core: rgba(255, 230, 250, 1);
+  --firefly-halo: rgba(212, 95, 206, 0.62);
+  --firefly-glow: rgba(178, 50, 175, 0.7);
 }
 
 .firefly {
@@ -70,20 +70,21 @@
 
 /*
  * Midnight — palette "Moon": #F5D5E0 · #6667AB · #7B337E · #420D4B · #210635.
- * The three dark swatches build the surfaces, the pale pink is the moonlight.
- * #7B337E and #6667AB are too dark to read as accents on that ground, so the
- * mode accents are tints of them (#C965CB, #8E90D4) — same hues, lifted until
- * they clear 4.5:1. Focus takes the magenta pole, rests the cool blue-violet.
+ * The three dark swatches build the surfaces, the pale pink is the moonlight
+ * (it is --text, and the firefly cores). The swatches themselves are all within
+ * ~40° of hue, so using them straight makes the three modes indistinguishable.
+ * The accents therefore fan out to ~60-115° apart — magenta focus, moonlit
+ * aqua short break, periwinkle long break — each lifted to clear 4.5:1.
  */
 :root {
   color-scheme: dark;
 
   /* Accent is driven by the current mode (see body[data-mode]). */
-  --accent: #c965cb;
-  --accent-soft: #f0c4f1;
-  --accent-bg: rgba(201, 101, 203, 0.16);
-  --accent-text: #3d0b40;
-  --on-accent: #2b0630;
+  --accent: #d45fce;
+  --accent-soft: #f3c7f0;
+  --accent-bg: rgba(212, 95, 206, 0.16);
+  --accent-text: #420b3e;
+  --on-accent: #2e0630;
   --progress: 0deg;
   --text-scale: 1;
 
@@ -175,21 +176,21 @@ body[data-theme="sage"] {
     linear-gradient(180deg, #16211d 0%, #101a17 44%, #0a1210 100%);
 }
 
-/* Midnight rests: the cool blue-violet, then the palette's moon pink itself. */
+/* Midnight rests: moonlit aqua, then periwinkle — well clear of the magenta. */
 body[data-mode="shortBreak"] {
-  --accent: #8e90d4;
-  --accent-soft: #d2d3f2;
-  --accent-bg: rgba(142, 144, 212, 0.16);
-  --accent-text: #1e2059;
-  --on-accent: #16173f;
+  --accent: #4fc9e0;
+  --accent-soft: #bfedf5;
+  --accent-bg: rgba(79, 201, 224, 0.16);
+  --accent-text: #06333d;
+  --on-accent: #04252c;
 }
 
 body[data-mode="longBreak"] {
-  --accent: #f5d5e0;
-  --accent-soft: #fbeaf0;
-  --accent-bg: rgba(245, 213, 224, 0.16);
-  --accent-text: #4a1030;
-  --on-accent: #3a0a24;
+  --accent: #9a8cf2;
+  --accent-soft: #dcd6fd;
+  --accent-bg: rgba(154, 140, 242, 0.16);
+  --accent-text: #252068;
+  --on-accent: #1a1650;
 }
 
 /* ---------- Per-theme accent palettes ---------- */
@@ -199,24 +200,24 @@ body[data-theme="daylight"] {
 }
 
 body[data-theme="daylight"][data-mode="work"] {
-  --accent: #b44e56;
-  --accent-soft: #f8dcda;
-  --accent-bg: rgba(180, 78, 86, 0.10);
-  --accent-text: #6f2830;
+  --accent: #b84a5c;
+  --accent-soft: #f9d9dc;
+  --accent-bg: rgba(184, 74, 92, 0.10);
+  --accent-text: #78202f;
 }
 
 body[data-theme="daylight"][data-mode="shortBreak"] {
-  --accent: #5560b4;
-  --accent-soft: #dcdff8;
-  --accent-bg: rgba(85, 96, 180, 0.10);
-  --accent-text: #2c3374;
+  --accent: #3c63c8;
+  --accent-soft: #d6defa;
+  --accent-bg: rgba(60, 99, 200, 0.10);
+  --accent-text: #22397e;
 }
 
 body[data-theme="daylight"][data-mode="longBreak"] {
-  --accent: #8e4796;
-  --accent-soft: #f0d9ee;
-  --accent-bg: rgba(142, 71, 150, 0.10);
-  --accent-text: #5a2560;
+  --accent: #9333a5;
+  --accent-soft: #efd5f3;
+  --accent-bg: rgba(147, 51, 165, 0.10);
+  --accent-text: #621c6e;
 }
 
 /* Sage: warm amber + emerald, harmonised with the green surface. */

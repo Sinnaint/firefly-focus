@@ -394,7 +394,7 @@ async function updateBadge(state) {
   // Deeper than the in-app accents so the badge stays legible on both the
   // light and dark Chrome toolbars (magenta focus / periwinkle rest).
   await chrome.action.setBadgeBackgroundColor({
-    color: state.mode === "work" ? "#a03ca6" : "#5560b4"
+    color: state.mode === "work" ? "#b23fb0" : "#2f74a8"
   });
 }
 
