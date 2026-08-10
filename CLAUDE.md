@@ -28,13 +28,16 @@ Guidance for Claude Code when working in this repository.
 | Файл | Роль |
 |---|---|
 | `service_worker.js` | Стан, таймер, alarms, задачі, статистика, нормалізація, бейдж, нотифікації (i18n `messages`) |
-| `sidepanel.html/css/js` | Повний UI панелі: таймер, задачі, статистика, налаштування (i18n `i18n`) |
+| `shared.js` | Спільні дані сторінок розширення: `i18n` + `FIREFLY_PALETTE`. Підключається `<script>`'ом **перед** `sidepanel.js` і `fullscreen.js` |
+| `sidepanel.html/css/js` | Повний UI панелі: таймер, задачі, статистика, налаштування |
+| `fullscreen.html/css/js` | Повноекранний ambient-таймер в окремій вкладці. Токени тем і стилі світлячків тягне з `sidepanel.css`, свій CSS — тільки розкладка |
 | `floating_widget.js` | Content script: Shadow DOM-віджет на `http/https` сторінках, весь CSS інлайном усередині (свій i18n) |
 | `offscreen.html/js` | Синтез 4 звукових тем (bright/arcade/bell/soft) |
 
 ## Правила, які легко порушити
 
-1. **Три окремі i18n-словники** — у `service_worker.js` (`messages`), `sidepanel.js` (`i18n`), `floating_widget.js` (`i18n`). Мови: `uk, en, de, es, it, sk, cs` (fallback — `uk`). Новий рядок/мова = оновити **всі три** + `<select id="languageSelect">` у `sidepanel.html` + масив `languages` у `normalizeSettings()`. Назви тем (Midnight/Daylight/Sage) і стилів звуку лишаються англійською в усіх мовах.
+1. **Два окремі i18n-словники** — `messages` у `service_worker.js` (нотифікації) і `i18n` у `shared.js` (панель + повний екран). `floating_widget.js` має **третій**, урізаний, бо це content script і `shared.js` він не бачить. Мови: `uk, en, de, es, it, sk, cs` (fallback — `uk`). Новий рядок = оновити всі, де він потрібен; нова мова = **всі три** + `<select id="languageSelect">` у `sidepanel.html` + масив `languages` у `normalizeSettings()`. Назви тем (Midnight/Daylight/Sage) і стилів звуку лишаються англійською в усіх мовах.
+   `shared.js` — звичайний скрипт, а не модуль: він оголошує глобальні `i18n` і `FIREFLY_PALETTE`, тому в HTML має йти **перед** `sidepanel.js`/`fullscreen.js`.
 2. **Нове налаштування** торкається: `DEFAULT_SETTINGS` + `normalizeSettings()` (service_worker.js), input у `sidepanel.html`, `els` + `collectSettings()` + `syncSettingsInputs()` (sidepanel.js), підписи в i18n ×7 мов. `normalizeSettings()` — єдине місце валідації/клемпів; UI шле сирі значення.
 3. **Не перемальовувати список задач на кожен тік.** `renderTasks()` захищений відбитком `tasksSignature()` (`lastTasksSignature`) — без нього нативний date picker дедлайну закривається кожні 500 мс (це вже був баг, виправлений у 2.5.0).
 4. **Теми**: `midnight` (dark, default), `daylight` (light), `sage` (green). Палітри: midnight — **«Moon»** (глибокий фіолет + маджента), daylight — **«Twine»** (бузок-рум'янець + троянда/барвінок/орхідея), sage — зелена поверхня + бурштин. Кольори живуть у **чотирьох** місцях: `body[data-theme]` у `sidepanel.css`; `.widget[data-theme]` в інлайн-CSS `floating_widget.js`; `FIREFLY_PALETTE` (окремо в sidepanel.js і floating_widget.js); колір бейджа в `updateBadge()` (service_worker.js) — там навмисно глибші відтінки, щоб читалось на світлому й темному тулбарі. Нова тема = усі ці місця + `colorThemes` у `normalizeSettings()` + `<select id="themeSelect">`.

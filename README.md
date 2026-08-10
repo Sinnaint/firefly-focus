@@ -28,6 +28,7 @@
 - **Classic Pomodoro cycles** — focus, short break and long break, with configurable durations and auto-continue.
 - **Floating widget on any page** — a draggable, transparent widget that keeps the timer and your top tasks visible while you work. Move it anywhere, or close it with one click.
 - **Full side panel** — the complete UI in Chrome's native side panel: timer, tasks, daily stats and settings.
+- **Fullscreen mode** — open the timer as a whole-screen ambient clock on a spare monitor. The controls fade away while you work and return on the first mouse move.
 - **Tasks with deadlines** — add an optional due date to any task. Overdue tasks are flagged in red, tasks due soon in amber. Your tasks persist across days and restarts — pick up unfinished work the next morning.
 - **Firefly animation** — continuous, softly glowing fireflies drift over the widget and panel. Their colour follows the active theme and mode.
 - **Three themes** — **Midnight** (dark), **Daylight** (light) and **Sage** (calm green), each with its own tasteful accent palette.
@@ -90,7 +91,9 @@ Firefly Focus stores your timer state, tasks, settings and statistics **locally*
 |---|---|
 | `manifest.json` | MV3 manifest, permissions and entry points. |
 | `service_worker.js` | Background logic: timer state, alarms, cycles, stats, tasks, settings. |
+| `shared.js` | Translations and firefly palettes shared by the extension's pages. |
 | `sidepanel.html` / `sidepanel.css` / `sidepanel.js` | The full side-panel UI. |
+| `fullscreen.html` / `fullscreen.css` / `fullscreen.js` | The whole-screen ambient timer. |
 | `floating_widget.js` | The draggable in-page widget (Shadow DOM content script). |
 | `offscreen.html` / `offscreen.js` | Web Audio sound synthesis for signals. |
 | `icon128.png` | Extension icon. |
