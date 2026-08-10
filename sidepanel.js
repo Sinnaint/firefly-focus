@@ -755,7 +755,10 @@ function collectSettings() {
     floatingWidgetEnabled: els.floatingWidgetEnabled.checked,
     fireflyAnimationEnabled: els.fireflyAnimationEnabled.checked,
     language: els.languageSelect.value,
-    widgetMode: state?.settings?.widgetMode || "full"
+    widgetMode: state?.settings?.widgetMode || "full",
+    // Has no input here — it is toggled on the widget itself. Carry it through
+    // or every save from this panel would silently expand the widget again.
+    floatingWidgetCompact: state?.settings?.floatingWidgetCompact === true
   };
 }
 

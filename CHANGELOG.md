@@ -14,6 +14,7 @@ First Chrome Web Store release.
 - **Four more languages** — German, Spanish, Italian, Slovak and Czech (seven in total, alongside English and Ukrainian). Theme names stay untranslated.
 - **Adjustable text size** — a "Text size" setting (80–140%) scales the interface text in both the side panel and the floating widget, with live preview. The large timer digits stay fixed so they never overflow the ring.
 - **Close button (×)** on the floating widget — a non-destructive dismiss that hides it on the current page only; it returns on reload, and the settings toggle remains the permanent on/off.
+- **Collapse button on the floating widget** — a chevron next to × shrinks it to just the timer and Start/Pause, hiding the task list (345 px tall → 186 px). The choice is remembered across pages and restarts.
 
 ### Changed
 - **New palettes for Midnight and Daylight.** Midnight follows "Moon" (`#F5D5E0 · #6667AB · #7B337E · #420D4B · #210635`) — a deep violet night with a magenta focus accent and moonlit pink on the long break. Daylight follows "Twine" (`#F4E7FB · #F3DCDC · #F5BCBA · #E3AADD · #C8A8E9 · #C3C7F3`) — a lilac-to-blush page with rose, periwinkle and orchid accents. Both source palettes are pastel or near-black, so the mode accents are contrast-corrected tints and shades of those hues; every text and control pair clears WCAG AA. The firefly colours and the toolbar badge follow suit. **Sage is unchanged.**
@@ -26,6 +27,7 @@ First Chrome Web Store release.
 - The floating-widget **opacity** setting (replaced by a fixed, pleasant default that brightens on hover).
 
 ### Fixed
+- **A paused timer no longer resets when a setting is saved.** Saving settings cleared the remaining time whenever the timer was not running, so changing the theme, language or a widget toggle mid-pause silently rewound the stage to full length. The countdown is now discarded only when the current stage's own duration actually changes.
 - **Deadline date picker** no longer flickers or snaps shut — the task list is now only rebuilt when a task actually changes, not on every one-second timer tick.
 - **Offscreen audio document** now closes itself shortly after each sound, so Chrome no longer shows the persistent background-document ("recording"-style) indicator on the extension while idle. No media is ever captured — the document only plays the timer sounds.
 

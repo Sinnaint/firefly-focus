@@ -12,6 +12,10 @@
       drag: "Перетягни",
       close: "Закрити",
       closeTitle: "Сховати на цій сторінці (з'явиться знову після перезавантаження)",
+      collapse: "Згорнути",
+      collapseTitle: "Згорнути до таймера — сховати задачі",
+      expand: "Розгорнути",
+      expandTitle: "Розгорнути — показати задачі",
       start: "Старт",
       pause: "Пауза",
       focus: "Робота",
@@ -27,6 +31,10 @@
       drag: "Drag",
       close: "Close",
       closeTitle: "Hide on this page (comes back after reload)",
+      collapse: "Collapse",
+      collapseTitle: "Collapse to the timer — hide tasks",
+      expand: "Expand",
+      expandTitle: "Expand — show tasks",
       start: "Start",
       pause: "Pause",
       focus: "Focus",
@@ -42,6 +50,10 @@
       drag: "Ziehen",
       close: "Schließen",
       closeTitle: "Auf dieser Seite ausblenden (erscheint nach dem Neuladen wieder)",
+      collapse: "Einklappen",
+      collapseTitle: "Auf den Timer einklappen — Aufgaben ausblenden",
+      expand: "Ausklappen",
+      expandTitle: "Ausklappen — Aufgaben anzeigen",
       start: "Start",
       pause: "Pause",
       focus: "Fokus",
@@ -57,6 +69,10 @@
       drag: "Arrastrar",
       close: "Cerrar",
       closeTitle: "Ocultar en esta página (vuelve al recargar)",
+      collapse: "Contraer",
+      collapseTitle: "Contraer al temporizador — ocultar tareas",
+      expand: "Expandir",
+      expandTitle: "Expandir — mostrar tareas",
       start: "Iniciar",
       pause: "Pausa",
       focus: "Enfoque",
@@ -72,6 +88,10 @@
       drag: "Trascina",
       close: "Chiudi",
       closeTitle: "Nascondi in questa pagina (riappare al ricaricamento)",
+      collapse: "Comprimi",
+      collapseTitle: "Comprimi al timer — nascondi le attività",
+      expand: "Espandi",
+      expandTitle: "Espandi — mostra le attività",
       start: "Avvia",
       pause: "Pausa",
       focus: "Concentrazione",
@@ -87,6 +107,10 @@
       drag: "Presuň",
       close: "Zavrieť",
       closeTitle: "Skryť na tejto stránke (znova sa zobrazí po obnovení)",
+      collapse: "Zbaliť",
+      collapseTitle: "Zbaliť na časovač — skryť úlohy",
+      expand: "Rozbaliť",
+      expandTitle: "Rozbaliť — zobraziť úlohy",
       start: "Štart",
       pause: "Pauza",
       focus: "Fokus",
@@ -102,6 +126,10 @@
       drag: "Táhni",
       close: "Zavřít",
       closeTitle: "Skrýt na této stránce (znovu se zobrazí po obnovení)",
+      collapse: "Sbalit",
+      collapseTitle: "Sbalit na časovač — skrýt úkoly",
+      expand: "Rozbalit",
+      expandTitle: "Rozbalit — zobrazit úkoly",
       start: "Start",
       pause: "Pauza",
       focus: "Fokus",
@@ -495,7 +523,8 @@
         border: 1px solid var(--w-hairline);
       }
 
-      .close {
+      .close,
+      .collapse {
         flex: 0 0 auto;
         display: grid;
         place-items: center;
@@ -518,6 +547,36 @@
         background: #c0304a;
         border-color: #c0304a;
         transform: none;
+      }
+
+      .collapse:hover {
+        color: var(--w-text);
+        border-color: var(--w-border-strong);
+        transform: none;
+      }
+
+      /* Points up while expanded ("shrink me"), flips down once collapsed. */
+      .collapse svg {
+        transition: transform .2s ease;
+      }
+
+      /* ---------- Collapsed: timer + Start/Pause only ---------- */
+      .widget[data-compact="true"] .tasks-block,
+      .widget[data-compact="true"] .hint,
+      .widget[data-compact="true"] .drag-label {
+        display: none;
+      }
+
+      .widget[data-compact="true"] .collapse svg {
+        transform: rotate(180deg);
+      }
+
+      .widget[data-compact="true"] .main {
+        padding-bottom: 13px;
+      }
+
+      .widget[data-compact="true"] .controls {
+        margin-top: 11px;
       }
 
       /* ---------- Main ---------- */
@@ -809,6 +868,9 @@
         <span class="dot"></span>
         <span class="title"></span>
         <span class="drag-label"></span>
+        <button class="collapse" type="button" aria-expanded="true">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+        </button>
         <button class="close" type="button">×</button>
       </div>
       <div class="main">
@@ -845,6 +907,7 @@
       drag: wrapper.querySelector(".drag"),
       title: wrapper.querySelector(".title"),
       dragLabel: wrapper.querySelector(".drag-label"),
+      collapseBtn: wrapper.querySelector(".collapse"),
       closeBtn: wrapper.querySelector(".close"),
       time: wrapper.querySelector(".time"),
       miniTime: wrapper.querySelector(".mini-time"),
@@ -888,6 +951,22 @@
     nodes.openBtn.addEventListener("click", async (event) => {
       event.stopPropagation();
       await safeSend("OPEN_SIDE_PANEL");
+    });
+
+    nodes.collapseBtn.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      if (!state) return;
+
+      const next = state.settings?.floatingWidgetCompact !== true;
+
+      // Redraw straight away; storage.onChanged confirms it afterwards.
+      state = {
+        ...state,
+        settings: { ...state.settings, floatingWidgetCompact: next }
+      };
+      render();
+
+      await safeSend("SAVE_SETTINGS", { settings: state.settings });
     });
 
     nodes.closeBtn.addEventListener("click", (event) => {
@@ -1168,6 +1247,9 @@
     nodes.widget.dataset.theme = state.settings?.theme || "midnight";
     nodes.widget.style.setProperty("--text-scale", String(getTextScale()));
 
+    const compact = state.settings?.floatingWidgetCompact === true;
+    nodes.widget.dataset.compact = String(compact);
+
     const dictionary = t();
     const duration = getDurationMs(state.mode, state.settings);
     const remaining = getRemainingMs();
@@ -1182,6 +1264,9 @@
     nodes.dragLabel.textContent = dictionary.drag;
     nodes.closeBtn.title = dictionary.closeTitle;
     nodes.closeBtn.setAttribute("aria-label", dictionary.close);
+    nodes.collapseBtn.title = compact ? dictionary.expandTitle : dictionary.collapseTitle;
+    nodes.collapseBtn.setAttribute("aria-label", compact ? dictionary.expand : dictionary.collapse);
+    nodes.collapseBtn.setAttribute("aria-expanded", String(!compact));
     nodes.startBtn.textContent = dictionary.start;
     nodes.pauseBtn.textContent = dictionary.pause;
     nodes.openBtn.textContent = dictionary.open;
@@ -1194,6 +1279,13 @@
 
     nodes.startBtn.disabled = state.running;
     nodes.pauseBtn.disabled = !state.running;
+
+    // The list is hidden when collapsed — no point rebuilding it every tick.
+    if (compact) {
+      clampAndApplyPosition();
+      syncFireflyTimer();
+      return;
+    }
 
     nodes.tasksList.innerHTML = "";
 

@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   textScale: 100,
   widgetMode: "full",
   floatingWidgetEnabled: true,
+  floatingWidgetCompact: false,
   fireflyAnimationEnabled: true,
   fireflyIntervalValue: 10,
   fireflyIntervalUnit: "seconds",
@@ -275,6 +276,9 @@ function normalizeSettings(settings = {}) {
     textScale: clampNumber(settings.textScale, 80, 140, 100),
     widgetMode: widgetModes.includes(settings.widgetMode) ? settings.widgetMode : "full",
     floatingWidgetEnabled: settings.floatingWidgetEnabled !== false,
+    // Collapsed floating widget: timer + Start/Pause only, no task list.
+    // Toggled from the widget's own header, not from the settings panel.
+    floatingWidgetCompact: settings.floatingWidgetCompact === true,
     fireflyAnimationEnabled: settings.fireflyAnimationEnabled !== false,
     fireflyIntervalValue,
     fireflyIntervalUnit,
@@ -610,7 +614,13 @@ async function saveSettings(settings) {
     settings: normalizedSettings
   };
 
-  if (!nextState.running) {
+  // Drop a paused countdown only when the current stage's length actually
+  // changed. Clearing it on every save meant switching theme, language or the
+  // widget toggles while paused silently reset the timer to a full stage.
+  const stageLengthChanged =
+    getDurationMs(state.mode, state.settings) !== getDurationMs(state.mode, normalizedSettings);
+
+  if (!nextState.running && stageLengthChanged) {
     nextState.remainingMs = null;
   }
 
