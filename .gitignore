@@ -1,0 +1,15 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / agent tooling
+.claude/
+.vscode/
+*.log
+
+# If you add tooling later
+node_modules/
+
+# Packaged builds / local preview artifacts
+*.zip
+preview-*.html

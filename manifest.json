@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Firefly Focus — Pomodoro Timer & Tasks",
+  "version": "2.5.0",
+  "description": "A calm, private Pomodoro timer: floating widget, task deadlines, firefly animations and 3 themes. No accounts, no tracking.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "alarms",
+    "storage",
+    "notifications",
+    "offscreen",
+    "sidePanel"
+  ],
+  "action": {
+    "default_title": "Open Firefly Focus",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "floating_widget.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Фокус Pomodoro</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body data-view="full" data-mode="work">
+  <div id="fireflyLayer" class="firefly-layer" aria-hidden="true"></div>
+  <main id="app" class="app">
+    <header class="hero">
+      <div class="brand-block">
+        <div class="eyebrow" data-i18n="eyebrow">Боковий віджет</div>
+        <h1 data-i18n="title">Фокус Pomodoro</h1>
+        <p id="subtitle">Спокійний таймер для фокусу, перерв і задач.</p>
+      </div>
+
+      <div class="top-actions">
+        <div class="top-selects">
+          <select id="languageSelect" class="language-select" aria-label="Language">
+            <option value="uk">Українська</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="it">Italiano</option>
+            <option value="sk">Slovenčina</option>
+            <option value="cs">Čeština</option>
+          </select>
+          <select id="themeSelect" class="theme-select" aria-label="Theme">
+            <option value="midnight" data-i18n="themeMidnight">Північ</option>
+            <option value="daylight" data-i18n="themeDaylight">Денна</option>
+            <option value="sage" data-i18n="themeSage">Шавлія</option>
+          </select>
+        </div>
+        <button id="viewToggleBtn" class="view-toggle" type="button">Менший</button>
+        <div id="modeChip" class="mode-chip">Робота</div>
+      </div>
+    </header>
+
+    <section id="timerShell" class="timer-shell">
+      <div id="ring" class="ring">
+        <div class="ring-inner">
+          <div id="timer" class="timer">25:00</div>
+          <div id="mode" class="mode">Робота</div>
+          <div id="hint" class="hint">Натисни «Старт», щоб почати фокус-сесію.</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="primary" type="button" data-i18n="start">Старт</button>
+        <button id="pauseBtn" type="button" data-i18n="pause">Пауза</button>
+        <button id="nextBtn" type="button" data-i18n="nextStage">Наступний етап</button>
+        <button id="resetBtn" class="ghost" type="button" data-i18n="reset">Скинути</button>
+      </div>
+
+      <button id="floatingToggleBtn" class="quick-toggle" type="button" role="switch" aria-checked="true">
+        <span class="quick-toggle-label" data-i18n="floatingWidgetQuick">Плаваючий віджет на сайтах</span>
+        <span class="quick-toggle-switch">
+          <span class="quick-toggle-state" id="floatingToggleState">Увімк.</span>
+          <span class="quick-toggle-track"><span class="quick-toggle-thumb"></span></span>
+        </span>
+      </button>
+    </section>
+
+    <section class="stats-grid full-only" aria-label="Daily statistics">
+      <article>
+        <span data-i18n="sessionsTodayLabel">Сьогодні</span>
+        <strong id="todaySessions">0</strong>
+        <small data-i18n="sessionsSmall">сесій</small>
+      </article>
+
+      <article>
+        <span data-i18n="focusTimeLabel">Фокус</span>
+        <strong id="todayFocus">0 min</strong>
+        <small data-i18n="focusSmall">час</small>
+      </article>
+
+      <article>
+        <span data-i18n="goalLabel">Ціль</span>
+        <strong id="goalText">0/8</strong>
+        <small data-i18n="goalSmall">сесій</small>
+      </article>
+    </section>
+
+    <section class="panel-card tasks-card">
+      <div class="section-title">
+        <h2 data-i18n="tasksTitle">Задачі</h2>
+        <button id="clearDoneBtn" class="tiny" type="button" data-i18n="clearDone">Очистити виконані</button>
+      </div>
+
+      <form id="taskForm" class="task-form">
+        <input id="taskInput" type="text" maxlength="90" placeholder="Додай одну фокус-задачу..." />
+        <button type="submit" aria-label="Add task">+</button>
+      </form>
+
+      <ul id="tasksList" class="tasks"></ul>
+    </section>
+
+    <section class="panel-card settings-card full-only">
+      <div class="section-title">
+        <h2 data-i18n="settingsTitle">Налаштування</h2>
+        <button id="resetStatsBtn" class="tiny danger" type="button" data-i18n="resetStats">Скинути статистику</button>
+      </div>
+
+      <div class="settings-grid">
+        <label>
+          <span data-i18n="workMinutesLabel">Робота, хв</span>
+          <input id="workMinutes" type="number" min="1" max="180" />
+        </label>
+
+        <label>
+          <span data-i18n="shortBreakLabel">Перерва, хв</span>
+          <input id="shortBreakMinutes" type="number" min="1" max="60" />
+        </label>
+
+        <label>
+          <span data-i18n="longBreakLabel">Довга перерва, хв</span>
+          <input id="longBreakMinutes" type="number" min="1" max="120" />
+        </label>
+
+        <label>
+          <span data-i18n="cyclesBeforeLongLabel">Довга перерва кожні</span>
+          <input id="cyclesBeforeLong" type="number" min="1" max="12" />
+        </label>
+
+        <label>
+          <span data-i18n="reminderLabel">Попередження за, сек</span>
+          <input id="remindBeforeEndSeconds" type="number" min="0" max="600" />
+        </label>
+
+        <label>
+          <span data-i18n="dailyGoalLabel">Ціль сесій/день</span>
+          <input id="dailyGoalSessions" type="number" min="1" max="20" />
+        </label>
+
+        <label>
+          <span data-i18n="textSizeLabel">Розмір тексту, %</span>
+          <input id="textScale" type="number" min="80" max="140" step="5" />
+        </label>
+
+        <label class="full">
+          <span data-i18n="soundStyleLabel">Стиль звуку</span>
+          <select id="soundTheme">
+            <option value="bright" data-i18n="soundBright">Яскравий чистий</option>
+            <option value="arcade" data-i18n="soundArcade">Arcade</option>
+            <option value="bell" data-i18n="soundBell">Дзвінкий</option>
+            <option value="soft" data-i18n="soundSoft">М’який</option>
+          </select>
+        </label>
+
+        <label class="full">
+          <span data-i18n="fireflyIntervalLabel">Світлячки кожні</span>
+          <div class="inline-setting">
+            <input id="fireflyIntervalValue" type="number" min="3" max="300" />
+            <select id="fireflyIntervalUnit">
+              <option value="seconds" data-i18n="fireflyUnitSeconds">Секунди</option>
+              <option value="minutes" data-i18n="fireflyUnitMinutes">Хвилини</option>
+            </select>
+          </div>
+        </label>
+      </div>
+
+      <div class="toggles">
+        <label>
+          <input id="autoContinue" type="checkbox" />
+          <span data-i18n="autoContinueLabel">Автоматично запускати наступний етап</span>
+        </label>
+        <label>
+          <input id="notificationsEnabled" type="checkbox" />
+          <span data-i18n="notificationsLabel">Системні нагадування</span>
+        </label>
+        <label>
+          <input id="soundEnabled" type="checkbox" />
+          <span data-i18n="soundsLabel">Звукові сигнали</span>
+        </label>
+        <label>
+          <input id="floatingWidgetEnabled" type="checkbox" />
+          <span data-i18n="floatingWidgetLabel">Плаваючий віджет поверх сайтів</span>
+        </label>
+        <label>
+          <input id="fireflyAnimationEnabled" type="checkbox" />
+          <span data-i18n="fireflyAnimationLabel">Анімація світлячків під час фокусу</span>
+        </label>
+      </div>
+
+      <button id="saveBtn" class="save" type="button" data-i18n="saveSettings">Зберегти налаштування</button>
+    </section>
+  </main>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
