@@ -68,11 +68,16 @@
        exactly one copy of the settings markup in the project. -->
   <div id="settingsOverlay" class="fs-overlay" hidden>
     <div id="settingsSheet" class="fs-sheet" role="dialog" aria-modal="true">
-      <button id="settingsClose" class="fs-icon fs-sheet-close" type="button" aria-label="Close">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 6l12 12M18 6L6 18"/>
-        </svg>
-      </button>
+      <!-- Own row, not floated over the content: an absolute close button
+           landed on top of the theme select and forced the section headings
+           to reserve space for it, knocking their buttons out of alignment. -->
+      <div class="fs-sheet-bar">
+        <button id="settingsClose" class="fs-icon" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+      </div>
       <div id="settingsMount"></div>
       <button id="openPanelBtn" class="fs-panel-link" type="button">Відкрити повну панель</button>
     </div>
