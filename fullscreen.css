@@ -185,3 +185,104 @@ body.is-idle {
     font-size: min(22vh, 11vw, 140px);
   }
 }
+
+/* ---------- Settings sheet ---------- */
+.fs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 4vh 4vw;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.fs-overlay[hidden] {
+  display: none;
+}
+
+.fs-sheet {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--stroke);
+  border-radius: 26px;
+  background: var(--surface-strong);
+  box-shadow: 0 30px 80px var(--shadow);
+  scrollbar-width: thin;
+}
+
+/* The cloned card already carries the panel's own frame — drop the double box. */
+.fs-sheet .panel-card {
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
+
+.fs-sheet .top-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.fs-sheet .language-select,
+.fs-sheet .theme-select {
+  max-width: none;
+  width: 100%;
+}
+
+.fs-sheet-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+}
+
+/* Keep the heading clear of the close button. */
+.fs-sheet .settings-card .section-title {
+  padding-right: 46px;
+}
+
+.fs-panel-link {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: calc(12.5px * var(--text-scale, 1));
+  font-weight: 800;
+  transition: color .15s ease, border-color .15s ease;
+}
+
+.fs-panel-link:hover {
+  color: var(--text);
+  border-color: var(--stroke-strong);
+}
+
+/* While the sheet is open the ambient fade must not steal the cursor. */
+body.is-settings-open .fs-controls,
+body.is-settings-open .fs-meta,
+body.is-settings-open .fs-corner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.is-settings-open {
+  cursor: auto;
+}
+
+@media (max-width: 420px) {
+  .fs-sheet .top-selects {
+    grid-template-columns: 1fr;
+  }
+}

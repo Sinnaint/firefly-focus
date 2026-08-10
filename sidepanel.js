@@ -227,93 +227,22 @@ function syncFireflyTimer(force = false) {
   }, Math.max(1500, intervalMs));
 }
 
-function syncFireflyIntervalBounds() {
-  if (!els.fireflyIntervalValue || !els.fireflyIntervalUnit) return;
-
-  const unit = els.fireflyIntervalUnit.value || "seconds";
-  const isSeconds = unit === "seconds";
-
-  els.fireflyIntervalValue.min = isSeconds ? "3" : "1";
-  els.fireflyIntervalValue.max = isSeconds ? "300" : "60";
-  els.fireflyIntervalValue.step = "1";
-
-  const value = Number(els.fireflyIntervalValue.value);
-  const min = Number(els.fireflyIntervalValue.min);
-  const max = Number(els.fireflyIntervalValue.max);
-
-  if (!Number.isFinite(value) || value < min) {
-    els.fireflyIntervalValue.value = isSeconds ? "10" : "5";
-    return;
-  }
-
-  if (value > max) {
-    els.fireflyIntervalValue.value = String(max);
-  }
-}
-
+/* Form reading/writing lives in shared.js — the fullscreen sheet hosts the
+   same inputs and must stay byte-identical in how it saves them. */
 function collectSettings() {
-  return {
-    workMinutes: Number(els.workMinutes.value),
-    shortBreakMinutes: Number(els.shortBreakMinutes.value),
-    longBreakMinutes: Number(els.longBreakMinutes.value),
-    cyclesBeforeLong: Number(els.cyclesBeforeLong.value),
-    remindBeforeEndSeconds: Number(els.remindBeforeEndSeconds.value),
-    dailyGoalSessions: Number(els.dailyGoalSessions.value),
-    textScale: Number(els.textScale.value),
-    soundTheme: els.soundTheme.value,
-    theme: els.themeSelect.value,
-    fireflyIntervalValue: Number(els.fireflyIntervalValue.value),
-    fireflyIntervalUnit: els.fireflyIntervalUnit.value,
-    autoContinue: els.autoContinue.checked,
-    notificationsEnabled: els.notificationsEnabled.checked,
-    soundEnabled: els.soundEnabled.checked,
-    floatingWidgetEnabled: els.floatingWidgetEnabled.checked,
-    fireflyAnimationEnabled: els.fireflyAnimationEnabled.checked,
-    language: els.languageSelect.value,
-    widgetMode: state?.settings?.widgetMode || "full",
-    // Has no input here — it is toggled on the widget itself. Carry it through
-    // or every save from this panel would silently expand the widget again.
-    floatingWidgetCompact: state?.settings?.floatingWidgetCompact === true
-  };
+  return collectSettingsFrom(document, state?.settings || {});
 }
 
 function syncSettingsInputs() {
   if (!state) return;
-
-  els.workMinutes.value = state.settings.workMinutes;
-  els.shortBreakMinutes.value = state.settings.shortBreakMinutes;
-  els.longBreakMinutes.value = state.settings.longBreakMinutes;
-  els.cyclesBeforeLong.value = state.settings.cyclesBeforeLong;
-  els.remindBeforeEndSeconds.value = state.settings.remindBeforeEndSeconds;
-  els.dailyGoalSessions.value = state.settings.dailyGoalSessions;
-  els.textScale.value = state.settings.textScale ?? 100;
-  els.soundTheme.value = state.settings.soundTheme;
-  els.themeSelect.value = state.settings.theme || "midnight";
-  els.fireflyIntervalUnit.value = state.settings.fireflyIntervalUnit || "seconds";
-  els.fireflyIntervalValue.value =
-    state.settings.fireflyIntervalValue ??
-    state.settings.fireflyIntervalMinutes ??
-    10;
-  syncFireflyIntervalBounds();
-  els.autoContinue.checked = state.settings.autoContinue;
-  els.notificationsEnabled.checked = state.settings.notificationsEnabled;
-  els.soundEnabled.checked = state.settings.soundEnabled;
-  els.floatingWidgetEnabled.checked = state.settings.floatingWidgetEnabled !== false;
-  els.fireflyAnimationEnabled.checked = state.settings.fireflyAnimationEnabled !== false;
-  els.languageSelect.value = state.settings.language || "uk";
+  applySettingsTo(document, state.settings);
 }
 
 function applyLanguage() {
   const dictionary = t();
 
   document.documentElement.lang = getLanguage();
-
-  document.querySelectorAll("[data-i18n]").forEach((node) => {
-    const key = node.dataset.i18n;
-    if (Object.prototype.hasOwnProperty.call(dictionary, key)) {
-      node.textContent = dictionary[key];
-    }
-  });
+  applyI18nIn(document, dictionary);
 
   els.taskInput.placeholder = dictionary.taskPlaceholder;
   els.taskForm.querySelector("button").setAttribute("aria-label", dictionary.addTaskAria);
@@ -520,7 +449,7 @@ els.fullscreenBtn.addEventListener("click", () => {
 });
 
 els.fireflyIntervalUnit.addEventListener("change", () => {
-  syncFireflyIntervalBounds();
+  syncFireflyIntervalBounds(document);
 });
 
 // Live preview of text size while typing/stepping (persists on Save).

@@ -80,7 +80,8 @@ const i18n = {
     close: "Закрити",
     sessionsToday: "сесій сьогодні",
     focusToday: "фокусу сьогодні",
-    noTaskYet: "Задачу не обрано"
+    noTaskYet: "Задачу не обрано",
+    openPanel: "Відкрити повну панель із задачами"
   },
   en: {
     eyebrow: "Side panel widget",
@@ -157,7 +158,8 @@ const i18n = {
     close: "Close",
     sessionsToday: "sessions today",
     focusToday: "focused today",
-    noTaskYet: "No task picked"
+    noTaskYet: "No task picked",
+    openPanel: "Open the full panel with tasks"
   },
   de: {
     eyebrow: "Seitenleisten-Widget",
@@ -230,7 +232,8 @@ const i18n = {
     close: "Schließen",
     sessionsToday: "Sitzungen heute",
     focusToday: "Fokus heute",
-    noTaskYet: "Keine Aufgabe gewählt"
+    noTaskYet: "Keine Aufgabe gewählt",
+    openPanel: "Volles Panel mit Aufgaben öffnen"
   },
   es: {
     eyebrow: "Widget del panel lateral",
@@ -303,7 +306,8 @@ const i18n = {
     close: "Cerrar",
     sessionsToday: "sesiones hoy",
     focusToday: "de enfoque hoy",
-    noTaskYet: "Sin tarea elegida"
+    noTaskYet: "Sin tarea elegida",
+    openPanel: "Abrir el panel completo con tareas"
   },
   it: {
     eyebrow: "Widget del pannello laterale",
@@ -376,7 +380,8 @@ const i18n = {
     close: "Chiudi",
     sessionsToday: "sessioni oggi",
     focusToday: "di concentrazione oggi",
-    noTaskYet: "Nessuna attività scelta"
+    noTaskYet: "Nessuna attività scelta",
+    openPanel: "Apri il pannello completo con le attività"
   },
   sk: {
     eyebrow: "Widget bočného panela",
@@ -449,7 +454,8 @@ const i18n = {
     close: "Zavrieť",
     sessionsToday: "relácií dnes",
     focusToday: "sústredenia dnes",
-    noTaskYet: "Nevybraná úloha"
+    noTaskYet: "Nevybraná úloha",
+    openPanel: "Otvoriť celý panel s úlohami"
   },
   cs: {
     eyebrow: "Widget bočního panelu",
@@ -522,7 +528,8 @@ const i18n = {
     close: "Zavřít",
     sessionsToday: "relací dnes",
     focusToday: "soustředění dnes",
-    noTaskYet: "Nevybraný úkol"
+    noTaskYet: "Nevybraný úkol",
+    openPanel: "Otevřít celý panel s úkoly"
   }
 };
 
@@ -546,3 +553,114 @@ const FIREFLY_PALETTE = {
     longBreak: { core: "rgba(237, 233, 255, 1)", halo: "rgba(167, 139, 250, .60)", glow: "rgba(139, 92, 246, .66)" }
   }
 };
+
+/*
+ * Settings-form helpers, shared by the side panel and the fullscreen sheet.
+ * `root` is a document or any element holding the inputs. Anything absent from
+ * that root falls back to the value already in `settings`, so a page is free to
+ * host only a subset of the form without wiping the rest on save.
+ */
+function syncFireflyIntervalBounds(root) {
+  const value = root.querySelector("#fireflyIntervalValue");
+  const unit = root.querySelector("#fireflyIntervalUnit");
+  if (!value || !unit) return;
+
+  const isSeconds = (unit.value || "seconds") === "seconds";
+
+  value.min = isSeconds ? "3" : "1";
+  value.max = isSeconds ? "300" : "60";
+  value.step = "1";
+
+  const current = Number(value.value);
+  const min = Number(value.min);
+  const max = Number(value.max);
+
+  if (!Number.isFinite(current) || current < min) {
+    value.value = isSeconds ? "10" : "5";
+    return;
+  }
+
+  if (current > max) value.value = String(max);
+}
+
+function collectSettingsFrom(root, settings = {}) {
+  const num = (id, fallback) => {
+    const node = root.querySelector(`#${id}`);
+    return node ? Number(node.value) : fallback;
+  };
+  const str = (id, fallback) => {
+    const node = root.querySelector(`#${id}`);
+    return node ? node.value : fallback;
+  };
+  const bool = (id, fallback) => {
+    const node = root.querySelector(`#${id}`);
+    return node ? node.checked : fallback;
+  };
+
+  return {
+    workMinutes: num("workMinutes", settings.workMinutes),
+    shortBreakMinutes: num("shortBreakMinutes", settings.shortBreakMinutes),
+    longBreakMinutes: num("longBreakMinutes", settings.longBreakMinutes),
+    cyclesBeforeLong: num("cyclesBeforeLong", settings.cyclesBeforeLong),
+    remindBeforeEndSeconds: num("remindBeforeEndSeconds", settings.remindBeforeEndSeconds),
+    dailyGoalSessions: num("dailyGoalSessions", settings.dailyGoalSessions),
+    textScale: num("textScale", settings.textScale),
+    soundTheme: str("soundTheme", settings.soundTheme),
+    theme: str("themeSelect", settings.theme),
+    language: str("languageSelect", settings.language),
+    fireflyIntervalValue: num("fireflyIntervalValue", settings.fireflyIntervalValue),
+    fireflyIntervalUnit: str("fireflyIntervalUnit", settings.fireflyIntervalUnit),
+    autoContinue: bool("autoContinue", settings.autoContinue),
+    notificationsEnabled: bool("notificationsEnabled", settings.notificationsEnabled),
+    soundEnabled: bool("soundEnabled", settings.soundEnabled),
+    floatingWidgetEnabled: bool("floatingWidgetEnabled", settings.floatingWidgetEnabled),
+    fireflyAnimationEnabled: bool("fireflyAnimationEnabled", settings.fireflyAnimationEnabled),
+    // No input anywhere in the UI — carried through so no save resets them.
+    widgetMode: settings.widgetMode || "full",
+    floatingWidgetCompact: settings.floatingWidgetCompact === true
+  };
+}
+
+function applySettingsTo(root, settings) {
+  const setValue = (id, value) => {
+    const node = root.querySelector(`#${id}`);
+    if (node) node.value = value;
+  };
+  const setChecked = (id, value) => {
+    const node = root.querySelector(`#${id}`);
+    if (node) node.checked = value;
+  };
+
+  setValue("workMinutes", settings.workMinutes);
+  setValue("shortBreakMinutes", settings.shortBreakMinutes);
+  setValue("longBreakMinutes", settings.longBreakMinutes);
+  setValue("cyclesBeforeLong", settings.cyclesBeforeLong);
+  setValue("remindBeforeEndSeconds", settings.remindBeforeEndSeconds);
+  setValue("dailyGoalSessions", settings.dailyGoalSessions);
+  setValue("textScale", settings.textScale ?? 100);
+  setValue("soundTheme", settings.soundTheme);
+  setValue("themeSelect", settings.theme || "midnight");
+  setValue("languageSelect", settings.language || "uk");
+  setValue("fireflyIntervalUnit", settings.fireflyIntervalUnit || "seconds");
+  setValue(
+    "fireflyIntervalValue",
+    settings.fireflyIntervalValue ?? settings.fireflyIntervalMinutes ?? 10
+  );
+  syncFireflyIntervalBounds(root);
+
+  setChecked("autoContinue", settings.autoContinue);
+  setChecked("notificationsEnabled", settings.notificationsEnabled);
+  setChecked("soundEnabled", settings.soundEnabled);
+  setChecked("floatingWidgetEnabled", settings.floatingWidgetEnabled !== false);
+  setChecked("fireflyAnimationEnabled", settings.fireflyAnimationEnabled !== false);
+}
+
+/* Fills every [data-i18n] node under `root` from the given dictionary. */
+function applyI18nIn(root, dictionary) {
+  root.querySelectorAll("[data-i18n]").forEach((node) => {
+    const key = node.dataset.i18n;
+    if (Object.prototype.hasOwnProperty.call(dictionary, key)) {
+      node.textContent = dictionary[key];
+    }
+  });
+}

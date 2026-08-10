@@ -26,8 +26,16 @@ const els = {
   focus: $("focus"),
   focusLabel: $("focusLabel"),
   fsBtn: $("fsBtn"),
-  closeBtn: $("closeBtn")
+  closeBtn: $("closeBtn"),
+  settingsBtn: $("settingsBtn"),
+  settingsOverlay: $("settingsOverlay"),
+  settingsSheet: $("settingsSheet"),
+  settingsClose: $("settingsClose"),
+  settingsMount: $("settingsMount"),
+  openPanelBtn: $("openPanelBtn")
 };
+
+let settingsReady = false;
 
 function getLanguage() {
   const lang = state?.settings?.language;
@@ -181,12 +189,102 @@ function syncFireflyTimer(force = false) {
 }
 
 /* ---------- Ambient idle ---------- */
+function isSettingsOpen() {
+  return !els.settingsOverlay.hidden;
+}
+
 function markActive() {
   document.body.classList.remove("is-idle");
   clearTimeout(idleTimer);
+  // Reading the settings without touching the mouse must not blank the screen.
+  if (isSettingsOpen()) return;
   idleTimer = setTimeout(() => {
     document.body.classList.add("is-idle");
   }, 4000);
+}
+
+/* ---------- Settings sheet ---------- */
+async function buildSettingsSheet() {
+  if (settingsReady) return;
+
+  // Clone the real form out of sidepanel.html rather than keeping a second
+  // copy here: a setting added to the panel shows up in this sheet for free.
+  const markup = await (await fetch(chrome.runtime.getURL("sidepanel.html"))).text();
+  const parsed = new DOMParser().parseFromString(markup, "text/html");
+
+  const selects = parsed.querySelector(".top-selects");
+  const card = parsed.querySelector(".settings-card");
+  if (!card) throw new Error("settings markup not found in sidepanel.html");
+
+  els.settingsMount.replaceChildren();
+  if (selects) els.settingsMount.appendChild(document.importNode(selects, true));
+  els.settingsMount.appendChild(document.importNode(card, true));
+
+  bindSettingsSheet();
+  settingsReady = true;
+}
+
+function bindSettingsSheet() {
+  const mount = els.settingsMount;
+  const q = (id) => mount.querySelector(`#${id}`);
+
+  q("saveBtn")?.addEventListener("click", async () => {
+    const response = await send("SAVE_SETTINGS", {
+      settings: collectSettingsFrom(mount, state?.settings || {})
+    });
+    if (response?.ok) state = response.state;
+    applySettingsTo(mount, state.settings);
+    render();
+    closeSettings();
+  });
+
+  q("resetStatsBtn")?.addEventListener("click", async () => {
+    const response = await send("RESET_STATS");
+    if (response?.ok) state = response.state;
+    render();
+  });
+
+  // Theme and language apply live, exactly as they do in the panel.
+  for (const id of ["themeSelect", "languageSelect"]) {
+    q(id)?.addEventListener("change", async () => {
+      const settings = collectSettingsFrom(mount, state?.settings || {});
+      state = { ...state, settings };
+      render();
+      applyI18nIn(mount, t());
+      const response = await send("SAVE_SETTINGS", { settings });
+      if (response?.ok) state = response.state;
+      render();
+    });
+  }
+
+  q("fireflyIntervalUnit")?.addEventListener("change", () => syncFireflyIntervalBounds(mount));
+
+  q("textScale")?.addEventListener("input", (event) => {
+    const scale = clampNum(Number(event.target.value), 80, 140, 100) / 100;
+    document.documentElement.style.setProperty("--text-scale", String(scale));
+  });
+}
+
+async function openSettings() {
+  try {
+    await buildSettingsSheet();
+  } catch (error) {
+    console.error(error);
+    return;
+  }
+
+  applySettingsTo(els.settingsMount, state.settings);
+  applyI18nIn(els.settingsMount, t());
+  els.settingsOverlay.hidden = false;
+  document.body.classList.add("is-settings-open");
+  markActive();
+  els.settingsClose.focus();
+}
+
+function closeSettings() {
+  els.settingsOverlay.hidden = true;
+  document.body.classList.remove("is-settings-open");
+  markActive();
 }
 
 /* ---------- Render ---------- */
@@ -230,6 +328,11 @@ function render() {
   els.fsBtn.setAttribute("aria-label", els.fsBtn.title);
   els.closeBtn.title = dictionary.close;
   els.closeBtn.setAttribute("aria-label", dictionary.close);
+  els.settingsBtn.title = dictionary.settingsTitle;
+  els.settingsBtn.setAttribute("aria-label", dictionary.settingsTitle);
+  els.settingsClose.title = dictionary.close;
+  els.settingsClose.setAttribute("aria-label", dictionary.close);
+  els.openPanelBtn.textContent = dictionary.openPanel;
 
   syncFireflyTimer();
 }
@@ -267,6 +370,30 @@ els.fsBtn.addEventListener("click", async () => {
 
 els.closeBtn.addEventListener("click", () => {
   window.close();
+});
+
+els.settingsBtn.addEventListener("click", openSettings);
+els.settingsClose.addEventListener("click", closeSettings);
+
+els.settingsOverlay.addEventListener("click", (event) => {
+  if (event.target === els.settingsOverlay) closeSettings();
+});
+
+els.openPanelBtn.addEventListener("click", async () => {
+  // The side panel cannot draw over a fullscreened tab — step out first.
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch (error) {
+      // Ignore; opening the panel is still worth attempting.
+    }
+  }
+  await send("OPEN_SIDE_PANEL");
+  closeSettings();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isSettingsOpen()) closeSettings();
 });
 
 document.addEventListener("fullscreenchange", () => {
