@@ -2,24 +2,24 @@
   <title>Firefly Focus</title>
   <defs>
     <radialGradient id="wbg" cx="50%" cy="32%" r="78%">
-      <stop offset="0" stop-color="#243350"/>
-      <stop offset="0.55" stop-color="#131f36"/>
-      <stop offset="1" stop-color="#070c18"/>
+      <stop offset="0" stop-color="#3a0b45"/>
+      <stop offset="0.55" stop-color="#210635"/>
+      <stop offset="1" stop-color="#120220"/>
     </radialGradient>
     <linearGradient id="wring" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fcd34d"/>
-      <stop offset="0.55" stop-color="#fb923c"/>
-      <stop offset="1" stop-color="#f97316"/>
+      <stop offset="0" stop-color="#f5d5e0"/>
+      <stop offset="0.55" stop-color="#e39ad6"/>
+      <stop offset="1" stop-color="#c965cb"/>
     </linearGradient>
     <radialGradient id="wcore" cx="50%" cy="42%" r="62%">
-      <stop offset="0" stop-color="#fffdf6"/>
-      <stop offset="0.45" stop-color="#fef3c7"/>
-      <stop offset="1" stop-color="#fcd34d"/>
+      <stop offset="0" stop-color="#fffcfe"/>
+      <stop offset="0.45" stop-color="#fbe6f1"/>
+      <stop offset="1" stop-color="#f5d5e0"/>
     </radialGradient>
     <radialGradient id="whalo" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#fde68a" stop-opacity="0.95"/>
-      <stop offset="0.45" stop-color="#fbbf24" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
+      <stop offset="0" stop-color="#f5d5e0" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#c965cb" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#7b337e" stop-opacity="0"/>
     </radialGradient>
     <filter id="wsoft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter>
     <filter id="wblur2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="15"/></filter>
@@ -31,16 +31,16 @@
     <circle cx="256" cy="150" r="132" fill="url(#whalo)" opacity="0.34" filter="url(#wblur2)"/>
     <path d="M310.9 134.2 A130 130 0 1 1 201.1 134.2" fill="none" stroke="url(#wring)" stroke-width="26" stroke-linecap="round" opacity="0.55" filter="url(#wsoft)"/>
     <path d="M310.9 134.2 A130 130 0 1 1 201.1 134.2" fill="none" stroke="url(#wring)" stroke-width="26" stroke-linecap="round"/>
-    <circle cx="234" cy="150" r="6" fill="#fcd34d" opacity="0.5"/>
-    <circle cx="220" cy="176" r="4.5" fill="#fbbf24" opacity="0.32"/>
-    <circle cx="211" cy="200" r="3.2" fill="#f59e0b" opacity="0.2"/>
+    <circle cx="234" cy="150" r="6" fill="#f5d5e0" opacity="0.5"/>
+    <circle cx="220" cy="176" r="4.5" fill="#c965cb" opacity="0.34"/>
+    <circle cx="211" cy="200" r="3.2" fill="#8e90d4" opacity="0.24"/>
     <circle cx="256" cy="120" r="52" fill="url(#whalo)"/>
     <circle cx="256" cy="120" r="15" fill="url(#wcore)"/>
-    <circle cx="256" cy="120" r="15" fill="none" stroke="#fffdf6" stroke-opacity="0.6" stroke-width="1.5"/>
+    <circle cx="256" cy="120" r="15" fill="none" stroke="#fffcfe" stroke-opacity="0.6" stroke-width="1.5"/>
   </g>
 
   <text x="212" y="112" font-size="62" font-weight="800" letter-spacing="-1.5">
-    <tspan fill="#fbbf24">Firefly</tspan><tspan fill="#eef3fb"> Focus</tspan>
+    <tspan fill="#e9a6dc">Firefly</tspan><tspan fill="#f3e6ef"> Focus</tspan>
   </text>
-  <text x="215" y="150" fill="#8ea0bd" font-size="16" font-weight="700" letter-spacing="5">POMODORO · TIMER · TASKS</text>
+  <text x="215" y="150" fill="#ab93be" font-size="16" font-weight="700" letter-spacing="5">POMODORO · TIMER · TASKS</text>
 </svg>

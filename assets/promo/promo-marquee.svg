@@ -1,32 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 560" width="1400" height="560" font-family="Arial, 'Segoe UI', sans-serif">
   <defs>
     <radialGradient id="m-bg" cx="26%" cy="18%" r="90%">
-      <stop offset="0" stop-color="#1c2b48"/>
-      <stop offset="52%" stop-color="#111c33"/>
-      <stop offset="100%" stop-color="#060b16"/>
+      <stop offset="0" stop-color="#3c0c48"/>
+      <stop offset="52%" stop-color="#210635"/>
+      <stop offset="100%" stop-color="#10021c"/>
     </radialGradient>
     <linearGradient id="m-ring" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fcd34d"/>
-      <stop offset="0.55" stop-color="#fb923c"/>
-      <stop offset="1" stop-color="#f97316"/>
+      <stop offset="0" stop-color="#f5d5e0"/>
+      <stop offset="0.55" stop-color="#e39ad6"/>
+      <stop offset="1" stop-color="#c965cb"/>
     </linearGradient>
     <radialGradient id="m-core" cx="50%" cy="42%" r="62%">
-      <stop offset="0" stop-color="#fffdf6"/>
-      <stop offset="0.45" stop-color="#fef3c7"/>
-      <stop offset="1" stop-color="#fcd34d"/>
+      <stop offset="0" stop-color="#fffcfe"/>
+      <stop offset="0.45" stop-color="#fbe6f1"/>
+      <stop offset="1" stop-color="#f5d5e0"/>
     </radialGradient>
     <radialGradient id="m-halo" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#fde68a" stop-opacity="0.95"/>
-      <stop offset="0.45" stop-color="#fbbf24" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
+      <stop offset="0" stop-color="#f5d5e0" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#c965cb" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#7b337e" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="m-card" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0" stop-color="#1e2c46"/>
-      <stop offset="1" stop-color="#0b1120"/>
+      <stop offset="0" stop-color="#3b1049"/>
+      <stop offset="1" stop-color="#180425"/>
     </linearGradient>
     <filter id="m-soft" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8"/></filter>
     <filter id="m-blur" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="4"/></filter>
-    <filter id="m-shadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="24" stdDeviation="34" flood-color="#03060f" flood-opacity="0.65"/></filter>
+    <filter id="m-shadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="24" stdDeviation="34" flood-color="#0a0212" flood-opacity="0.7"/></filter>
   </defs>
 
   <rect x="0" y="0" width="1400" height="560" fill="url(#m-bg)"/>
@@ -34,14 +34,14 @@
 
   <!-- ambient fireflies -->
   <g>
-    <circle cx="760" cy="90" r="3.4" fill="#fcd34d" opacity="0.85" filter="url(#m-blur)"/>
-    <circle cx="1250" cy="120" r="3" fill="#fbbf24" opacity="0.7" filter="url(#m-blur)"/>
-    <circle cx="700" cy="360" r="2.6" fill="#fcd34d" opacity="0.6" filter="url(#m-blur)"/>
-    <circle cx="1330" cy="330" r="2.4" fill="#f59e0b" opacity="0.6" filter="url(#m-blur)"/>
-    <circle cx="600" cy="470" r="2.4" fill="#fbbf24" opacity="0.5" filter="url(#m-blur)"/>
-    <circle cx="880" cy="500" r="2.8" fill="#fcd34d" opacity="0.55" filter="url(#m-blur)"/>
-    <circle cx="1180" cy="470" r="2.2" fill="#fbbf24" opacity="0.5" filter="url(#m-blur)"/>
-    <circle cx="820" cy="230" r="2.2" fill="#f59e0b" opacity="0.5" filter="url(#m-blur)"/>
+    <circle cx="760" cy="90" r="3.4" fill="#f5d5e0" opacity="0.85" filter="url(#m-blur)"/>
+    <circle cx="1250" cy="120" r="3" fill="#c965cb" opacity="0.7" filter="url(#m-blur)"/>
+    <circle cx="700" cy="360" r="2.6" fill="#f5d5e0" opacity="0.6" filter="url(#m-blur)"/>
+    <circle cx="1330" cy="330" r="2.4" fill="#8e90d4" opacity="0.65" filter="url(#m-blur)"/>
+    <circle cx="600" cy="470" r="2.4" fill="#c965cb" opacity="0.5" filter="url(#m-blur)"/>
+    <circle cx="880" cy="500" r="2.8" fill="#f5d5e0" opacity="0.55" filter="url(#m-blur)"/>
+    <circle cx="1180" cy="470" r="2.2" fill="#c965cb" opacity="0.5" filter="url(#m-blur)"/>
+    <circle cx="820" cy="230" r="2.2" fill="#8e90d4" opacity="0.55" filter="url(#m-blur)"/>
   </g>
 
   <!-- ===== Left: brand + copy ===== -->
@@ -52,13 +52,13 @@
     <circle cx="256" cy="120" r="52" fill="url(#m-halo)"/>
     <circle cx="256" cy="120" r="15" fill="url(#m-core)"/>
   </g>
-  <text x="172" y="164" font-size="20" font-weight="800" letter-spacing="4" fill="#f8b74a">POMODORO FOCUS</text>
+  <text x="172" y="164" font-size="20" font-weight="800" letter-spacing="4" fill="#de93d4">POMODORO FOCUS</text>
 
-  <text x="90" y="290" font-size="82" font-weight="800" letter-spacing="-2" fill="#eef3fb"><tspan fill="#fbbf24">Firefly</tspan> Focus</text>
-  <text x="94" y="344" font-size="27" font-weight="600" fill="#aebbd2">A calm, private Pomodoro timer &#8212; with fireflies.</text>
+  <text x="90" y="290" font-size="82" font-weight="800" letter-spacing="-2" fill="#f3e6ef"><tspan fill="#e9a6dc">Firefly</tspan> Focus</text>
+  <text x="94" y="344" font-size="27" font-weight="600" fill="#c3a7ce">A calm, private Pomodoro timer &#8212; with fireflies.</text>
 
   <!-- feature chips -->
-  <g font-size="19" font-weight="700" fill="#cdd8ea">
+  <g font-size="19" font-weight="700" fill="#dcc9e4">
     <g>
       <rect x="94" y="392" width="196" height="44" rx="22" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.12"/>
       <text x="118" y="420">Floating widget</text>
@@ -83,14 +83,14 @@
 
   <!-- ===== Right: widget mockup ===== -->
   <g filter="url(#m-shadow)">
-    <rect x="852" y="118" width="452" height="324" rx="30" fill="url(#m-card)" stroke="#8ea3c6" stroke-opacity="0.16" stroke-width="1.5"/>
+    <rect x="852" y="118" width="452" height="324" rx="30" fill="url(#m-card)" stroke="#d0aede" stroke-opacity="0.18" stroke-width="1.5"/>
   </g>
 
   <!-- header -->
-  <circle cx="892" cy="164" r="7" fill="#fb923c"/>
-  <text x="910" y="171" font-size="19" font-weight="800" fill="#f1f5f9">Pomodoro</text>
+  <circle cx="892" cy="164" r="7" fill="#c965cb"/>
+  <text x="910" y="171" font-size="19" font-weight="800" fill="#f3e6ef">Pomodoro</text>
   <rect x="1196" y="150" width="76" height="28" rx="14" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.12"/>
-  <text x="1211" y="169" font-size="12" font-weight="800" letter-spacing="1.5" fill="#93a4c1">DRAG</text>
+  <text x="1211" y="169" font-size="12" font-weight="800" letter-spacing="1.5" fill="#ab93be">DRAG</text>
 
   <!-- ring + time -->
   <g transform="translate(863,169) scale(0.32)">
@@ -99,20 +99,20 @@
     <circle cx="256" cy="120" r="46" fill="url(#m-halo)"/>
     <circle cx="256" cy="120" r="13" fill="url(#m-core)"/>
   </g>
-  <text x="1012" y="250" font-size="56" font-weight="800" letter-spacing="-2" fill="#f8fafc">25:00</text>
-  <text x="1014" y="280" font-size="16" font-weight="800" letter-spacing="1.5" fill="#fdba74">FOCUS</text>
+  <text x="1012" y="250" font-size="56" font-weight="800" letter-spacing="-2" fill="#f2e2ec">25:00</text>
+  <text x="1014" y="280" font-size="16" font-weight="800" letter-spacing="1.5" fill="#e39ad6">FOCUS</text>
 
   <!-- task pills -->
   <g>
-    <rect x="884" y="330" width="388" height="42" rx="12" fill="#94a3b8" fill-opacity="0.10"/>
-    <rect x="884" y="330" width="4" height="42" rx="2" fill="#ef4444"/>
+    <rect x="884" y="330" width="388" height="42" rx="12" fill="#e4beec" fill-opacity="0.10"/>
+    <rect x="884" y="330" width="4" height="42" rx="2" fill="#c0304a"/>
     <rect x="906" y="344" width="16" height="16" rx="4" fill="#ffffff" fill-opacity="0.14"/>
-    <text x="936" y="357" font-size="16" font-weight="600" fill="#e2e8f0">Finish the project report</text>
+    <text x="936" y="357" font-size="16" font-weight="600" fill="#ebdce6">Finish the project report</text>
   </g>
   <g>
-    <rect x="884" y="380" width="388" height="42" rx="12" fill="#94a3b8" fill-opacity="0.10"/>
-    <rect x="884" y="380" width="4" height="42" rx="2" fill="#f59e0b"/>
+    <rect x="884" y="380" width="388" height="42" rx="12" fill="#e4beec" fill-opacity="0.10"/>
+    <rect x="884" y="380" width="4" height="42" rx="2" fill="#d9932e"/>
     <rect x="906" y="394" width="16" height="16" rx="4" fill="#ffffff" fill-opacity="0.14"/>
-    <text x="936" y="407" font-size="16" font-weight="600" fill="#e2e8f0">Reply to emails</text>
+    <text x="936" y="407" font-size="16" font-weight="600" fill="#ebdce6">Reply to emails</text>
   </g>
 </svg>

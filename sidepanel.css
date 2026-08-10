@@ -9,9 +9,9 @@
   z-index: 40;
   overflow: hidden;
   pointer-events: none;
-  --firefly-core: rgba(255, 240, 206, 1);
-  --firefly-halo: rgba(240, 180, 95, 0.62);
-  --firefly-glow: rgba(224, 152, 54, 0.7);
+  --firefly-core: rgba(255, 224, 245, 1);
+  --firefly-halo: rgba(201, 101, 203, 0.62);
+  --firefly-glow: rgba(160, 60, 170, 0.7);
 }
 
 .firefly {
@@ -69,81 +69,87 @@
 }
 
 /*
- * Palette — "Ink & Ember".
- * Midnight is a deep indigo night sky lit by ember gold; Daylight is warm
- * paper with ink and bronze. Focus is warm in every theme (the firefly), rests
- * are cool. Hues are hand-mixed, deliberately away from the stock Tailwind ramp.
+ * Midnight — palette "Moon": #F5D5E0 · #6667AB · #7B337E · #420D4B · #210635.
+ * The three dark swatches build the surfaces, the pale pink is the moonlight.
+ * #7B337E and #6667AB are too dark to read as accents on that ground, so the
+ * mode accents are tints of them (#C965CB, #8E90D4) — same hues, lifted until
+ * they clear 4.5:1. Focus takes the magenta pole, rests the cool blue-violet.
  */
 :root {
   color-scheme: dark;
 
   /* Accent is driven by the current mode (see body[data-mode]). */
-  --accent: #f0b45f;
-  --accent-soft: #f7dfb2;
-  --accent-bg: rgba(240, 180, 95, 0.14);
-  --accent-text: #3b2708;
-  --on-accent: #2b1c05;
+  --accent: #c965cb;
+  --accent-soft: #f0c4f1;
+  --accent-bg: rgba(201, 101, 203, 0.16);
+  --accent-text: #3d0b40;
+  --on-accent: #2b0630;
   --progress: 0deg;
   --text-scale: 1;
 
   /* Surface tokens — default theme: Midnight. Overridden by body[data-theme]. */
-  --surface: rgba(26, 33, 60, 0.84);
-  --surface-strong: rgba(34, 42, 72, 0.95);
-  --surface-soft: rgba(166, 178, 232, 0.10);
-  --stroke: rgba(178, 190, 240, 0.16);
-  --stroke-strong: rgba(178, 190, 240, 0.28);
-  --text: #f4f4fb;
-  --muted: #c5cae4;
-  --subtle: #8d95bc;
-  --shadow: rgba(4, 6, 18, 0.44);
-  --input-bg: rgba(10, 14, 30, 0.62);
-  --ring-track: rgba(150, 162, 214, 0.18);
-  --ring-inner-bg: rgba(10, 14, 30, 0.80);
-  --ring-inner-shadow: rgba(3, 5, 15, 0.46);
-  --task-bg: rgba(12, 17, 36, 0.44);
-  --timer-shadow: rgba(3, 5, 16, 0.38);
-  --btn-shadow: rgba(3, 5, 16, 0.22);
-  --warn-ink: #fbdfa0;
-  --warn-bg: rgba(224, 168, 74, 0.18);
-  --warn-stroke: rgba(240, 190, 110, 0.38);
-  --danger-ink: #fbc6be;
-  --danger-bg: rgba(225, 90, 76, 0.18);
-  --danger-stroke: rgba(240, 120, 105, 0.38);
+  --surface: rgba(60, 16, 72, 0.80);
+  --surface-strong: rgba(76, 22, 88, 0.94);
+  --surface-soft: rgba(228, 190, 236, 0.10);
+  --stroke: rgba(232, 200, 240, 0.16);
+  --stroke-strong: rgba(232, 200, 240, 0.28);
+  --text: #f2e2ec;
+  --muted: #d5b6ca;
+  --subtle: #ab8bb6;
+  --shadow: rgba(14, 2, 24, 0.48);
+  --input-bg: rgba(28, 6, 42, 0.62);
+  --ring-track: rgba(200, 170, 215, 0.18);
+  --ring-inner-bg: rgba(26, 5, 40, 0.80);
+  --ring-inner-shadow: rgba(12, 2, 20, 0.50);
+  --task-bg: rgba(38, 9, 54, 0.46);
+  --timer-shadow: rgba(12, 2, 20, 0.40);
+  --btn-shadow: rgba(12, 2, 20, 0.24);
+  --warn-ink: #ffd9a8;
+  --warn-bg: rgba(224, 154, 74, 0.20);
+  --warn-stroke: rgba(240, 178, 110, 0.40);
+  --danger-ink: #ffc2cd;
+  --danger-bg: rgba(232, 84, 112, 0.20);
+  --danger-stroke: rgba(244, 120, 145, 0.40);
   --app-bg:
     radial-gradient(circle at 18% 0%, var(--accent-bg), transparent 34%),
-    radial-gradient(circle at 88% 10%, rgba(166, 178, 232, 0.12), transparent 28%),
-    linear-gradient(180deg, #161c38 0%, #0e1329 44%, #06080f 100%);
+    radial-gradient(circle at 88% 10%, rgba(102, 103, 171, 0.22), transparent 30%),
+    linear-gradient(180deg, #3a0b45 0%, #210635 46%, #140320 100%);
 }
 
-/* Light theme — warm paper and ink, not blue-white */
+/*
+ * Daylight — palette "Twine": #F4E7FB · #F3DCDC · #F5BCBA · #E3AADD · #C8A8E9 · #C3C7F3.
+ * Every swatch is a pastel — none clears 2:1 against a light ground, so they
+ * carry the page gradient and the soft chips only. Text and solid accents are
+ * deepened versions of the same hues (plum ink, rose, periwinkle, orchid).
+ */
 body[data-theme="daylight"] {
   color-scheme: light;
-  --surface: rgba(255, 253, 248, 0.78);
-  --surface-strong: rgba(255, 254, 250, 0.94);
-  --surface-soft: rgba(74, 58, 36, 0.055);
-  --stroke: rgba(74, 58, 36, 0.13);
-  --stroke-strong: rgba(74, 58, 36, 0.22);
-  --text: #2b2620;
-  --muted: #574e43;
-  --subtle: #756b5d;
-  --shadow: rgba(74, 58, 36, 0.14);
-  --input-bg: rgba(255, 254, 250, 0.88);
-  --ring-track: rgba(74, 58, 36, 0.12);
-  --ring-inner-bg: rgba(255, 254, 250, 0.94);
-  --ring-inner-shadow: rgba(74, 58, 36, 0.09);
-  --task-bg: rgba(255, 253, 247, 0.74);
-  --timer-shadow: rgba(74, 58, 36, 0.14);
-  --btn-shadow: rgba(74, 58, 36, 0.16);
-  --warn-ink: #855012;
-  --warn-bg: rgba(214, 158, 62, 0.20);
-  --warn-stroke: rgba(191, 133, 40, 0.42);
-  --danger-ink: #8e2f26;
-  --danger-bg: rgba(200, 74, 60, 0.14);
-  --danger-stroke: rgba(185, 60, 46, 0.40);
+  --surface: rgba(255, 252, 255, 0.80);
+  --surface-strong: rgba(255, 253, 255, 0.95);
+  --surface-soft: rgba(90, 60, 110, 0.055);
+  --stroke: rgba(90, 60, 110, 0.14);
+  --stroke-strong: rgba(90, 60, 110, 0.24);
+  --text: #3a2c46;
+  --muted: #5f4f70;
+  --subtle: #77678a;
+  --shadow: rgba(90, 60, 110, 0.16);
+  --input-bg: rgba(255, 253, 255, 0.90);
+  --ring-track: rgba(90, 60, 110, 0.14);
+  --ring-inner-bg: rgba(255, 253, 255, 0.94);
+  --ring-inner-shadow: rgba(90, 60, 110, 0.10);
+  --task-bg: rgba(255, 252, 255, 0.76);
+  --timer-shadow: rgba(90, 60, 110, 0.16);
+  --btn-shadow: rgba(90, 60, 110, 0.18);
+  --warn-ink: #8a5216;
+  --warn-bg: rgba(224, 158, 62, 0.20);
+  --warn-stroke: rgba(198, 132, 36, 0.42);
+  --danger-ink: #96223c;
+  --danger-bg: rgba(196, 52, 84, 0.14);
+  --danger-stroke: rgba(180, 44, 74, 0.40);
   --app-bg:
     radial-gradient(circle at 18% 0%, var(--accent-bg), transparent 42%),
-    radial-gradient(circle at 88% 8%, rgba(150, 130, 100, 0.10), transparent 32%),
-    linear-gradient(180deg, #fdfbf6 0%, #f6f1e7 46%, #efe8da 100%);
+    radial-gradient(circle at 88% 8%, rgba(195, 199, 243, 0.34), transparent 34%),
+    linear-gradient(180deg, #f4e7fb 0%, #f6ecf6 40%, #f3dcdc 100%);
 }
 
 /* Cool sage theme */
@@ -169,48 +175,48 @@ body[data-theme="sage"] {
     linear-gradient(180deg, #16211d 0%, #101a17 44%, #0a1210 100%);
 }
 
-/* Midnight rests: moonlit seafoam and periwinkle against the indigo sky. */
+/* Midnight rests: the cool blue-violet, then the palette's moon pink itself. */
 body[data-mode="shortBreak"] {
-  --accent: #63cfc0;
-  --accent-soft: #c4efe7;
-  --accent-bg: rgba(99, 207, 192, 0.14);
-  --accent-text: #0a3a34;
-  --on-accent: #06231f;
+  --accent: #8e90d4;
+  --accent-soft: #d2d3f2;
+  --accent-bg: rgba(142, 144, 212, 0.16);
+  --accent-text: #1e2059;
+  --on-accent: #16173f;
 }
 
 body[data-mode="longBreak"] {
-  --accent: #9aa6f0;
-  --accent-soft: #dbe0fb;
-  --accent-bg: rgba(154, 166, 240, 0.14);
-  --accent-text: #232b72;
-  --on-accent: #131a4a;
+  --accent: #f5d5e0;
+  --accent-soft: #fbeaf0;
+  --accent-bg: rgba(245, 213, 224, 0.16);
+  --accent-text: #4a1030;
+  --on-accent: #3a0a24;
 }
 
 /* ---------- Per-theme accent palettes ---------- */
-/* Daylight: deep bronze and jewel inks on paper, white text on the solid accent. */
+/* Daylight: deepened Twine hues, white text on the solid accent. */
 body[data-theme="daylight"] {
   --on-accent: #ffffff;
 }
 
 body[data-theme="daylight"][data-mode="work"] {
-  --accent: #a6621f;
-  --accent-soft: #f6e5c9;
-  --accent-bg: rgba(166, 98, 31, 0.10);
-  --accent-text: #6b3b0c;
+  --accent: #b44e56;
+  --accent-soft: #f8dcda;
+  --accent-bg: rgba(180, 78, 86, 0.10);
+  --accent-text: #6f2830;
 }
 
 body[data-theme="daylight"][data-mode="shortBreak"] {
-  --accent: #12695f;
-  --accent-soft: #cde9e3;
-  --accent-bg: rgba(18, 105, 95, 0.10);
-  --accent-text: #0a443d;
+  --accent: #5560b4;
+  --accent-soft: #dcdff8;
+  --accent-bg: rgba(85, 96, 180, 0.10);
+  --accent-text: #2c3374;
 }
 
 body[data-theme="daylight"][data-mode="longBreak"] {
-  --accent: #574aa6;
-  --accent-soft: #dedbf6;
-  --accent-bg: rgba(87, 74, 166, 0.10);
-  --accent-text: #322a73;
+  --accent: #8e4796;
+  --accent-soft: #f0d9ee;
+  --accent-bg: rgba(142, 71, 150, 0.10);
+  --accent-text: #5a2560;
 }
 
 /* Sage: warm amber + emerald, harmonised with the green surface. */
@@ -350,7 +356,7 @@ p {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 28px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ab8bb6' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 10px center;
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
@@ -569,7 +575,7 @@ button:disabled {
   height: 18px;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 2px 5px rgba(30, 22, 8, 0.32);
+  box-shadow: 0 2px 5px rgba(24, 6, 34, 0.34);
   transition: transform .18s ease;
 }
 
@@ -664,7 +670,7 @@ select {
   -webkit-appearance: none;
   padding: 0 36px 0 12px;
   background-color: var(--input-bg);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ab8bb6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 13px center;
 }
@@ -675,11 +681,11 @@ select option {
   color: var(--text);
 }
 
-/* The baked-in chevron is cool grey; Daylight needs a warm one to match the paper. */
+/* The chevron above is Midnight's mauve; Daylight needs the darker plum ink. */
 body[data-theme="daylight"] select,
 body[data-theme="daylight"] .language-select,
 body[data-theme="daylight"] .theme-select {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23756b5d' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2377678a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
 }
 
 input::placeholder {

@@ -392,9 +392,9 @@ async function updateBadge(state) {
 
   await chrome.action.setBadgeText({ text });
   // Deeper than the in-app accents so the badge stays legible on both the
-  // light and dark Chrome toolbars ("Ink & Ember" ember / pine).
+  // light and dark Chrome toolbars (magenta focus / periwinkle rest).
   await chrome.action.setBadgeBackgroundColor({
-    color: state.mode === "work" ? "#c8801f" : "#187f72"
+    color: state.mode === "work" ? "#a03ca6" : "#5560b4"
   });
 }
 

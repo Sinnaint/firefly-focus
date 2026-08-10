@@ -250,28 +250,28 @@
 
       .widget {
         /* Surface tokens — default theme: Midnight (see .widget[data-theme]).
-           Palette "Ink & Ember": indigo night sky lit by ember gold. */
-        --w-text: #f4f4fb;
-        --w-title: #fbfbff;
-        --w-muted: #c5cae4;
-        --w-subtle: #8d95bc;
-        --w-border: rgba(178, 190, 240, 0.18);
-        --w-border-strong: rgba(178, 190, 240, 0.30);
-        --w-hairline: rgba(178, 190, 240, 0.14);
-        --w-soft: rgba(166, 178, 232, 0.12);
-        --w-soft-2: rgba(166, 178, 232, 0.08);
+           Palette "Moon": deep violet ground, moonlit pink ink. */
+        --w-text: #f2e2ec;
+        --w-title: #fdf3f8;
+        --w-muted: #d5b6ca;
+        --w-subtle: #ab8bb6;
+        --w-border: rgba(232, 200, 240, 0.18);
+        --w-border-strong: rgba(232, 200, 240, 0.30);
+        --w-hairline: rgba(232, 200, 240, 0.14);
+        --w-soft: rgba(228, 190, 236, 0.12);
+        --w-soft-2: rgba(228, 190, 236, 0.08);
         --w-bg:
           radial-gradient(130% 90% at 0% 0%, var(--accent-bg), transparent 55%),
-          radial-gradient(120% 120% at 100% 4%, rgba(166, 178, 232, 0.10), transparent 52%),
-          linear-gradient(165deg, rgba(30, 38, 68, 0.93), rgba(8, 11, 24, 0.95));
-        --w-ring-track: rgba(150, 162, 214, 0.18);
-        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(28, 35, 62, 0.93), rgba(7, 10, 22, 0.96));
-        --w-tasks-bg: rgba(12, 17, 36, 0.44);
-        --w-task-bg: rgba(166, 178, 232, 0.08);
-        --w-shadow-1: rgba(3, 5, 16, 0.75);
-        --w-shadow-2: rgba(3, 5, 16, 0.60);
-        --w-scroll: rgba(166, 178, 232, 0.30);
-        --on-accent: #2b1c05;
+          radial-gradient(120% 120% at 100% 4%, rgba(102, 103, 171, 0.20), transparent 52%),
+          linear-gradient(165deg, rgba(66, 13, 75, 0.94), rgba(20, 3, 32, 0.96));
+        --w-ring-track: rgba(200, 170, 215, 0.18);
+        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(58, 11, 69, 0.94), rgba(18, 3, 28, 0.97));
+        --w-tasks-bg: rgba(33, 6, 53, 0.46);
+        --w-task-bg: rgba(228, 190, 236, 0.08);
+        --w-shadow-1: rgba(12, 2, 20, 0.78);
+        --w-shadow-2: rgba(12, 2, 20, 0.62);
+        --w-scroll: rgba(228, 190, 236, 0.30);
+        --on-accent: #2b0630;
         --text-scale: 1;
 
         position: relative;
@@ -295,27 +295,27 @@
 
       .widget[data-theme="daylight"] {
         color-scheme: light;
-        --w-text: #2b2620;
-        --w-title: #1e1a15;
-        --w-muted: #574e43;
-        --w-subtle: #756b5d;
-        --w-border: rgba(74, 58, 36, 0.14);
-        --w-border-strong: rgba(74, 58, 36, 0.24);
-        --w-hairline: rgba(74, 58, 36, 0.11);
-        --w-soft: rgba(74, 58, 36, 0.06);
-        --w-soft-2: rgba(74, 58, 36, 0.04);
+        --w-text: #3a2c46;
+        --w-title: #2b1f36;
+        --w-muted: #5f4f70;
+        --w-subtle: #77678a;
+        --w-border: rgba(90, 60, 110, 0.15);
+        --w-border-strong: rgba(90, 60, 110, 0.26);
+        --w-hairline: rgba(90, 60, 110, 0.12);
+        --w-soft: rgba(90, 60, 110, 0.06);
+        --w-soft-2: rgba(90, 60, 110, 0.04);
         --w-bg:
           radial-gradient(130% 90% at 0% 0%, var(--accent-bg), transparent 60%),
-          radial-gradient(120% 120% at 100% 4%, rgba(150, 130, 100, 0.10), transparent 55%),
-          linear-gradient(165deg, rgba(255, 253, 248, 0.95), rgba(243, 237, 226, 0.96));
+          radial-gradient(120% 120% at 100% 4%, rgba(195, 199, 243, 0.30), transparent 55%),
+          linear-gradient(165deg, rgba(250, 240, 252, 0.96), rgba(243, 220, 220, 0.96));
         /* The widget ring is thin — the track needs a touch more ink than the panel's. */
-        --w-ring-track: rgba(74, 58, 36, 0.17);
-        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(255, 254, 250, 0.96), rgba(240, 234, 222, 0.98));
-        --w-tasks-bg: rgba(255, 253, 247, 0.62);
-        --w-task-bg: rgba(74, 58, 36, 0.05);
-        --w-shadow-1: rgba(74, 58, 36, 0.24);
-        --w-shadow-2: rgba(74, 58, 36, 0.17);
-        --w-scroll: rgba(74, 58, 36, 0.25);
+        --w-ring-track: rgba(90, 60, 110, 0.18);
+        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(255, 253, 255, 0.97), rgba(246, 236, 246, 0.98));
+        --w-tasks-bg: rgba(255, 252, 255, 0.64);
+        --w-task-bg: rgba(90, 60, 110, 0.05);
+        --w-shadow-1: rgba(90, 60, 110, 0.26);
+        --w-shadow-2: rgba(90, 60, 110, 0.18);
+        --w-scroll: rgba(90, 60, 110, 0.25);
       }
 
       .widget[data-theme="sage"] {
@@ -357,33 +357,33 @@
       }
 
       .widget[data-mode="work"] {
-        --accent: #f0b45f;
-        --accent-soft: #f7dfb2;
-        --accent-bg: rgba(240, 180, 95, 0.20);
-        --accent-text: #2b1c05;
+        --accent: #c965cb;
+        --accent-soft: #f0c4f1;
+        --accent-bg: rgba(201, 101, 203, 0.22);
+        --accent-text: #2b0630;
       }
 
       .widget[data-mode="shortBreak"] {
-        --accent: #63cfc0;
-        --accent-soft: #c4efe7;
-        --accent-bg: rgba(99, 207, 192, 0.20);
-        --accent-text: #06231f;
-        --on-accent: #06231f;
+        --accent: #8e90d4;
+        --accent-soft: #d2d3f2;
+        --accent-bg: rgba(142, 144, 212, 0.22);
+        --accent-text: #16173f;
+        --on-accent: #16173f;
       }
 
       .widget[data-mode="longBreak"] {
-        --accent: #9aa6f0;
-        --accent-soft: #dbe0fb;
-        --accent-bg: rgba(154, 166, 240, 0.20);
-        --accent-text: #131a4a;
-        --on-accent: #131a4a;
+        --accent: #f5d5e0;
+        --accent-soft: #fbeaf0;
+        --accent-bg: rgba(245, 213, 224, 0.22);
+        --accent-text: #3a0a24;
+        --on-accent: #3a0a24;
       }
 
       /* Per-theme accent palettes */
       .widget[data-theme="daylight"] { --on-accent: #ffffff; }
-      .widget[data-theme="daylight"][data-mode="work"] { --accent: #a6621f; --accent-bg: rgba(166, 98, 31, 0.16); }
-      .widget[data-theme="daylight"][data-mode="shortBreak"] { --accent: #12695f; --accent-bg: rgba(18, 105, 95, 0.16); }
-      .widget[data-theme="daylight"][data-mode="longBreak"] { --accent: #574aa6; --accent-bg: rgba(87, 74, 166, 0.16); }
+      .widget[data-theme="daylight"][data-mode="work"] { --accent: #b44e56; --accent-bg: rgba(180, 78, 86, 0.16); }
+      .widget[data-theme="daylight"][data-mode="shortBreak"] { --accent: #5560b4; --accent-bg: rgba(85, 96, 180, 0.16); }
+      .widget[data-theme="daylight"][data-mode="longBreak"] { --accent: #8e4796; --accent-bg: rgba(142, 71, 150, 0.16); }
       .widget[data-theme="sage"][data-mode="work"] { --accent: #f59e0b; --accent-bg: rgba(245, 158, 11, 0.20); }
       .widget[data-theme="sage"][data-mode="shortBreak"] { --accent: #34d399; --accent-bg: rgba(52, 211, 153, 0.20); }
       .widget[data-theme="sage"][data-mode="longBreak"] { --accent: #a78bfa; --accent-bg: rgba(167, 139, 250, 0.20); }
@@ -515,8 +515,8 @@
 
       .close:hover {
         color: #fff;
-        background: #cc4b3c;
-        border-color: #cc4b3c;
+        background: #c0304a;
+        border-color: #c0304a;
         transform: none;
       }
 
@@ -722,11 +722,11 @@
       }
 
       .task.soon {
-        box-shadow: inset 3px 0 0 0 #d99a34;
+        box-shadow: inset 3px 0 0 0 #d9932e;
       }
 
       .task.overdue {
-        box-shadow: inset 3px 0 0 0 #cc4b3c;
+        box-shadow: inset 3px 0 0 0 #c0304a;
       }
 
       .task input {
@@ -1022,14 +1022,14 @@
 
   const FIREFLY_PALETTE = {
     midnight: {
-      work: { core: "rgba(255, 240, 206, 1)", halo: "rgba(240, 180, 95, .64)", glow: "rgba(224, 152, 54, .72)" },
-      shortBreak: { core: "rgba(214, 250, 243, 1)", halo: "rgba(99, 207, 192, .62)", glow: "rgba(56, 182, 166, .70)" },
-      longBreak: { core: "rgba(228, 232, 255, 1)", halo: "rgba(154, 166, 240, .62)", glow: "rgba(118, 132, 226, .70)" }
+      work: { core: "rgba(255, 224, 245, 1)", halo: "rgba(201, 101, 203, .64)", glow: "rgba(160, 60, 170, .72)" },
+      shortBreak: { core: "rgba(228, 229, 255, 1)", halo: "rgba(142, 144, 212, .62)", glow: "rgba(102, 103, 171, .70)" },
+      longBreak: { core: "rgba(255, 240, 246, 1)", halo: "rgba(245, 213, 224, .60)", glow: "rgba(226, 170, 196, .66)" }
     },
     daylight: {
-      work: { core: "rgba(166, 98, 31, 1)", halo: "rgba(140, 80, 22, .55)", glow: "rgba(166, 98, 31, .48)" },
-      shortBreak: { core: "rgba(18, 105, 95, 1)", halo: "rgba(12, 84, 76, .55)", glow: "rgba(18, 105, 95, .48)" },
-      longBreak: { core: "rgba(87, 74, 166, 1)", halo: "rgba(70, 58, 142, .55)", glow: "rgba(87, 74, 166, .48)" }
+      work: { core: "rgba(180, 78, 86, 1)", halo: "rgba(150, 58, 66, .55)", glow: "rgba(180, 78, 86, .48)" },
+      shortBreak: { core: "rgba(85, 96, 180, 1)", halo: "rgba(60, 70, 150, .55)", glow: "rgba(85, 96, 180, .48)" },
+      longBreak: { core: "rgba(142, 71, 150, 1)", halo: "rgba(110, 50, 118, .55)", glow: "rgba(142, 71, 150, .48)" }
     },
     sage: {
       work: { core: "rgba(255, 237, 190, 1)", halo: "rgba(245, 158, 11, .60)", glow: "rgba(217, 119, 6, .66)" },
