@@ -90,6 +90,10 @@ const i18n = {
     presetUltradian: "Ультрадіанний · 90/20",
     presetSprint: "Короткі підходи · 15/3",
     presetCustom: "Власний",
+    timerFaceLabel: "Вигляд таймера",
+    faceRing: "Кільце",
+    faceDigits: "Тільки цифри",
+    faceBreathe: "Дихальне коло",
     tasksDrag: "Перетягни"
   },
   en: {
@@ -177,6 +181,10 @@ const i18n = {
     presetUltradian: "Ultradian · 90/20",
     presetSprint: "Short sprints · 15/3",
     presetCustom: "Custom",
+    timerFaceLabel: "Timer face",
+    faceRing: "Ring",
+    faceDigits: "Digits only",
+    faceBreathe: "Breathing circle",
     tasksDrag: "Drag"
   },
   de: {
@@ -260,6 +268,10 @@ const i18n = {
     presetUltradian: "Ultradian · 90/20",
     presetSprint: "Kurze Sprints · 15/3",
     presetCustom: "Eigen",
+    timerFaceLabel: "Timer-Darstellung",
+    faceRing: "Ring",
+    faceDigits: "Nur Ziffern",
+    faceBreathe: "Atmender Kreis",
     tasksDrag: "Ziehen"
   },
   es: {
@@ -343,6 +355,10 @@ const i18n = {
     presetUltradian: "Ultradiano · 90/20",
     presetSprint: "Sprints cortos · 15/3",
     presetCustom: "Personalizado",
+    timerFaceLabel: "Aspecto del temporizador",
+    faceRing: "Anillo",
+    faceDigits: "Solo dígitos",
+    faceBreathe: "Círculo que respira",
     tasksDrag: "Arrastrar"
   },
   it: {
@@ -426,6 +442,10 @@ const i18n = {
     presetUltradian: "Ultradiano · 90/20",
     presetSprint: "Sprint brevi · 15/3",
     presetCustom: "Personalizzato",
+    timerFaceLabel: "Aspetto del timer",
+    faceRing: "Anello",
+    faceDigits: "Solo cifre",
+    faceBreathe: "Cerchio che respira",
     tasksDrag: "Trascina"
   },
   sk: {
@@ -509,6 +529,10 @@ const i18n = {
     presetUltradian: "Ultradiánny · 90/20",
     presetSprint: "Krátke šprinty · 15/3",
     presetCustom: "Vlastný",
+    timerFaceLabel: "Vzhľad časovača",
+    faceRing: "Prstenec",
+    faceDigits: "Iba číslice",
+    faceBreathe: "Dýchajúci kruh",
     tasksDrag: "Presuň"
   },
   cs: {
@@ -592,6 +616,10 @@ const i18n = {
     presetUltradian: "Ultradiánní · 90/20",
     presetSprint: "Krátké sprinty · 15/3",
     presetCustom: "Vlastní",
+    timerFaceLabel: "Vzhled časovače",
+    faceRing: "Prstenec",
+    faceDigits: "Jen číslice",
+    faceBreathe: "Dýchající kruh",
     tasksDrag: "Táhni"
   }
 };
@@ -670,6 +698,7 @@ function collectSettingsFrom(root, settings = {}) {
     textScale: num("textScale", settings.textScale),
     soundTheme: str("soundTheme", settings.soundTheme),
     theme: str("themeSelect", settings.theme),
+    timerFace: str("timerFace", settings.timerFace),
     language: str("languageSelect", settings.language),
     fireflyIntervalValue: num("fireflyIntervalValue", settings.fireflyIntervalValue),
     fireflyIntervalUnit: str("fireflyIntervalUnit", settings.fireflyIntervalUnit),
@@ -704,6 +733,7 @@ function applySettingsTo(root, settings) {
   setValue("textScale", settings.textScale ?? 100);
   setValue("soundTheme", settings.soundTheme);
   setValue("themeSelect", settings.theme || "midnight");
+  setValue("timerFace", settings.timerFace || "ring");
   setValue("languageSelect", settings.language || "uk");
   setValue("fireflyIntervalUnit", settings.fireflyIntervalUnit || "seconds");
   setValue(

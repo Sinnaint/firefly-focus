@@ -432,11 +432,14 @@ function render() {
   document.documentElement.lang = getLanguage();
   document.body.dataset.mode = state.mode;
   document.body.dataset.theme = state.settings.theme || "midnight";
+  document.body.dataset.face = state.settings.timerFace || "ring";
+  document.body.dataset.running = String(Boolean(state.running));
   document.documentElement.style.setProperty(
     "--text-scale",
     String((state.settings.textScale ?? 100) / 100)
   );
   els.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
+  els.ring.style.setProperty("--progress-pct", `${progress}%`);
 
   els.timer.textContent = formatTime(remaining);
   els.mode.textContent = dictionary.modes[state.mode];

@@ -391,3 +391,23 @@ body.is-settings-open .fs-tasks {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* ---------- Timer faces on a whole screen ---------- */
+/* Without the ring there is no inner circle to bound the digits, so they can
+   grow — but "120:00" is ~2.93em wide and must still clear the container. */
+body[data-face="digits"] .fs-ring {
+  width: min(84vw, 1000px);
+}
+
+body[data-face="digits"] .fs-timer {
+  font-size: min(26vh, 17vw, 260px);
+}
+
+body[data-face="digits"] .fs-ring-inner {
+  padding: 0 0 clamp(14px, 2.4vh, 28px);
+}
+
+/* The breathing orb needs room around it for the scale animation. */
+body[data-face="breathe"] .fs-ring {
+  --fs-ring: min(54vh, 42vw, 560px);
+}

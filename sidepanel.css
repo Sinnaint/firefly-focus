@@ -1098,3 +1098,96 @@ body[data-view="compact"] .timer {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Timer faces — body[data-face]. The ring markup never changes; each face
+   just re-dresses it, so the panel and the fullscreen page share one set of
+   rules. The floating widget is always the ring (its CSS is a separate,
+   inlined stylesheet inside the content script).
+   ========================================================================== */
+.ring {
+  position: relative;
+}
+
+/* ---------- Digits only ---------- */
+body[data-face="digits"] .ring {
+  width: auto;
+  aspect-ratio: auto;
+  padding-bottom: 12px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+body[data-face="digits"] .ring-inner {
+  width: auto;
+  aspect-ratio: auto;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* A hairline of progress instead of the ring. Uses --progress-pct, which the
+   pages set alongside --progress: a conic angle cannot drive a linear bar. */
+body[data-face="digits"] .ring::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--progress-pct, 0%),
+    var(--ring-track) var(--progress-pct, 0%)
+  );
+}
+
+/* ---------- Breathing circle ---------- */
+/* A glowing annulus, not a filled disc: the digits keep the plain card
+   behind them, so text contrast is unaffected by the accent colour. */
+body[data-face="breathe"] .ring {
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 44%,
+      color-mix(in srgb, var(--accent) 42%, transparent) 60%,
+      transparent 78%
+    );
+  box-shadow: none;
+  animation: timerBreathe 9s ease-in-out infinite;
+}
+
+body[data-face="breathe"] .ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--progress), transparent 0);
+  opacity: 0.22;
+  -webkit-mask: radial-gradient(circle, transparent 0 63%, #000 64%);
+  mask: radial-gradient(circle, transparent 0 63%, #000 64%);
+}
+
+body[data-face="breathe"] .ring-inner {
+  background: none;
+  box-shadow: none;
+}
+
+@keyframes timerBreathe {
+  0%, 100% { transform: scale(0.94); }
+  50% { transform: scale(1.06); }
+}
+
+/* Breathing is a focus cue — it should not pulse while the timer is stopped. */
+body[data-face="breathe"][data-running="false"] .ring {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-face="breathe"] .ring {
+    animation: none;
+  }
+}

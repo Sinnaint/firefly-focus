@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   soundEnabled: true,
   language: "uk",
   theme: "midnight",
+  timerFace: "ring",
   textScale: 100,
   widgetMode: "full",
   floatingWidgetEnabled: true,
@@ -246,6 +247,7 @@ function normalizeSettings(settings = {}) {
   const themes = ["bright", "arcade", "bell", "soft"];
   const languages = ["uk", "en", "de", "es", "it", "sk", "cs"];
   const colorThemes = ["midnight", "daylight", "sage"];
+  const timerFaces = ["ring", "digits", "breathe"];
   const widgetModes = ["full", "compact"];
   const fireflyIntervalUnits = ["seconds", "minutes"];
   const fireflyIntervalUnit = fireflyIntervalUnits.includes(settings.fireflyIntervalUnit)
@@ -274,6 +276,9 @@ function normalizeSettings(settings = {}) {
     soundEnabled: settings.soundEnabled !== false,
     language: languages.includes(settings.language) ? settings.language : "uk",
     theme: colorThemes.includes(settings.theme) ? settings.theme : "midnight",
+    // How the countdown is drawn in the panel and fullscreen. The floating
+    // widget always uses the ring — its CSS lives inside the content script.
+    timerFace: timerFaces.includes(settings.timerFace) ? settings.timerFace : "ring",
     textScale: clampNumber(settings.textScale, 80, 140, 100),
     widgetMode: widgetModes.includes(settings.widgetMode) ? settings.widgetMode : "full",
     floatingWidgetEnabled: settings.floatingWidgetEnabled !== false,
