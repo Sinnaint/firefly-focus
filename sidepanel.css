@@ -407,8 +407,16 @@ p {
   border-radius: 28px;
 }
 
+/*
+ * One number drives the whole dial. The inner disc's padding and the digit
+ * size are both fractions of --ring-size, so the time can never outgrow the
+ * circle: content width is 0.82S − 2×0.065S = 0.69S, and the longest string
+ * "120:00" is 2.93em ≈ 0.63S wide. Overriding the diameter alone rescales
+ * everything in proportion.
+ */
 .ring {
-  width: min(270px, 82vw);
+  --ring-size: min(270px, 82vw);
+  width: var(--ring-size, 230px);
   aspect-ratio: 1;
   margin: 2px auto 16px;
   display: grid;
@@ -431,12 +439,12 @@ p {
   border-radius: 50%;
   background: var(--ring-inner-bg);
   box-shadow: inset 0 0 36px var(--ring-inner-shadow);
-  padding: 22px;
+  padding: calc(var(--ring-size, 230px) * 0.065);
 }
 
 .timer {
   color: var(--text);
-  font-size: clamp(52px, 15vw, 74px);
+  font-size: calc(var(--ring-size, 230px) * 0.215);
   font-weight: 950;
   line-height: 0.92;
   /* em, not px: the size is clamped, so pixel tracking would drift with the
@@ -457,11 +465,13 @@ p {
 }
 
 .hint {
-  margin-top: 8px;
-  max-width: 215px;
-  color: var(--muted);
+  max-width: 34ch;
+  margin: 0 auto 14px;
+  color: var(--subtle);
   font-size: calc(12px * var(--text-scale, 1));
-  line-height: 1.35;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .controls {
@@ -906,17 +916,12 @@ body[data-view="compact"] .timer-shell {
 }
 
 body[data-view="compact"] .ring {
-  width: min(190px, 70vw);
+  --ring-size: min(190px, 70vw);
   margin-bottom: 12px;
 }
 
 body[data-view="compact"] .ring-inner {
   width: 84%;
-  padding: 16px;
-}
-
-body[data-view="compact"] .timer {
-  font-size: clamp(42px, 14vw, 58px);
 }
 
 body[data-view="compact"] .mode {
@@ -1044,12 +1049,8 @@ h1 {
 }
 
 .ring {
-  width: min(230px, 76vw);
-  margin-bottom: 14px;
-}
-
-.timer {
-  font-size: clamp(46px, 13vw, 64px);
+  --ring-size: min(248px, 72vw);
+  margin-bottom: 10px;
 }
 
 .controls button,
@@ -1074,11 +1075,7 @@ body[data-view="compact"] .app {
 }
 
 body[data-view="compact"] .ring {
-  width: min(154px, 64vw);
-}
-
-body[data-view="compact"] .timer {
-  font-size: clamp(34px, 12vw, 48px);
+  --ring-size: min(166px, 62vw);
 }
 
 
