@@ -1149,6 +1149,35 @@ body[data-face="digits"] .ring::after {
 /* A glowing annulus, not a filled disc: the digits keep the plain card
    behind them, so text contrast is unaffected by the accent colour. */
 body[data-face="breathe"] .ring {
+  background: none;
+  box-shadow: none;
+}
+
+/*
+ * The breathing lives on the two ring layers, never on .ring itself —
+ * .ring is the element that contains the digits, so scaling it would blow the
+ * time up and down along with the circle.
+ */
+body[data-face="breathe"] .ring::before,
+body[data-face="breathe"] .ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: timerBreathe 9s ease-in-out infinite;
+}
+
+/* Progress arc. */
+body[data-face="breathe"] .ring::before {
+  background: conic-gradient(var(--accent) var(--progress), transparent 0);
+  opacity: 0.22;
+  -webkit-mask: radial-gradient(circle, transparent 0 63%, #000 64%);
+  mask: radial-gradient(circle, transparent 0 63%, #000 64%);
+}
+
+/* The glow itself. */
+body[data-face="breathe"] .ring::after {
   background:
     radial-gradient(
       circle at 50% 50%,
@@ -1156,22 +1185,13 @@ body[data-face="breathe"] .ring {
       color-mix(in srgb, var(--accent) 42%, transparent) 60%,
       transparent 78%
     );
-  box-shadow: none;
-  animation: timerBreathe 9s ease-in-out infinite;
 }
 
-body[data-face="breathe"] .ring::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(var(--accent) var(--progress), transparent 0);
-  opacity: 0.22;
-  -webkit-mask: radial-gradient(circle, transparent 0 63%, #000 64%);
-  mask: radial-gradient(circle, transparent 0 63%, #000 64%);
-}
-
+/* Both layers are absolutely positioned, so the digits need a stacking bump
+   to stay in front of them. */
 body[data-face="breathe"] .ring-inner {
+  position: relative;
+  z-index: 1;
   background: none;
   box-shadow: none;
 }
@@ -1182,12 +1202,14 @@ body[data-face="breathe"] .ring-inner {
 }
 
 /* Breathing is a focus cue — it should not pulse while the timer is stopped. */
-body[data-face="breathe"][data-running="false"] .ring {
+body[data-face="breathe"][data-running="false"] .ring::before,
+body[data-face="breathe"][data-running="false"] .ring::after {
   animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-face="breathe"] .ring {
+  body[data-face="breathe"] .ring::before,
+  body[data-face="breathe"] .ring::after {
     animation: none;
   }
 }
