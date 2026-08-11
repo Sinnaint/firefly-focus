@@ -105,6 +105,18 @@
       </div>
 
       <div class="settings-grid">
+        <label class="full">
+          <span data-i18n="timerPresetLabel">Ритм таймера</span>
+          <select id="timerPreset">
+            <option value="classic" data-i18n="presetClassic">Класичний · 25/5</option>
+            <option value="deep" data-i18n="presetDeep">Глибока робота · 50/10</option>
+            <option value="desktime" data-i18n="presetDesktime">DeskTime · 52/17</option>
+            <option value="ultradian" data-i18n="presetUltradian">Ультрадіанний · 90/20</option>
+            <option value="sprint" data-i18n="presetSprint">Короткі підходи · 15/3</option>
+            <option value="custom" data-i18n="presetCustom">Власний</option>
+          </select>
+        </label>
+
         <label>
           <span data-i18n="workMinutesLabel">Робота, хв</span>
           <input id="workMinutes" type="number" min="1" max="180" />

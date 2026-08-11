@@ -390,6 +390,8 @@ function bindSettingsSheet() {
 
   q("fireflyIntervalUnit")?.addEventListener("change", () => syncFireflyIntervalBounds(mount));
 
+  bindPresetPicker(mount);
+
   q("textScale")?.addEventListener("input", (event) => {
     const scale = clampNum(Number(event.target.value), 80, 140, 100) / 100;
     document.documentElement.style.setProperty("--text-scale", String(scale));

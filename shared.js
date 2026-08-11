@@ -83,6 +83,13 @@ const i18n = {
     noTaskYet: "Задачу не обрано",
     openPanel: "Відкрити повну панель із задачами",
     fullscreenTasksLabel: "Показувати задачі в повноекранному режимі",
+    timerPresetLabel: "Ритм таймера",
+    presetClassic: "Класичний · 25/5",
+    presetDeep: "Глибока робота · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ультрадіанний · 90/20",
+    presetSprint: "Короткі підходи · 15/3",
+    presetCustom: "Власний",
     tasksDrag: "Перетягни"
   },
   en: {
@@ -163,6 +170,13 @@ const i18n = {
     noTaskYet: "No task picked",
     openPanel: "Open the full panel with tasks",
     fullscreenTasksLabel: "Show tasks in fullscreen mode",
+    timerPresetLabel: "Timer rhythm",
+    presetClassic: "Classic · 25/5",
+    presetDeep: "Deep work · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradian · 90/20",
+    presetSprint: "Short sprints · 15/3",
+    presetCustom: "Custom",
     tasksDrag: "Drag"
   },
   de: {
@@ -239,6 +253,13 @@ const i18n = {
     noTaskYet: "Keine Aufgabe gewählt",
     openPanel: "Volles Panel mit Aufgaben öffnen",
     fullscreenTasksLabel: "Aufgaben im Vollbild anzeigen",
+    timerPresetLabel: "Timer-Rhythmus",
+    presetClassic: "Klassisch · 25/5",
+    presetDeep: "Deep Work · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradian · 90/20",
+    presetSprint: "Kurze Sprints · 15/3",
+    presetCustom: "Eigen",
     tasksDrag: "Ziehen"
   },
   es: {
@@ -315,6 +336,13 @@ const i18n = {
     noTaskYet: "Sin tarea elegida",
     openPanel: "Abrir el panel completo con tareas",
     fullscreenTasksLabel: "Mostrar tareas en pantalla completa",
+    timerPresetLabel: "Ritmo del temporizador",
+    presetClassic: "Clásico · 25/5",
+    presetDeep: "Trabajo profundo · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradiano · 90/20",
+    presetSprint: "Sprints cortos · 15/3",
+    presetCustom: "Personalizado",
     tasksDrag: "Arrastrar"
   },
   it: {
@@ -391,6 +419,13 @@ const i18n = {
     noTaskYet: "Nessuna attività scelta",
     openPanel: "Apri il pannello completo con le attività",
     fullscreenTasksLabel: "Mostra le attività a schermo intero",
+    timerPresetLabel: "Ritmo del timer",
+    presetClassic: "Classico · 25/5",
+    presetDeep: "Lavoro profondo · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradiano · 90/20",
+    presetSprint: "Sprint brevi · 15/3",
+    presetCustom: "Personalizzato",
     tasksDrag: "Trascina"
   },
   sk: {
@@ -467,6 +502,13 @@ const i18n = {
     noTaskYet: "Nevybraná úloha",
     openPanel: "Otvoriť celý panel s úlohami",
     fullscreenTasksLabel: "Zobraziť úlohy na celej obrazovke",
+    timerPresetLabel: "Rytmus časovača",
+    presetClassic: "Klasický · 25/5",
+    presetDeep: "Hlboká práca · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradiánny · 90/20",
+    presetSprint: "Krátke šprinty · 15/3",
+    presetCustom: "Vlastný",
     tasksDrag: "Presuň"
   },
   cs: {
@@ -543,6 +585,13 @@ const i18n = {
     noTaskYet: "Nevybraný úkol",
     openPanel: "Otevřít celý panel s úkoly",
     fullscreenTasksLabel: "Zobrazit úkoly na celé obrazovce",
+    timerPresetLabel: "Rytmus časovače",
+    presetClassic: "Klasický · 25/5",
+    presetDeep: "Hluboká práce · 50/10",
+    presetDesktime: "DeskTime · 52/17",
+    presetUltradian: "Ultradiánní · 90/20",
+    presetSprint: "Krátké sprinty · 15/3",
+    presetCustom: "Vlastní",
     tasksDrag: "Táhni"
   }
 };
@@ -669,6 +718,10 @@ function applySettingsTo(root, settings) {
   setChecked("floatingWidgetEnabled", settings.floatingWidgetEnabled !== false);
   setChecked("fullscreenTasksEnabled", settings.fullscreenTasksEnabled !== false);
   setChecked("fireflyAnimationEnabled", settings.fireflyAnimationEnabled !== false);
+
+  // Derived, not stored — see TIMER_PRESETS.
+  const picker = root.querySelector("#timerPreset");
+  if (picker) picker.value = derivePreset(settings);
 }
 
 /* Fills every [data-i18n] node under `root` from the given dictionary. */
@@ -772,5 +825,54 @@ function renderTasksInto(listEl, tasks, dictionary, { simple = false, emptyText 
 
     li.append(checkbox, body, del);
     listEl.appendChild(li);
+  }
+}
+
+/*
+ * Timer rhythm presets. Deliberately NOT a stored setting: the picker's value
+ * is derived from the four durations every time the form is filled, so it can
+ * never disagree with hand-edited numbers and the service worker needs to know
+ * nothing about it.
+ */
+const TIMER_PRESETS = {
+  classic:   { workMinutes: 25, shortBreakMinutes: 5,  longBreakMinutes: 15, cyclesBeforeLong: 4 },
+  deep:      { workMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 30, cyclesBeforeLong: 2 },
+  desktime:  { workMinutes: 52, shortBreakMinutes: 17, longBreakMinutes: 25, cyclesBeforeLong: 3 },
+  ultradian: { workMinutes: 90, shortBreakMinutes: 20, longBreakMinutes: 30, cyclesBeforeLong: 2 },
+  sprint:    { workMinutes: 15, shortBreakMinutes: 3,  longBreakMinutes: 10, cyclesBeforeLong: 4 }
+};
+
+const PRESET_FIELDS = ["workMinutes", "shortBreakMinutes", "longBreakMinutes", "cyclesBeforeLong"];
+
+function derivePreset(values) {
+  for (const [name, preset] of Object.entries(TIMER_PRESETS)) {
+    if (PRESET_FIELDS.every((field) => Number(values[field]) === preset[field])) return name;
+  }
+  return "custom";
+}
+
+/* Two-way: picking a rhythm fills the durations, editing a duration by hand
+   drops the picker back to "Custom". */
+function bindPresetPicker(root) {
+  const picker = root.querySelector("#timerPreset");
+  if (!picker) return;
+
+  picker.addEventListener("change", () => {
+    const preset = TIMER_PRESETS[picker.value];
+    if (!preset) return;
+    for (const field of PRESET_FIELDS) {
+      const input = root.querySelector(`#${field}`);
+      if (input) input.value = preset[field];
+    }
+  });
+
+  for (const field of PRESET_FIELDS) {
+    root.querySelector(`#${field}`)?.addEventListener("input", () => {
+      const current = {};
+      for (const other of PRESET_FIELDS) {
+        current[other] = root.querySelector(`#${other}`)?.value;
+      }
+      picker.value = derivePreset(current);
+    });
   }
 }

@@ -380,6 +380,8 @@ els.fireflyIntervalUnit.addEventListener("change", () => {
   syncFireflyIntervalBounds(document);
 });
 
+bindPresetPicker(document);
+
 // Live preview of text size while typing/stepping (persists on Save).
 els.textScale.addEventListener("input", () => {
   const scale = clampNum(Number(els.textScale.value), 80, 140, 100) / 100;
