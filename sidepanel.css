@@ -1212,76 +1212,86 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 /* ==========================================================================
-   Study buddy — capybara in a firefly costume.
-   Markup comes from BUDDY_SVG in shared.js, so these rules serve both the
-   side panel and the fullscreen page. The fur is deliberately theme-neutral
-   warm brown; only the costume (lamp, wings, antennae) follows --accent.
+   Study buddy — pixel-art capybara in a firefly costume.
+   Markup is generated in shared.js, so these rules serve both the side panel
+   and the fullscreen page. The fur is deliberately theme-neutral warm brown;
+   only the costume (lantern, wings, antennae) follows --accent.
+
+   .buddy is a full-width track and .buddy-walk spans it, sliding the sprite
+   from one edge to the other. Everything moves by transform, so pacing back
+   and forth never triggers layout. Sizes are in vw, not %, because
+   --buddy-size is used for both width and height and a percentage would
+   resolve against the wrong axis in the second one.
    ========================================================================== */
 .buddy {
+  --buddy-size: clamp(64px, 22vw, 96px);
+  --buddy-walk: 26s;
+
+  position: relative;
   display: block;
-  width: clamp(96px, 34%, 132px);
-  margin: 0 auto 12px;
+  width: 100%;
+  /* The sprite's viewBox is 40x30, so the track is 3/4 as tall as it is wide. */
+  height: calc(var(--buddy-size) * 0.75);
+  margin: 0 0 10px;
 }
 
 .buddy[hidden] {
   display: none;
 }
 
+body[data-view="compact"] .buddy {
+  --buddy-size: clamp(52px, 18vw, 74px);
+  margin-bottom: 6px;
+}
+
+.buddy-walk {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  /* Where it parks when the animation is off (reduced motion): mid-track. */
+  transform: translateX(calc(50% - var(--buddy-size) / 2));
+  animation: buddyWalk var(--buddy-walk) linear infinite alternate;
+}
+
 .buddy-art {
   display: block;
-  width: 100%;
+  width: var(--buddy-size);
   height: auto;
   overflow: visible;
+  /*
+   * One turn per round trip. The walk alternates, so it runs right for one
+   * duration and back for the next; this flip is twice as long and switches at
+   * the halfway mark, which is exactly when the walk turns around.
+   */
+  animation: buddyFace calc(var(--buddy-walk) * 2) linear infinite;
+}
+
+@keyframes buddyWalk {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(100% - var(--buddy-size))); }
+}
+
+@keyframes buddyFace {
+  0%, 49.99% { transform: scaleX(1); }
+  50%, 100% { transform: scaleX(-1); }
 }
 
 /* ---------- Capybara ---------- */
-.buddy-fur { fill: #b5825a; }
-.buddy-fur-dark { fill: #96683f; }
-.buddy-muzzle { fill: #c99a6f; }
-.buddy-nose { fill: #4a3220; }
-.buddy-eye-open { fill: #3a2618; }
-
-.buddy-eye-shut {
-  fill: none;
-  stroke: #3a2618;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-}
+.px-fur { fill: #b5825a; }
+.px-fur-dark { fill: #8a5f39; }
+.px-fur-light { fill: #cfa075; }
+.px-muzzle { fill: #d9b48c; }
+.px-nose { fill: #4a3220; }
+.px-eye { fill: #3a2618; }
 
 /* ---------- Firefly costume ---------- */
-.buddy-wing {
-  fill: var(--accent);
-  fill-opacity: 0.22;
-  stroke: var(--accent);
-  stroke-opacity: 0.45;
-  stroke-width: 1.6;
-  transform-origin: 96px 58px;
-}
+.px-glow { fill: var(--accent); }
+.px-glow-hot { fill: #fffdf8; fill-opacity: 0.8; }
+.px-halo { fill: var(--accent); fill-opacity: 0.16; }
 
-.buddy-lamp {
-  fill: var(--accent);
-}
-
-.buddy-lamp-halo {
-  fill: var(--accent);
-  fill-opacity: 0.18;
-}
-
-.buddy-lamp-spark {
-  fill: #fffdf8;
-  fill-opacity: 0.55;
-}
-
-.buddy-antenna {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.6;
-  stroke-linecap: round;
-}
-
-.buddy-antenna-tip {
-  fill: var(--accent);
-}
+.buddy-wing-far { opacity: 0.22; }
+.buddy-wing-near { opacity: 0.34; }
 
 /* ---------- Awake vs dozing ---------- */
 .buddy-eye-shut,
@@ -1300,72 +1310,89 @@ body[data-running="false"] .buddy-sleep {
 
 .buddy-z {
   fill: var(--muted);
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 900;
   opacity: 0;
 }
 
 /* ---------- Motion ---------- */
-.buddy-float {
-  animation: buddyBob 4.2s ease-in-out infinite;
-  transform-origin: 78px 70px;
-}
+/* Two leg frames on alternate half-beats; the negative delay puts B on the
+   off-beat, and the body dips on the same half-beat B is showing. */
+.buddy-legs-a { animation: buddyStep 0.62s linear infinite; }
+.buddy-legs-b { animation: buddyStep 0.62s linear -0.31s infinite; }
+.buddy-body { animation: buddyStride 0.62s linear infinite; }
 
 .buddy-wings {
-  animation: buddyFlutter 3.1s ease-in-out infinite;
-  transform-origin: 96px 52px;
+  animation: buddyFlutter 2.6s ease-in-out infinite;
+  transform-origin: 15px 5px;
 }
 
-.buddy-lamp-group {
+.buddy-lamp {
   animation: buddyLamp 2.8s ease-in-out infinite;
-  transform-origin: 26px 86px;
 }
 
 .buddy-z1 { animation: buddyZ 4.6s ease-in-out infinite; }
 .buddy-z2 { animation: buddyZ 4.6s ease-in-out 1.6s infinite; }
 
-@keyframes buddyBob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-3px) rotate(-1.2deg); }
+@keyframes buddyStep {
+  0%, 49.99% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Splayed legs put the belly a pixel closer to the ground. */
+@keyframes buddyStride {
+  0%, 49.99% { transform: translateY(0); }
+  50%, 100% { transform: translateY(1px); }
 }
 
 @keyframes buddyFlutter {
   0%, 100% { transform: scaleY(1) rotate(0deg); }
-  50% { transform: scaleY(0.88) rotate(3deg); }
+  50% { transform: scaleY(0.86) rotate(4deg); }
 }
 
 @keyframes buddyLamp {
-  0%, 100% { opacity: 0.72; transform: scale(0.96); }
-  50% { opacity: 1; transform: scale(1.05); }
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
 @keyframes buddyZ {
-  0% { opacity: 0; transform: translate(0, 4px) scale(0.8); }
+  0% { opacity: 0; transform: translate(0, 2px); }
   30% { opacity: 0.85; }
-  100% { opacity: 0; transform: translate(6px, -18px) scale(1.15); }
+  100% { opacity: 0; transform: translate(3px, -7px); }
 }
 
-/* Dozing: slower breathing, dimmer lamp, wings folded still. */
-body[data-running="false"] .buddy-float { animation-duration: 6.5s; }
-body[data-running="false"] .buddy-lamp-group { animation-duration: 5.5s; }
+/* Dozing: it stops where it stands rather than snapping back to the start. */
+body[data-running="false"] .buddy-walk,
+body[data-running="false"] .buddy-art {
+  animation-play-state: paused;
+}
+
+body[data-running="false"] .buddy-legs-a { animation: none; opacity: 1; }
+body[data-running="false"] .buddy-legs-b { animation: none; opacity: 0; }
 body[data-running="false"] .buddy-wings { animation: none; }
+body[data-running="false"] .buddy-lamp { animation-duration: 5.5s; }
+
+body[data-running="false"] .buddy-body {
+  animation: buddyDoze 6.5s ease-in-out infinite;
+}
+
+@keyframes buddyDoze {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(1px); }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .buddy-float,
+  .buddy-walk,
+  .buddy-art,
+  .buddy-legs-a,
+  .buddy-legs-b,
+  .buddy-body,
   .buddy-wings,
-  .buddy-lamp-group,
+  .buddy-lamp,
   .buddy-z1,
-  .buddy-z2 {
+  .buddy-z2,
+  body[data-running="false"] .buddy-body {
     animation: none;
   }
 
+  .buddy-legs-b { opacity: 0; }
   .buddy-z { opacity: 0.6; }
-}
-
-.buddy-mouth {
-  fill: none;
-  stroke: #6b4a2e;
-  stroke-width: 2.2;
-  stroke-linecap: round;
 }

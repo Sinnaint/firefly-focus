@@ -917,62 +917,176 @@ function bindPresetPicker(root) {
 }
 
 /*
- * Study buddy — a capybara in a firefly costume. Inline SVG, no assets: the
- * extension ships nothing it has to fetch. The lamp, wings and antennae take
- * their colour from --accent, so the buddy changes with the mode; the fur
- * stays warm brown in every theme because it is a character, not chrome.
+ * Study buddy — a pixel-art capybara in a firefly costume that paces along the
+ * bottom of the timer.
  *
- * Reacts to body[data-running]: eyes open and the lamp pulses while the timer
- * runs, eyes close and a "z" drifts up when it is stopped. Animations are all
- * in sidepanel.css so the panel and the fullscreen page share them.
+ * The sprite is built from a character grid: one cell = one viewBox unit, drawn
+ * with shape-rendering="crispEdges" so the pixels stay hard-edged at any size.
+ * Letters name CSS classes rather than colours, so the palette stays in
+ * sidepanel.css with everything else — the costume follows --accent while the
+ * fur stays warm brown in every theme, because this is a character, not chrome.
+ * Inline SVG, no assets: the extension ships nothing it has to fetch.
+ *
+ * Reacts to body[data-running]: walks and flutters while the timer runs, stops
+ * where it stands with its eyes shut and a "z" drifting up when it does not.
+ * All the motion lives in sidepanel.css, shared by the panel and fullscreen.
  */
-const BUDDY_SVG = `
-<svg class="buddy-art" viewBox="0 0 158 124" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+const BUDDY_CLASSES = {
+  f: "px-fur",        // mid brown
+  d: "px-fur-dark",   // shading under the sunlit back, far legs
+  l: "px-fur-light",  // sunlit back and belly
+  m: "px-muzzle",
+  n: "px-nose",       // nose and mouth
+  a: "px-glow",       // costume — follows --accent
+  g: "px-glow-hot",   // the bright core of the glow
+};
+
+/*
+ * Facing right, 32 columns wide — CSS only has to mirror it when it turns.
+ * The head is deliberately set three rows above the back with a notch between
+ * them: without that shoulder line the whole animal reads as one long loaf.
+ */
+const BUDDY_BODY = [
+  "................g.............g.",
+  ".................a...........a..",
+  "..................a.........a...",
+  "...................a.ddd...a....",
+  "...................a.ddd...a....",
+  "....................fffffffff...",
+  "...................fffffffffff..",
+  "...................ffffffffffff.",
+  ".....lllllllllllll.ffffffffffff.",
+  "...ffffffffffffffffffffffffmmnn.",
+  "..fffddddddddffffffffffffffmmnn.",
+  ".fffffdddddddffffffffffffffmmmm.",
+  ".ffffffffffffffffffffffffffmnnm.",
+  ".ffffffffffffffffffffffffffmmm..",
+  ".ffffffffffffffffffffffffff.....",
+  ".fffllllllllllllllfffffff.......",
+  ".fflllllllllllllllffff..........",
+  "..flllllllllllllllfff...........",
+  "...ddddddddddddddddd............",
+];
+
+/*
+ * Two leg poses, swapped a few times a second: standing square, then mid-swing
+ * with each leg two cells from where it was. The near pair is fur-coloured and
+ * the far pair dark, so four legs read as two sides rather than a fence. The
+ * body drops a pixel on the swing frame — what a real stride does, and what
+ * sells the walk at this size.
+ */
+const BUDDY_LEGS = [
+  [
+    ".....ff.dd....ff.dd.............",
+    ".....ff.dd....ff.dd.............",
+    ".....dd.dd....dd.dd.............",
+  ],
+  [
+    "....ff...dd..ff...dd............",
+    "...ff.....dd.ff....dd...........",
+    "...dd.....dd.dd....dd...........",
+  ],
+];
+
+/* One wing, drawn twice at different offsets so the far one peeks out. */
+const BUDDY_WING = [
+  "aaaa........",
+  "aaaaaaa.....",
+  ".aaaaaaaaa..",
+  "..aaaaaaaaa.",
+  ".....aaaaaa.",
+  "........aa..",
+];
+
+function buddyRects(rows, offsetX, offsetY) {
+  const runs = [];
+
+  rows.forEach((row, y) => {
+    let x = 0;
+    while (x < row.length) {
+      const key = row[x];
+      if (!BUDDY_CLASSES[key]) {
+        x += 1;
+        continue;
+      }
+
+      let w = 1;
+      while (row[x + w] === key) w += 1;
+
+      const above = runs.find(
+        (r) => r.key === key && r.x === x && r.w === w && r.y + r.h === y
+      );
+      if (above) above.h += 1;
+      else runs.push({ key, x, y, w, h: 1 });
+
+      x += w;
+    }
+  });
+
+  return runs
+    .map(
+      (r) =>
+        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x + offsetX}" y="${r.y + offsetY}"` +
+        ` width="${r.w}" height="${r.h}"/>`
+    )
+    .join("");
+}
+
+/* A pixel "z": top bar, a diagonal down to the left, bottom bar. */
+function buddyZ(x, y, size, cls) {
+  const parts = [`<rect x="${x}" y="${y}" width="${size}" height="1"/>`];
+  for (let i = 1; i < size - 1; i += 1) {
+    parts.push(`<rect x="${x + size - 1 - i}" y="${y + i}" width="1" height="1"/>`);
+  }
+  parts.push(`<rect x="${x}" y="${y + size - 1}" width="${size}" height="1"/>`);
+  return `<g class="buddy-z ${cls}">${parts.join("")}</g>`;
+}
+
+function buildBuddySvg() {
+  const legs = BUDDY_LEGS
+    .map(
+      (frame, i) =>
+        `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">${buddyRects(frame, 0, 19)}</g>`
+    )
+    .join("");
+
+  // Legs are drawn before the body so the body hides their tops when it dips.
+  return `
+<svg class="buddy-art" viewBox="-6 -8 40 30" xmlns="http://www.w3.org/2000/svg"
+     shape-rendering="crispEdges" aria-hidden="true" focusable="false">
   <g class="buddy-sleep">
-    <text class="buddy-z buddy-z1" x="60" y="32">z</text>
-    <text class="buddy-z buddy-z2" x="75" y="21">z</text>
+    ${buddyZ(10, -3, 3, "buddy-z1")}
+    ${buddyZ(15, -7, 4, "buddy-z2")}
   </g>
-
-  <g class="buddy-float">
+  ${legs}
+  <g class="buddy-body">
+    <g class="buddy-lamp">
+      <rect class="px-halo" x="-5" y="12" width="8" height="6"/>
+      <rect class="px-halo" x="-4" y="11" width="6" height="8"/>
+      <rect class="px-glow" x="-2" y="13" width="2" height="4"/>
+      <rect class="px-glow-hot" x="-2" y="13" width="1" height="1"/>
+    </g>
     <g class="buddy-wings">
-      <ellipse class="buddy-wing" cx="58" cy="46" rx="27" ry="14" transform="rotate(-30 58 46)"/>
-      <ellipse class="buddy-wing" cx="70" cy="40" rx="32" ry="16" transform="rotate(-15 70 40)"/>
+      <g class="buddy-wing-far">${buddyRects(BUDDY_WING, 8, 1)}</g>
+      <g class="buddy-wing-near">${buddyRects(BUDDY_WING, 6, 3)}</g>
     </g>
-
-    <g class="buddy-lamp-group">
-      <circle class="buddy-lamp-halo" cx="24" cy="88" r="24"/>
-      <circle class="buddy-lamp" cx="24" cy="88" r="13"/>
-      <circle class="buddy-lamp-spark" cx="20" cy="84" r="4.2"/>
-    </g>
-
-    <rect class="buddy-fur-dark" x="44" y="88" width="17" height="20" rx="8.5"/>
-    <rect class="buddy-fur-dark" x="86" y="88" width="17" height="20" rx="8.5"/>
-
-    <ellipse class="buddy-fur-dark" cx="106" cy="41" rx="7.5" ry="7"/>
-    <ellipse class="buddy-fur-dark" cx="126" cy="39" rx="7" ry="6.5"/>
-
-    <rect class="buddy-fur" x="22" y="52" width="98" height="46" rx="22"/>
-    <rect class="buddy-fur" x="100" y="42" width="48" height="46" rx="18"/>
-    <rect class="buddy-muzzle" x="122" y="60" width="32" height="30" rx="13"/>
-
-    <rect class="buddy-nose" x="140" y="65" width="11" height="8" rx="4"/>
-    <path class="buddy-mouth" d="M137 79 q5.5 4.5 11 0"/>
-
-    <circle class="buddy-eye-open" cx="116" cy="58" r="3.6"/>
-    <path class="buddy-eye-shut" d="M112 58 q4 3.6 8 0"/>
-
-    <g class="buddy-antennae">
-      <path class="buddy-antenna" d="M110 40 C 106 26, 100 21, 95 19"/>
-      <circle class="buddy-antenna-tip" cx="95" cy="19" r="3.8"/>
-      <path class="buddy-antenna" d="M130 38 C 133 24, 139 19, 144 17"/>
-      <circle class="buddy-antenna-tip" cx="144" cy="17" r="3.8"/>
-    </g>
+    ${buddyRects(BUDDY_BODY, 0, 0)}
+    <rect class="px-eye buddy-eye-open" x="24" y="9" width="2" height="2"/>
+    <rect class="px-eye buddy-eye-shut" x="23" y="10" width="3" height="1"/>
   </g>
 </svg>`;
+}
 
+let buddySvgCache = null;
 
+/*
+ * The .buddy-walk wrapper is the thing that travels: it spans the whole host
+ * and slides the sprite from one edge to the other, so neither page needs any
+ * markup beyond the empty #studyBuddy container.
+ */
 function renderBuddyInto(host) {
   if (!host || host.dataset.ready === "1") return;
-  host.innerHTML = BUDDY_SVG;
+  if (!buddySvgCache) buddySvgCache = buildBuddySvg();
+  host.innerHTML = `<div class="buddy-walk">${buddySvgCache}</div>`;
   host.dataset.ready = "1";
 }

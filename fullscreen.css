@@ -413,19 +413,58 @@ body[data-face="breathe"] .fs-ring {
 }
 
 /* ---------- Study buddy ---------- */
-/* Parked in a corner rather than in the centred column: the buddy is company,
-   not part of the timer's composition. */
+/*
+ * A strip along the bottom of the screen that the buddy paces end to end.
+ * The track itself is invisible; sizing and motion come from .buddy in
+ * sidepanel.css, so only the frame is set here. Left visible in ambient mode
+ * on purpose — it is the charm, not chrome.
+ *
+ * The measurements sit on the body so .fs can reserve a lane from them, then
+ * get mapped onto .fs-buddy: .buddy declares --buddy-size on the element
+ * itself, and an own declaration beats an inherited one.
+ */
+.fs-body {
+  --fs-buddy-size: clamp(88px, 9vw, 150px);
+  --fs-buddy-walk: 54s;
+  --fs-buddy-bottom: clamp(12px, 3vh, 44px);
+  /* Only the capybara itself: the top quarter of its viewBox is empty
+     headroom for the drifting "z" and does not need clearing. */
+  --fs-buddy-lane: calc(var(--fs-buddy-size) * 0.55 + var(--fs-buddy-bottom) + 14px);
+}
+
 .fs-buddy {
+  --buddy-size: var(--fs-buddy-size);
+  --buddy-walk: var(--fs-buddy-walk);
+
   position: fixed;
-  left: clamp(16px, 4vw, 64px);
-  bottom: clamp(16px, 5vh, 56px);
+  left: clamp(16px, 4vw, 72px);
+  right: clamp(16px, 4vw, 72px);
+  bottom: var(--fs-buddy-bottom);
   z-index: 3;
-  width: clamp(120px, 13vw, 190px);
+  width: auto;
   margin: 0;
 }
 
+/* Keep the centred column out of the lane — otherwise the buddy walks across
+   the session counter every time it crosses the middle of the screen. */
+body:has(#studyBuddy:not([hidden])) .fs {
+  padding-bottom: var(--fs-buddy-lane);
+}
+
 @media (max-height: 560px) {
-  .fs-buddy {
-    width: clamp(96px, 10vw, 130px);
+  .fs-body {
+    --fs-buddy-size: clamp(72px, 7vw, 110px);
+    --fs-buddy-walk: 46s;
+  }
+}
+
+/*
+ * A short window has no spare height, so the timer column would otherwise
+ * overflow straight into the buddy's lane. Shrink the dial instead — only
+ * while the buddy is actually on.
+ */
+@media (max-height: 620px) {
+  body:has(#studyBuddy:not([hidden])) .fs-ring {
+    --fs-ring: min(50vh, 30vw, 340px);
   }
 }
