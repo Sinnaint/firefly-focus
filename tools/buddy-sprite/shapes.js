@@ -1,34 +1,68 @@
 /*
- * Shape recipe traced off the reference art: a big rounded body, a large head
- * set high on the right, blunt snout, rounded ear, closed happy eye, and two
- * swept firefly wings rising off the shoulder.
+ * Shape recipes traced off the reference art. Three poses share one head and
+ * one snout so the face stays recognisable; what changes is how the body sits
+ * under it — standing, sitting back on the haunches, or lying down as a loaf.
  */
 const GW = 56, GH = 52;
 
-function capy() {
-  const g = blank(GW, GH);
+/* Head, snout, ear and face, placed at (hx, hy) — the head centre. */
+function face(g, hx, hy, tilt) {
+  blob(g, hx, hy, 11, 11, "f", 2.2);
+  blob(g, hx + 8, hy + 3, 5.2, 6, "f", 2.1);
+  blob(g, hx - 9, hy - 9 + (tilt || 0), 3.8, 4.4, "f", 2);
+}
 
-  // silhouette — flat-bottomed superellipses so the legs have somewhere to sit
+function faceMarks(g, hx, hy, tilt) {
+  blobShade(g, hx, hy - 6, 10, 8, "l", 2.1);
+  blobShade(g, hx - 9, hy - 8 + (tilt || 0), 2.4, 2.8, "d", 2);
+  blobShade(g, hx + 8, hy + 2, 5.6, 6.4, "m", 2.1);
+  blob(g, hx + 9.5, hy - 2, 2.6, 2, "n", 2.4);
+  rect(g, hx - 3, hy - 4, 4, 1, "n");
+  rect(g, hx - 4, hy - 3, 1, 1, "n"); rect(g, hx + 1, hy - 3, 1, 1, "n");
+  rect(g, hx + 5, hy + 6, 3, 1, "n");
+  rect(g, hx + 4, hy + 5, 1, 1, "n"); rect(g, hx + 8, hy + 5, 1, 1, "n");
+}
+
+/* Standing — the walking pose. Legs come from legFrame(). */
+function capyStand() {
+  const g = blank(GW, GH);
   blob(g, 23, 31, 16.5, 13, "f", 2.5);
   blob(g, 35, 29, 10.5, 14, "f", 2.5);
-  blob(g, 40, 20, 11, 11, "f", 2.2);
-  blob(g, 48, 23, 5.2, 6, "f", 2.1);
-  blob(g, 31, 11, 3.8, 4.4, "f", 2);
-
-  // sunlit top, shadow underneath
+  face(g, 40, 20);
   blobShade(g, 26, 21, 17, 11, "l", 2.2);
-  blobShade(g, 40, 14, 10, 8, "l", 2.1);
   blobShade(g, 24, 48, 16, 8, "d", 2.3);
-  blobShade(g, 31, 12, 2.4, 2.8, "d", 2);
+  faceMarks(g, 40, 20);
+  return outline(g, "o");
+}
 
-  // muzzle patch and features
-  blobShade(g, 48, 22, 5.6, 6.4, "m", 2.1);
-  blob(g, 49.5, 18, 2.6, 2, "n", 2.4);
-  rect(g, 37, 16, 4, 1, "n");
-  rect(g, 36, 17, 1, 1, "n"); rect(g, 41, 17, 1, 1, "n");
-  rect(g, 45, 26, 3, 1, "n");
-  rect(g, 44, 25, 1, 1, "n"); rect(g, 48, 25, 1, 1, "n");
+/*
+ * Sitting — rump on the ground, chest upright, front legs propped straight.
+ * The haunch is a darker bump so the folded rear leg reads.
+ */
+function capySit() {
+  const g = blank(GW, GH);
+  blob(g, 37, 42, 3, 5.5, "f", 2.4);          // front legs, propped
+  blob(g, 43, 42, 3, 5.5, "f", 2.4);
+  blob(g, 19, 36, 14, 11, "f", 2.5);          // rump on the ground
+  blob(g, 32, 30, 10.5, 14, "f", 2.4);        // upright chest
+  face(g, 40, 18);
+  blobShade(g, 24, 23, 15, 10, "l", 2.2);
+  blobShade(g, 24, 49, 16, 8, "d", 2.3);
+  blobShade(g, 16, 39, 8, 7, "d", 2.4);       // folded haunch
+  faceMarks(g, 40, 18);
+  return outline(g, "o");
+}
 
+/* Lying — a loaf. Legs tucked away, head low and forward, back flat. */
+function capyLie() {
+  const g = blank(GW, GH);
+  blob(g, 22, 39, 17, 8.5, "f", 2.7);         // flat back
+  blob(g, 31, 38, 9, 9.5, "f", 2.5);          // shoulder
+  blob(g, 45, 45, 6.5, 2.8, "f", 2.4);        // paws tucked under the chin
+  face(g, 41, 32, 1);
+  blobShade(g, 23, 32, 16, 6, "l", 2.3);
+  blobShade(g, 24, 50, 17, 7, "d", 2.4);
+  faceMarks(g, 41, 32, 1);
   return outline(g, "o");
 }
 
@@ -73,21 +107,30 @@ function legFrame(far, near) {
 }
 
 function build() {
-  const body = toStrings(capy());
+  const stand = toStrings(capyStand());
+  const sit = toStrings(capySit());
+  const lie = toStrings(capyLie());
   const wing = wings();
   const ant = antennae();
   const legsA = legFrame([15, 31], [23, 39]);
   const legsB = legFrame([21, 37], [17, 33]);
 
-  const mk = (legs) => {
+  // Head centres per pose drive where the wings and antennae get stamped.
+  const POSE = {
+    stand: { wing: [0, 0], ant: [0, 0] },
+    sit: { wing: [2, 0], ant: [0, -2] },
+    lie: { wing: [4, 11], ant: [1, 12] },
+  };
+
+  const mk = (bodyRows, legs, key) => {
     const c = blank(GW, GH);
-    stamp(c, wing, 0, 0);
-    stamp(c, legs, 0, 36);
-    stamp(c, body, 0, 0);
-    stamp(c, ant, 0, 0);
+    stamp(c, wing, POSE[key].wing[0], POSE[key].wing[1]);
+    if (legs) stamp(c, legs, 0, 36);
+    stamp(c, bodyRows, 0, 0);
+    stamp(c, ant, POSE[key].ant[0], POSE[key].ant[1]);
     return toStrings(c);
   };
 
-  window.OUT = { body, wing, ant, legsA, legsB };
-  draw([mk(legsA), mk(legsB)], 9);
+  window.OUT = { stand, sit, lie, wing, ant, legsA, legsB, POSE };
+  draw([mk(stand, legsA, 'stand'), mk(stand, legsB, 'stand'), mk(sit, null, 'sit'), mk(lie, null, 'lie')], 7);
 }

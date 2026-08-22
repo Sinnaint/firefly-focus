@@ -918,7 +918,8 @@ function bindPresetPicker(root) {
 
 /*
  * Study buddy — a pixel-art capybara in a firefly costume that paces along the
- * bottom of the timer.
+ * bottom of the timer, sits down when the timer stops, and eventually curls up
+ * and falls asleep.
  *
  * The sprite is built from character grids: one cell = one viewBox unit, drawn
  * with shape-rendering="crispEdges" so the pixels stay hard-edged at any size.
@@ -927,17 +928,18 @@ function bindPresetPicker(root) {
  * fur stays warm brown in every theme, because this is a character, not chrome.
  * Inline SVG, no assets: the extension ships nothing it has to fetch.
  *
- * The grids were traced off reference art with a shape rasteriser rather than
- * typed by hand, which is why the silhouette carries a proper dark rim and the
- * curves are even. Every row of a grid must stay the same width (46).
+ * The grids were traced off reference art with the shape rasteriser in
+ * tools/buddy-sprite/ rather than typed by hand, which is why the silhouettes
+ * carry a proper dark rim and the curves are even. Every row of every grid
+ * must stay the same width (49).
  *
- * Reacts to body[data-running]: walks and flutters while the timer runs, stops
- * where it stands with a "z" drifting up when it does not. All the motion
- * lives in sidepanel.css, shared by the panel and the fullscreen page.
+ * Three poses share one head, so the face stays recognisable while the body
+ * under it changes. Which one shows is decided entirely in CSS from
+ * body[data-running]; see the study-buddy block in sidepanel.css.
  */
 const BUDDY_CLASSES = {
   o: "px-outline",    // dark rim around the silhouette
-  d: "px-fur-dark",   // belly shadow, far legs
+  d: "px-fur-dark",   // belly shadow, haunch, far legs
   f: "px-fur",        // main coat
   l: "px-fur-light",  // sunlit back and crown
   m: "px-muzzle",
@@ -946,85 +948,185 @@ const BUDDY_CLASSES = {
   g: "px-glow-hot",   // the bright core of the wings and the antenna tips
 };
 
-/* Facing right — CSS only has to mirror it when it turns at the end of a lap. */
-const BUDDY_BODY = [
-  "......................oooo....................",
-  ".....................offffo...................",
-  "....................offddllo.oooooooo.........",
-  "....................olddddllolllllllloo.......",
-  "....................olddddllllllllllllloo.....",
-  "....................olddddlllllllllllllllo....",
-  ".....................oddddlllllllllllllllo....",
-  "......................oddlllllllllllllllllo...",
-  ".......................ollllllllllllllllllo...",
-  "......................olllllllnnnnllllmmmnno..",
-  ".....................olllllllnllllnllmmmnnnno.",
-  "..........ooooooooooolllllllllllllllmmmmnnnno.",
-  "......oooollllllllllllllllllllllllllmmmmmnnno.",
-  "....oollllllllllllllllllllllllllllllmmmmmmmmmo",
-  "...olllllllllllllllllllllllllllllllmmmmmmmmmmo",
-  "..ollllllllllllllllllllllllllllllllmmmmmmmmmmo",
-  ".ollllllllllllllllllllllllllllllllllmmmmmmmmmo",
-  ".ofllllllllllllllllllllllllllllllllfmmmmmmmmmo",
-  "offllllllllllllllllllllllllllllllllfmnmmmnmmmo",
-  "offfllllllllllllllllllllllllllllllfffmnnnmmmo.",
-  "offffllllllllllllllllllllllllllllfffffmmmmmoo.",
-  "offfffllllllllllllllllllllllllllfffffffoooo...",
-  "offffffllllllllllllllllllllllllfffffffo.......",
-  "offfffffffllllllllllllllllllfffffffffo........",
-  "offffffffffffllllllllllllffffffffffffo........",
-  "offffffffffffffffffffffffffffffffffffo........",
-  "offffffffffffffffffffffffffffffffffffo........",
-  "offffffffffffffffffffffffffffffffffffo........",
-  "offffffffffffffffffffffffffffffffffffo........",
-  "offffffffffffffffffffffffffffffffffffo........",
-  ".offffffffffffffffffffffffffffffffffo.........",
-  ".offffffffffffffffffffffffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffo..........",
-  "...offffffddddddddddddddffffffffffo...........",
-  "....ooddddddddddddddddddddddffffoo............",
-  "......ooooddddddddddddoooooooooo..............",
-  "..........oooooooooooo........................",
+/* Standing, facing right — CSS mirrors it when it turns at the end of a lap. */
+const BUDDY_STAND = [
+  ".................................................",
+  ".................................................",
+  "........................oooo.....................",
+  ".......................offffo....................",
+  "......................offddllo.oooooooo..........",
+  "......................olddddllolllllllloo........",
+  "......................olddddllllllllllllloo......",
+  "......................olddddlllllllllllllllo.....",
+  ".......................oddddlllllllllllllllo.....",
+  "........................oddlllllllllllllllllo....",
+  ".........................ollllllllllllllllllo....",
+  "........................olllllllnnnnllllmmmnno...",
+  ".......................olllllllnllllnllmmmnnnno..",
+  "............ooooooooooolllllllllllllllmmmmnnnno..",
+  "........oooollllllllllllllllllllllllllmmmmmnnno..",
+  "......oollllllllllllllllllllllllllllllmmmmmmmmmo.",
+  ".....olllllllllllllllllllllllllllllllmmmmmmmmmmo.",
+  "....ollllllllllllllllllllllllllllllllmmmmmmmmmmo.",
+  "...ollllllllllllllllllllllllllllllllllmmmmmmmmmo.",
+  "...ofllllllllllllllllllllllllllllllllfmmmmmmmmmo.",
+  "..offllllllllllllllllllllllllllllllllfmnmmmnmmmo.",
+  "..offfllllllllllllllllllllllllllllllfffmnnnmmmo..",
+  "..offffllllllllllllllllllllllllllllfffffmmmmmoo..",
+  "..offfffllllllllllllllllllllllllllfffffffoooo....",
+  "..offffffllllllllllllllllllllllllfffffffo........",
+  "..offfffffffllllllllllllllllllfffffffffo.........",
+  "..offffffffffffllllllllllllffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffffffo.........",
+  "...offffffffffffffffffffffffffffffffffo..........",
+  "...offffffffffffffffffffffffffffffffffo..........",
+  "....offffffffffffffffffffffffffffffffo...........",
+  ".....offffffddddddddddddddffffffffffo............",
+  "......ooddddddddddddddddddddddffffoo.............",
+  "........ooooddddddddddddoooooooooo...............",
+  "............oooooooooooo.........................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+];
+
+/* Sitting back on the haunches, front legs propped, head still up. */
+const BUDDY_SIT = [
+  "........................oooo.....................",
+  ".......................offffo....................",
+  "......................offddllo.oooooooo..........",
+  "......................ofddddllolllllllloo........",
+  "......................ofddddllllllllllllloo......",
+  "......................ofddddlllllllllllllllo.....",
+  ".......................oddddlllllllllllllllo.....",
+  "........................oddlllllllllllllllllo....",
+  ".........................ollllllllllllllllllo....",
+  "........................olllllllnnnnllllmmmnno...",
+  "........................ollllllnllllnllmmmnnnno..",
+  ".......................ollllllllllllllmmmmnnnno..",
+  ".....................oolllllllllllllllmmmmmnnno..",
+  "....................olllllllllllllllllmmmmmmmmmo.",
+  "...................olllllllllllllllllmmmmmmmmmmo.",
+  "..................olllllllllllllllfffmmmmmmmmmmo.",
+  "..................olllllllllllllllffffmmmmmmmmmo.",
+  "..................olllllllllllllllffffmmmmmmmmmo.",
+  ".................ollllllllllllllllffffmnmmmnmmmo.",
+  ".................ollllllllllllllllfffffmnnnmmmo..",
+  "........ooooooooolllllllllllllllllffffffmmmmmoo..",
+  ".....ooolllllllllllllllllllllllllffffffffoooo....",
+  "....ollllllllllllllllllllllllllllffffffoo........",
+  "..ooffllllllllllllllllllllllllllfffffoo..........",
+  "..offffllllllllllllllllllllllllfffffo............",
+  ".offffffllllllllllllllllllllllffffffo............",
+  ".offffffffllllllllllllllllllffffffffo............",
+  "offffffddddddddlllllllllffffffffffffo............",
+  "offffddddddddddddfffffffffffffffffffo............",
+  "offfddddddddddddddffffffffffffffffffo............",
+  "offfddddddddddddddffffffffffffffffffo............",
+  "offddddddddddddddddfffffffffffffffffo............",
+  "offddddddddddddddddffffffffffffffffffooo.........",
+  "offddddddddddddddddfffffffffffffffffffffo........",
+  "offddddddddddddddddfffffffffffffffffffffo........",
+  ".ofddddddddddddddddfffffffffffffffffffffo........",
+  ".ofdddddddddddddddddddddddffffffffffffffo........",
+  "..ofddddddddddddddddddddddddddffffffffffo........",
+  "..ooddddddddddddddddddddooooodddffffffffo........",
+  "....oddddddddddddddddddo.....odddfffffffo........",
+  ".....oooddddddddddddooo......oddddooffffo........",
+  "........oooooooooooo..........oooo..oooo.........",
+  ".................................................",
+];
+
+/* Lying down: a loaf, chin resting on tucked paws. */
+const BUDDY_LIE = [
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".................................................",
+  ".........................oooo....................",
+  "........................offflo..oooooooo.........",
+  ".......................offddlloolllllllloo.......",
+  ".......................ofddddllllllllllllloo.....",
+  ".......................ofddddlllllllllllllllo....",
+  ".......................ofddddlllllllllllllllo....",
+  "........................oddddllllllllllllllllo...",
+  ".........................oddlllllllllllllllllo...",
+  ".........................olllllllnnnnllllmmmnno..",
+  ".....................oooolllllllnllllnllmmmnnnno.",
+  "...................oollllllllllllllllllmmmmnnnno.",
+  "......ooooooooooooollllllllllllllllllllmmmmmnnno.",
+  "....oolllllllllllllllllllllllllllllllllmmmmmmmmmo",
+  "..oollllllllllllllllllllllllllllllllllmmmmmmmmmmo",
+  ".ofllllllllllllllllllllllllllllllfffffmmmmmmmmmmo",
+  ".offllllllllllllllllllllllllllllfffffffmmmmmmmmmo",
+  "offfffllllllllllllllllllllllllfffffffffmmmmmmmmmo",
+  "offfffffffllllllllllllllllfffffffffffffmnmmmnmmmo",
+  "offfffffffffffffffffffffffffffffffffffffmnnnmmmo.",
+  "offffffffffffffffffffffffffffffffffffffffmmmmmoo.",
+  "offfffffffffffffffffffffffffffffffffffffffoooo...",
+  "offffffffffffffffffffffffffffffffffffffffo.......",
+  ".offffffffffffffffffffffffffffffffffffffffoo.....",
+  ".offfffffffddddddddddddddddffffffoffffffffffoo...",
+  "..oofffddddddddddddddddddddddddfo.offffffffffo...",
+  "....oodddddddddddddddddddddddddoo.offffffffffo...",
+  "......ooooooooooooooooooooooooo...ooffffffffoo...",
+  "....................................oooooooo.....",
 ];
 
 /* Behind the body: two wings fanning up and back off the shoulder. */
 const BUDDY_WING = [
-  "..aaaaa.......................................",
-  ".aaaaaaaaa....................................",
-  "aaaaaaaaaaaa..................................",
-  "aaaaaaaaaaaaaa................................",
-  ".agggggaaaaaaaaa..............................",
-  ".agggggggaaaaaaaa.............................",
-  "..aggggggggaaaaaaa............................",
-  "...agggggggggaaaaaaa..........................",
-  "....agggggggggaaaaaaa.........................",
-  "......gggggggggaaaaaaa........................",
-  "..aaaaagggggggggaaaaaaa.......................",
-  ".aaaaaaaaggggggggaaaaaa.......................",
-  "aagggggggaagggggggaaaaaa......................",
-  "aaggggggggggggggggaaaaaa......................",
-  ".aagggggggggggggaaaaaaa.......................",
-  "..aagggggggggggggaaaaaa.......................",
-  "....aaagggggggggggaaaaaa......................",
-  "......aaaaagggggggaaaaaa......................",
-  "........aaaaaaaaaaaaaaa.......................",
-  "............aaaaaaaaaa........................",
+  "....aaaaa........................................",
+  "...aaaaaaaaa.....................................",
+  "..aaaaaaaaaaaa...................................",
+  "..aaaaaaaaaaaaaa.................................",
+  "...agggggaaaaaaaaa...............................",
+  "...agggggggaaaaaaaa..............................",
+  "....aggggggggaaaaaaa.............................",
+  ".....agggggggggaaaaaaa...........................",
+  "......agggggggggaaaaaaa..........................",
+  "........gggggggggaaaaaaa.........................",
+  "....aaaaagggggggggaaaaaaa........................",
+  "...aaaaaaaaggggggggaaaaaa........................",
+  "..aagggggggaagggggggaaaaaa.......................",
+  "..aaggggggggggggggggaaaaaa.......................",
+  "...aagggggggggggggaaaaaaa........................",
+  "....aagggggggggggggaaaaaa........................",
+  "......aaagggggggggggaaaaaa.......................",
+  "........aaaaagggggggaaaaaa.......................",
+  "..........aaaaaaaaaaaaaaa........................",
+  "..............aaaaaaaaaa.........................",
 ];
 
 /* In front of the head, so the stems sit on the crown. */
 const BUDDY_ANTENNAE = [
-  "..........................gggg................",
-  "..........................gggg................",
-  "..........................gggg................",
-  "..........................gggg................",
-  "...........................a............gggg..",
-  "...........................a........aaaagggg..",
-  "...........................a.......aa...gggg..",
-  "...........................aa.....aa....gggg..",
-  "............................a....aa...........",
-  "............................a....a............",
-  "............................aa................",
-  ".............................a................",
+  "............................gggg.................",
+  "............................gggg.................",
+  "............................gggg.................",
+  "............................gggg.................",
+  ".............................a............gggg...",
+  ".............................a........aaaagggg...",
+  ".............................a.......aa...gggg...",
+  ".............................aa.....aa....gggg...",
+  "..............................a....aa............",
+  "..............................a....a.............",
+  "..............................aa.................",
+  "...............................a.................",
 ];
 
 /*
@@ -1032,48 +1134,58 @@ const BUDDY_ANTENNAE = [
  * near and far legs crossed. Each leg carries its own dark rim, so a near leg
  * still reads as separate when it passes in front of the far one. The body
  * drops a pixel on the stride frame — what a real gait does, and what sells
- * the walk at this size.
+ * the walk at this size. Only the standing pose uses them.
  */
 const BUDDY_LEGS = [
   [
-    ".......oo......oo......oo......oo.............",
-    "......oddo....offo....oddo....offo............",
-    "......oddo....offo....oddo....offo............",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    ".....oddddo..offffo..oddddo..offffo...........",
-    "......oddo....offo....oddo....offo............",
-    "......oddo....offo....oddo....offo............",
-    ".......oo......oo......oo......oo.............",
+    ".........oo......oo......oo......oo..............",
+    "........oddo....offo....oddo....offo.............",
+    "........oddo....offo....oddo....offo.............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    ".......oddddo..offffo..oddddo..offffo............",
+    "........oddo....offo....oddo....offo.............",
+    "........oddo....offo....oddo....offo.............",
+    ".........oo......oo......oo......oo..............",
   ],
   [
-    ".........oo..oo..........oo..oo...............",
-    "........offooddo........offooddo..............",
-    "........offooddo........offooddo..............",
-    ".......offffodddo......offffodddo.............",
-    ".......offffodddo......offffodddo.............",
-    ".......offffodddo......offffodddo.............",
-    ".......offffodddo......offffodddo.............",
-    ".......offffodddo......offffodddo.............",
-    ".......offffodddo......offffodddo.............",
-    "........offooddo........offooddo..............",
-    "........offooddo........offooddo..............",
-    ".........oo..oo..........oo..oo...............",
+    "...........oo..oo..........oo..oo................",
+    "..........offooddo........offooddo...............",
+    "..........offooddo........offooddo...............",
+    ".........offffodddo......offffodddo..............",
+    ".........offffodddo......offffodddo..............",
+    ".........offffodddo......offffodddo..............",
+    ".........offffodddo......offffodddo..............",
+    ".........offffodddo......offffodddo..............",
+    ".........offffodddo......offffodddo..............",
+    "..........offooddo........offooddo...............",
+    "..........offooddo........offooddo...............",
+    "...........oo..oo..........oo..oo................",
   ],
 ];
 
 /* Where each grid sits in the sprite's coordinate system. */
-const BUDDY_OFFSETS = { body: 7, wing: 3, antennae: 0, legs: 36 };
+const BUDDY_OFFSETS = { body: 5, wing: 3, antennae: 0, legs: 36 };
+
+/*
+ * Shoulder and crown move between poses, so the wings and antennae have to
+ * move with them. These are deltas on top of BUDDY_OFFSETS.
+ */
+const BUDDY_POSES = [
+  { name: "stand", rows: BUDDY_STAND, legs: true, wing: [0, 0], antennae: [0, 0] },
+  { name: "sit", rows: BUDDY_SIT, legs: false, wing: [2, 0], antennae: [0, -2] },
+  { name: "lie", rows: BUDDY_LIE, legs: false, wing: [4, 11], antennae: [1, 12] },
+];
 
 /*
  * Runs of identical cells become one rect, and a run repeated on the next row
  * grows the rect above it instead of stacking a new one — a few hundred nodes
  * instead of a couple of thousand.
  */
-function buddyRects(rows, offsetY) {
+function buddyRects(rows, offsetX, offsetY) {
   const filled = (x, y) => !!(rows[y] && BUDDY_CLASSES[rows[y][x]]);
 
   const runs = [];
@@ -1116,7 +1228,7 @@ function buddyRects(rows, offsetY) {
       if (down) h += 0.5;
 
       return (
-        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x}" y="${r.y + offsetY}"` +
+        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x + offsetX}" y="${r.y + offsetY}"` +
         ` width="${w}" height="${h}"/>`
       );
     })
@@ -1133,28 +1245,38 @@ function buddyZ(x, y, size, cls) {
   return `<g class="buddy-z ${cls}">${parts.join("")}</g>`;
 }
 
-function buildBuddySvg() {
-  const legs = BUDDY_LEGS
-    .map(
-      (frame, i) =>
-        `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">` +
-        `${buddyRects(frame, BUDDY_OFFSETS.legs)}</g>`
-    )
-    .join("");
-
+function buddyPose(pose) {
   // Legs are drawn before the body so the body hides their tops when it dips.
+  const legs = pose.legs
+    ? BUDDY_LEGS.map(
+        (frame, i) =>
+          `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">` +
+          `${buddyRects(frame, 0, BUDDY_OFFSETS.legs)}</g>`
+      ).join("")
+    : "";
+
+  return (
+    `<g class="buddy-pose buddy-pose-${pose.name}">` +
+    `<g class="buddy-wings">` +
+    `${buddyRects(BUDDY_WING, pose.wing[0], BUDDY_OFFSETS.wing + pose.wing[1])}</g>` +
+    legs +
+    buddyRects(pose.rows, 0, BUDDY_OFFSETS.body) +
+    `<g class="buddy-antennae">` +
+    `${buddyRects(BUDDY_ANTENNAE, pose.antennae[0], BUDDY_OFFSETS.antennae + pose.antennae[1])}</g>` +
+    `</g>`
+  );
+}
+
+function buildBuddySvg() {
   return `
-<svg class="buddy-art" viewBox="-2 -4 50 54" xmlns="http://www.w3.org/2000/svg"
+<svg class="buddy-art" viewBox="-2 -5 53 55" xmlns="http://www.w3.org/2000/svg"
      shape-rendering="crispEdges" aria-hidden="true" focusable="false">
   <g class="buddy-sleep">
-    ${buddyZ(1, 3, 4, "buddy-z1")}
-    ${buddyZ(7, -2, 5, "buddy-z2")}
+    ${buddyZ(30, 7, 4, "buddy-z1")}
+    ${buddyZ(37, 2, 5, "buddy-z2")}
   </g>
-  ${legs}
   <g class="buddy-body">
-    <g class="buddy-wings">${buddyRects(BUDDY_WING, BUDDY_OFFSETS.wing)}</g>
-    ${buddyRects(BUDDY_BODY, BUDDY_OFFSETS.body)}
-    <g class="buddy-antennae">${buddyRects(BUDDY_ANTENNAE, BUDDY_OFFSETS.antennae)}</g>
+    ${BUDDY_POSES.map(buddyPose).join("")}
   </g>
 </svg>`;
 }
