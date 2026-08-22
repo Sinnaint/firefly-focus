@@ -94,6 +94,7 @@ const i18n = {
     faceRing: "Кільце",
     faceDigits: "Тільки цифри",
     faceBreathe: "Дихальне коло",
+    studyBuddyLabel: "Капібара-компаньйон у костюмі світлячка",
     tasksDrag: "Перетягни"
   },
   en: {
@@ -185,6 +186,7 @@ const i18n = {
     faceRing: "Ring",
     faceDigits: "Digits only",
     faceBreathe: "Breathing circle",
+    studyBuddyLabel: "Capybara study buddy in a firefly costume",
     tasksDrag: "Drag"
   },
   de: {
@@ -272,6 +274,7 @@ const i18n = {
     faceRing: "Ring",
     faceDigits: "Nur Ziffern",
     faceBreathe: "Atmender Kreis",
+    studyBuddyLabel: "Capybara-Lernbegleiter im Glühwürmchen-Kostüm",
     tasksDrag: "Ziehen"
   },
   es: {
@@ -359,6 +362,7 @@ const i18n = {
     faceRing: "Anillo",
     faceDigits: "Solo dígitos",
     faceBreathe: "Círculo que respira",
+    studyBuddyLabel: "Compañero capibara con disfraz de luciérnaga",
     tasksDrag: "Arrastrar"
   },
   it: {
@@ -446,6 +450,7 @@ const i18n = {
     faceRing: "Anello",
     faceDigits: "Solo cifre",
     faceBreathe: "Cerchio che respira",
+    studyBuddyLabel: "Compagno capibara in costume da lucciola",
     tasksDrag: "Trascina"
   },
   sk: {
@@ -533,6 +538,7 @@ const i18n = {
     faceRing: "Prstenec",
     faceDigits: "Iba číslice",
     faceBreathe: "Dýchajúci kruh",
+    studyBuddyLabel: "Kapybara-spoločník v kostýme svetlušky",
     tasksDrag: "Presuň"
   },
   cs: {
@@ -620,6 +626,7 @@ const i18n = {
     faceRing: "Prstenec",
     faceDigits: "Jen číslice",
     faceBreathe: "Dýchající kruh",
+    studyBuddyLabel: "Kapybara-společník v kostýmu světlušky",
     tasksDrag: "Táhni"
   }
 };
@@ -707,6 +714,7 @@ function collectSettingsFrom(root, settings = {}) {
     soundEnabled: bool("soundEnabled", settings.soundEnabled),
     floatingWidgetEnabled: bool("floatingWidgetEnabled", settings.floatingWidgetEnabled),
     fullscreenTasksEnabled: bool("fullscreenTasksEnabled", settings.fullscreenTasksEnabled),
+    studyBuddyEnabled: bool("studyBuddyEnabled", settings.studyBuddyEnabled),
     fireflyAnimationEnabled: bool("fireflyAnimationEnabled", settings.fireflyAnimationEnabled),
     // No input anywhere in the UI — carried through so no save resets them.
     widgetMode: settings.widgetMode || "full",
@@ -747,6 +755,7 @@ function applySettingsTo(root, settings) {
   setChecked("soundEnabled", settings.soundEnabled);
   setChecked("floatingWidgetEnabled", settings.floatingWidgetEnabled !== false);
   setChecked("fullscreenTasksEnabled", settings.fullscreenTasksEnabled !== false);
+  setChecked("studyBuddyEnabled", settings.studyBuddyEnabled !== false);
   setChecked("fireflyAnimationEnabled", settings.fireflyAnimationEnabled !== false);
 
   // Derived, not stored — see TIMER_PRESETS.
@@ -905,4 +914,65 @@ function bindPresetPicker(root) {
       picker.value = derivePreset(current);
     });
   }
+}
+
+/*
+ * Study buddy — a capybara in a firefly costume. Inline SVG, no assets: the
+ * extension ships nothing it has to fetch. The lamp, wings and antennae take
+ * their colour from --accent, so the buddy changes with the mode; the fur
+ * stays warm brown in every theme because it is a character, not chrome.
+ *
+ * Reacts to body[data-running]: eyes open and the lamp pulses while the timer
+ * runs, eyes close and a "z" drifts up when it is stopped. Animations are all
+ * in sidepanel.css so the panel and the fullscreen page share them.
+ */
+const BUDDY_SVG = `
+<svg class="buddy-art" viewBox="0 0 158 124" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+  <g class="buddy-sleep">
+    <text class="buddy-z buddy-z1" x="60" y="32">z</text>
+    <text class="buddy-z buddy-z2" x="75" y="21">z</text>
+  </g>
+
+  <g class="buddy-float">
+    <g class="buddy-wings">
+      <ellipse class="buddy-wing" cx="58" cy="46" rx="27" ry="14" transform="rotate(-30 58 46)"/>
+      <ellipse class="buddy-wing" cx="70" cy="40" rx="32" ry="16" transform="rotate(-15 70 40)"/>
+    </g>
+
+    <g class="buddy-lamp-group">
+      <circle class="buddy-lamp-halo" cx="24" cy="88" r="24"/>
+      <circle class="buddy-lamp" cx="24" cy="88" r="13"/>
+      <circle class="buddy-lamp-spark" cx="20" cy="84" r="4.2"/>
+    </g>
+
+    <rect class="buddy-fur-dark" x="44" y="88" width="17" height="20" rx="8.5"/>
+    <rect class="buddy-fur-dark" x="86" y="88" width="17" height="20" rx="8.5"/>
+
+    <ellipse class="buddy-fur-dark" cx="106" cy="41" rx="7.5" ry="7"/>
+    <ellipse class="buddy-fur-dark" cx="126" cy="39" rx="7" ry="6.5"/>
+
+    <rect class="buddy-fur" x="22" y="52" width="98" height="46" rx="22"/>
+    <rect class="buddy-fur" x="100" y="42" width="48" height="46" rx="18"/>
+    <rect class="buddy-muzzle" x="122" y="60" width="32" height="30" rx="13"/>
+
+    <rect class="buddy-nose" x="140" y="65" width="11" height="8" rx="4"/>
+    <path class="buddy-mouth" d="M137 79 q5.5 4.5 11 0"/>
+
+    <circle class="buddy-eye-open" cx="116" cy="58" r="3.6"/>
+    <path class="buddy-eye-shut" d="M112 58 q4 3.6 8 0"/>
+
+    <g class="buddy-antennae">
+      <path class="buddy-antenna" d="M110 40 C 106 26, 100 21, 95 19"/>
+      <circle class="buddy-antenna-tip" cx="95" cy="19" r="3.8"/>
+      <path class="buddy-antenna" d="M130 38 C 133 24, 139 19, 144 17"/>
+      <circle class="buddy-antenna-tip" cx="144" cy="17" r="3.8"/>
+    </g>
+  </g>
+</svg>`;
+
+
+function renderBuddyInto(host) {
+  if (!host || host.dataset.ready === "1") return;
+  host.innerHTML = BUDDY_SVG;
+  host.dataset.ready = "1";
 }

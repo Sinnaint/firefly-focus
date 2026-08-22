@@ -1210,3 +1210,162 @@ body[data-face="breathe"][data-running="false"] .ring::after {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   Study buddy — capybara in a firefly costume.
+   Markup comes from BUDDY_SVG in shared.js, so these rules serve both the
+   side panel and the fullscreen page. The fur is deliberately theme-neutral
+   warm brown; only the costume (lamp, wings, antennae) follows --accent.
+   ========================================================================== */
+.buddy {
+  display: block;
+  width: clamp(96px, 34%, 132px);
+  margin: 0 auto 12px;
+}
+
+.buddy[hidden] {
+  display: none;
+}
+
+.buddy-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* ---------- Capybara ---------- */
+.buddy-fur { fill: #b5825a; }
+.buddy-fur-dark { fill: #96683f; }
+.buddy-muzzle { fill: #c99a6f; }
+.buddy-nose { fill: #4a3220; }
+.buddy-eye-open { fill: #3a2618; }
+
+.buddy-eye-shut {
+  fill: none;
+  stroke: #3a2618;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* ---------- Firefly costume ---------- */
+.buddy-wing {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+  stroke: var(--accent);
+  stroke-opacity: 0.45;
+  stroke-width: 1.6;
+  transform-origin: 96px 58px;
+}
+
+.buddy-lamp {
+  fill: var(--accent);
+}
+
+.buddy-lamp-halo {
+  fill: var(--accent);
+  fill-opacity: 0.18;
+}
+
+.buddy-lamp-spark {
+  fill: #fffdf8;
+  fill-opacity: 0.55;
+}
+
+.buddy-antenna {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.buddy-antenna-tip {
+  fill: var(--accent);
+}
+
+/* ---------- Awake vs dozing ---------- */
+.buddy-eye-shut,
+.buddy-sleep {
+  display: none;
+}
+
+body[data-running="false"] .buddy-eye-open {
+  display: none;
+}
+
+body[data-running="false"] .buddy-eye-shut,
+body[data-running="false"] .buddy-sleep {
+  display: block;
+}
+
+.buddy-z {
+  fill: var(--muted);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  opacity: 0;
+}
+
+/* ---------- Motion ---------- */
+.buddy-float {
+  animation: buddyBob 4.2s ease-in-out infinite;
+  transform-origin: 78px 70px;
+}
+
+.buddy-wings {
+  animation: buddyFlutter 3.1s ease-in-out infinite;
+  transform-origin: 96px 52px;
+}
+
+.buddy-lamp-group {
+  animation: buddyLamp 2.8s ease-in-out infinite;
+  transform-origin: 26px 86px;
+}
+
+.buddy-z1 { animation: buddyZ 4.6s ease-in-out infinite; }
+.buddy-z2 { animation: buddyZ 4.6s ease-in-out 1.6s infinite; }
+
+@keyframes buddyBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-1.2deg); }
+}
+
+@keyframes buddyFlutter {
+  0%, 100% { transform: scaleY(1) rotate(0deg); }
+  50% { transform: scaleY(0.88) rotate(3deg); }
+}
+
+@keyframes buddyLamp {
+  0%, 100% { opacity: 0.72; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes buddyZ {
+  0% { opacity: 0; transform: translate(0, 4px) scale(0.8); }
+  30% { opacity: 0.85; }
+  100% { opacity: 0; transform: translate(6px, -18px) scale(1.15); }
+}
+
+/* Dozing: slower breathing, dimmer lamp, wings folded still. */
+body[data-running="false"] .buddy-float { animation-duration: 6.5s; }
+body[data-running="false"] .buddy-lamp-group { animation-duration: 5.5s; }
+body[data-running="false"] .buddy-wings { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .buddy-float,
+  .buddy-wings,
+  .buddy-lamp-group,
+  .buddy-z1,
+  .buddy-z2 {
+    animation: none;
+  }
+
+  .buddy-z { opacity: 0.6; }
+}
+
+.buddy-mouth {
+  fill: none;
+  stroke: #6b4a2e;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}

@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   floatingWidgetEnabled: true,
   floatingWidgetCompact: false,
   fullscreenTasksEnabled: true,
+  studyBuddyEnabled: true,
   fireflyAnimationEnabled: true,
   fireflyIntervalValue: 10,
   fireflyIntervalUnit: "seconds",
@@ -286,6 +287,7 @@ function normalizeSettings(settings = {}) {
     // Toggled from the widget's own header, not from the settings panel.
     floatingWidgetCompact: settings.floatingWidgetCompact === true,
     fullscreenTasksEnabled: settings.fullscreenTasksEnabled !== false,
+    studyBuddyEnabled: settings.studyBuddyEnabled !== false,
     fireflyAnimationEnabled: settings.fireflyAnimationEnabled !== false,
     fireflyIntervalValue,
     fireflyIntervalUnit,

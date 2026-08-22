@@ -51,6 +51,7 @@ const els = {
   notificationsEnabled: $("notificationsEnabled"),
   soundEnabled: $("soundEnabled"),
   floatingWidgetEnabled: $("floatingWidgetEnabled"),
+  studyBuddy: $("studyBuddy"),
   fireflyAnimationEnabled: $("fireflyAnimationEnabled"),
   saveBtn: $("saveBtn"),
   resetStatsBtn: $("resetStatsBtn")
@@ -272,6 +273,11 @@ function render() {
   document.body.dataset.theme = state.settings.theme || "midnight";
   document.body.dataset.face = state.settings.timerFace || "ring";
   document.body.dataset.running = String(Boolean(state.running));
+
+  // The buddy markup lives in shared.js; build it once, then just show/hide.
+  const buddyOn = state.settings.studyBuddyEnabled !== false;
+  if (buddyOn) renderBuddyInto(els.studyBuddy);
+  els.studyBuddy.hidden = !buddyOn;
   document.documentElement.style.setProperty("--text-scale", String((state.settings.textScale ?? 100) / 100));
   els.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
   // The digits face draws a linear bar, which a conic angle cannot express.

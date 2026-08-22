@@ -411,3 +411,21 @@ body[data-face="digits"] .fs-ring-inner {
 body[data-face="breathe"] .fs-ring {
   --fs-ring: min(54vh, 42vw, 560px);
 }
+
+/* ---------- Study buddy ---------- */
+/* Parked in a corner rather than in the centred column: the buddy is company,
+   not part of the timer's composition. */
+.fs-buddy {
+  position: fixed;
+  left: clamp(16px, 4vw, 64px);
+  bottom: clamp(16px, 5vh, 56px);
+  z-index: 3;
+  width: clamp(120px, 13vw, 190px);
+  margin: 0;
+}
+
+@media (max-height: 560px) {
+  .fs-buddy {
+    width: clamp(96px, 10vw, 130px);
+  }
+}

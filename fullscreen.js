@@ -33,6 +33,7 @@ const els = {
   settingsClose: $("settingsClose"),
   settingsMount: $("settingsMount"),
   openPanelBtn: $("openPanelBtn"),
+  studyBuddy: $("studyBuddy"),
   taskCard: $("taskCard"),
   taskCardDrag: $("taskCardDrag"),
   taskCardTitle: $("taskCardTitle"),
@@ -469,6 +470,10 @@ function render() {
   els.settingsClose.title = dictionary.close;
   els.settingsClose.setAttribute("aria-label", dictionary.close);
   els.openPanelBtn.textContent = dictionary.openPanel;
+
+  const buddyOn = state.settings.studyBuddyEnabled !== false;
+  if (buddyOn) renderBuddyInto(els.studyBuddy);
+  els.studyBuddy.hidden = !buddyOn;
 
   els.taskCard.hidden = state.settings.fullscreenTasksEnabled === false;
   els.taskCardTitle.textContent = dictionary.tasksTitle;
