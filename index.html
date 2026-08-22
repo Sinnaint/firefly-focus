@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Firefly Focus</title>
+  <meta name="description" content="A calm Pomodoro timer with tasks, deadlines and a capybara. Fully local — no accounts, no analytics, no network." />
+  <meta name="theme-color" content="#210635" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/logo/icon-256.png" />
+  <link rel="apple-touch-icon" href="assets/logo/icon-256.png" />
+  <!-- The app borrows the extension's own stylesheets; app.css only re-lays
+       the column out for a window. -->
+  <link rel="stylesheet" href="sidepanel.css" />
+  <link rel="stylesheet" href="app/app.css" />
+</head>
+<body data-view="full" data-mode="work">
+  <script src="app/shim.js"></script>
+  <script src="app/boot.js"></script>
+  <script>
+    bootFireflyApp({ page: "sidepanel.html", script: "sidepanel.js" });
+  </script>
+</body>
+</html>

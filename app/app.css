@@ -1,0 +1,37 @@
+/*
+ * App-only layout.
+ *
+ * The panel was designed for a 360 px browser side panel and looks right at
+ * that width; a window just gives it more room around, not more width. So the
+ * column keeps its measure and gets centred, and nothing about the panel's own
+ * styling is touched — sidepanel.css is shared with the extension.
+ */
+body.is-app {
+  min-height: 100vh;
+  min-width: 0;
+}
+
+body.is-app .app {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: clamp(14px, 2.4vw, 26px);
+}
+
+/* A window is taller than a side panel — let the column breathe. */
+@media (min-height: 780px) {
+  body.is-app .app {
+    padding-top: clamp(20px, 4vh, 48px);
+    padding-bottom: clamp(20px, 4vh, 48px);
+  }
+}
+
+/*
+ * The ambient page is already whole-screen by design; it only needs the app
+ * shell to stay out of its way.
+ */
+body.is-app.fs-body .app {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}

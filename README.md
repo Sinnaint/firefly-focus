@@ -1,3 +1,8 @@
+| `icon128.png` | Extension icon. |
+| `index.html` / `ambient.html` | App shells — the window and the whole-screen view. |
+| `app/shim.js` | Maps `chrome.*` onto plain web APIs so the app can run the extension's own code. |
+| `app/boot.js` / `app/app.css` | App load order and window layout. |
+| `manifest.webmanifest` / `sw.js` | Web app manifest and offline cache. |
 <p align="center">
   <img src="assets/logo/icon.svg" alt="Firefly Focus icon" width="112" height="112" />
 </p>
@@ -51,6 +56,15 @@
 3. Enable **Developer mode** (top-right).
 4. Click **Load unpacked** and select the project folder.
 5. Pin the extension and click its icon to open the side panel.
+
+### As an app (no extension needed)
+Firefly Focus also runs as an installable web app. Serve the repository root over HTTP and open it:
+
+```
+python3 -m http.server 8080     # or any static server
+```
+
+Then visit `http://localhost:8080/` and use your browser's **Install** action. The app opens in its own window, keeps working offline, and shows the timer on the taskbar icon. It runs the same code as the extension — only the floating widget is missing, since that one has to be a browser extension.
 
 ---
 
@@ -106,6 +120,7 @@ Firefly Focus stores your timer state, tasks, settings and statistics **locally*
 - **Shadow DOM** isolates the floating widget from host-page styles.
 - **Web Audio API** synthesises all sounds (no audio files shipped).
 - **CSS custom properties** power the theming and firefly palettes.
+- **One codebase, two targets** — the app loads the extension's own pages and logic through a small `chrome.*` adapter, so nothing is duplicated.
 - Zero third-party dependencies.
 
 ---

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Firefly Focus</title>
+  <meta name="theme-color" content="#210635" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/logo/icon-256.png" />
+  <!-- Same stylesheets the extension's fullscreen page uses. -->
+  <link rel="stylesheet" href="sidepanel.css" />
+  <link rel="stylesheet" href="fullscreen.css" />
+  <link rel="stylesheet" href="app/app.css" />
+</head>
+<body data-mode="work" data-theme="midnight" class="fs-body">
+  <script src="app/shim.js"></script>
+  <script src="app/boot.js"></script>
+  <script>
+    bootFireflyApp({ page: "fullscreen.html", script: "fullscreen.js" });
+  </script>
+</body>
+</html>

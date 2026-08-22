@@ -1,0 +1,27 @@
+{
+  "name": "Firefly Focus — Pomodoro Timer & Tasks",
+  "short_name": "Firefly Focus",
+  "description": "A calm Pomodoro timer with tasks, deadlines, three themes and a pixel-art capybara. Fully local: no accounts, no analytics, no network requests.",
+  "id": "firefly-focus",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#210635",
+  "theme_color": "#210635",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icon128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "assets/logo/icon-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "assets/logo/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ambient timer",
+      "short_name": "Ambient",
+      "description": "Open the whole-screen ambient timer",
+      "url": "ambient.html"
+    }
+  ]
+}
