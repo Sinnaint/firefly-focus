@@ -34,6 +34,8 @@ First Chrome Web Store release.
 - The floating-widget **opacity** setting (replaced by a fixed, pleasant default that brightens on hover).
 
 ### Fixed
+- **The side panel no longer scrolls sideways.** The study buddy walks by sliding a track-wide element across the panel, and its box carried on past the right edge, giving the whole page a horizontal scroll range — at a narrow side-panel width the layout looked shifted and cut off. The track is now clipped on that axis only, so the drifting "z" still shows above it.
+- **Section headings no longer push their button out of the card.** "Clear done" and "Reset stats" sit on a row with the heading; neither shrinks below its text, so on a narrow panel the button spilled past the card edge. The row now wraps and the button drops below, still right-aligned.
 - **A paused timer no longer resets when a setting is saved.** Saving settings cleared the remaining time whenever the timer was not running, so changing the theme, language or a widget toggle mid-pause silently rewound the stage to full length. The countdown is now discarded only when the current stage's own duration actually changes.
 - **Deadline date picker** no longer flickers or snaps shut — the task list is now only rebuilt when a task actually changes, not on every one-second timer tick.
 - **Offscreen audio document** now closes itself shortly after each sound, so Chrome no longer shows the persistent background-document ("recording"-style) indicator on the extension while idle. No media is ever captured — the document only plays the timer sounds.

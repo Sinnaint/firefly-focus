@@ -636,10 +636,19 @@ button:disabled {
 
 .section-title {
   display: flex;
+  /* Heading and button cannot always share a line on a narrow side panel, and
+     neither shrinks below its text — without wrapping, the button pushes out
+     past the card edge. */
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+/* Keeps the button on the right whether it shares the line or drops below. */
+.section-title > .tiny {
+  margin-left: auto;
 }
 
 h2 {
@@ -1001,7 +1010,10 @@ body[data-view="compact"] .task button {
   }
 
   .top-actions {
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, …), not plain 1fr: a 1fr column will not shrink below its
+       content, and the 150px-wide selects then push the row past the panel
+       edge on a narrow side panel. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     justify-items: stretch;
   }
 
@@ -1232,6 +1244,15 @@ body[data-face="breathe"][data-running="false"] .ring::after {
   position: relative;
   display: block;
   width: 100%;
+  /*
+   * .buddy-walk is as wide as the whole track and slides sideways, so its box
+   * ends up far past the right edge and the page grows a horizontal scroll
+   * range. Clip it away — but only on this axis, so the drifting "z" can still
+   * bleed above the track. `clip` rather than `hidden`: mixing hidden with
+   * visible would force both axes to auto and make this a scroll container.
+   */
+  overflow-x: clip;
+  overflow-y: visible;
   /* The sprite's viewBox is 53x55, so the track is a touch taller than wide. */
   height: calc(var(--buddy-size) * 1.04);
   margin: 0 0 8px;
