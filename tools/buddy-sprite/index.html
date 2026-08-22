@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="UTF-8"><title>buddy generator</title>
+<style>body{background:#2a0a35;margin:0;padding:16px;font:12px system-ui}canvas{image-rendering:pixelated}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="shapes.js"></script>
+<script>
+const W = 56, H = 52;
+const COLORS = {
+  o: "#5a3120",  // silhouette outline
+  d: "#8b4f2b",  // shadow / belly / far legs
+  f: "#b06b3c",  // main fur
+  l: "#c98a55",  // sunlit top
+  m: "#96552c",  // muzzle patch
+  n: "#40200f",  // nose, eye, mouth
+  a: "#c56fdd",  // costume
+  g: "#ecb8f7",  // costume highlight
+};
+
+function blank(w, h) { return Array.from({ length: h }, () => new Array(w).fill(".")); }
+
+function blob(grid, cx, cy, rx, ry, key, n, ang) {
+  n = n || 2; ang = (ang || 0) * Math.PI / 180;
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  for (let y = 0; y < grid.length; y += 1) {
+    for (let x = 0; x < grid[0].length; x += 1) {
+      const px = x + 0.5 - cx, py = y + 0.5 - cy;
+      const dx = (px * ca + py * sa) / rx, dy = (-px * sa + py * ca) / ry;
+      if (Math.pow(Math.abs(dx), n) + Math.pow(Math.abs(dy), n) <= 1) grid[y][x] = key;
+    }
+  }
+}
+
+function blobShade(grid, cx, cy, rx, ry, key, n, ang) {
+  const probe = blank(grid[0].length, grid.length);
+  blob(probe, cx, cy, rx, ry, "#", n, ang);
+  for (let y = 0; y < grid.length; y += 1)
+    for (let x = 0; x < grid[0].length; x += 1)
+      if (grid[y][x] !== "." && probe[y][x] === "#") grid[y][x] = key;
+}
+
+function stamp(grid, src, ox, oy) {
+  src.forEach((row, y) => { for (let x = 0; x < row.length; x += 1) {
+    if (row[x] !== "." && grid[y + oy] && grid[y + oy][x + ox] !== undefined) grid[y + oy][x + ox] = row[x];
+  } });
+}
+
+function ellipse(grid, cx, cy, rx, ry, key) {
+  for (let y = 0; y < grid.length; y += 1) {
+    for (let x = 0; x < grid[0].length; x += 1) {
+      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) grid[y][x] = key;
+    }
+  }
+}
+
+// Same as ellipse but only paints where something is already filled.
+function shade(grid, cx, cy, rx, ry, key) {
+  for (let y = 0; y < grid.length; y += 1) {
+    for (let x = 0; x < grid[0].length; x += 1) {
+      if (grid[y][x] === ".") continue;
+      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) grid[y][x] = key;
+    }
+  }
+}
+
+function rect(grid, x0, y0, w, h, key) {
+  for (let y = y0; y < y0 + h; y += 1)
+    for (let x = x0; x < x0 + w; x += 1)
+      if (grid[y] && grid[y][x] !== undefined) grid[y][x] = key;
+}
+
+/* Every filled cell touching empty space becomes the dark rim the reference has. */
+function outline(grid, key) {
+  const out = grid.map((r) => r.slice());
+  for (let y = 0; y < grid.length; y += 1) {
+    for (let x = 0; x < grid[0].length; x += 1) {
+      if (grid[y][x] === ".") continue;
+      const n = [[0,-1],[0,1],[-1,0],[1,0]];
+      if (n.some(([dx, dy]) => (grid[y+dy] || [])[x+dx] === undefined || (grid[y+dy] || [])[x+dx] === "."))
+        out[y][x] = key;
+    }
+  }
+  return out;
+}
+
+function toStrings(grid) { return grid.map((r) => r.join("")); }
+
+function draw(sets, scale) {
+  const c = document.getElementById("c");
+  const cols = sets.length;
+  c.width = cols * (W + 2) * scale; c.height = (H + 2) * scale;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#3a1145"; ctx.fillRect(0, 0, c.width, c.height);
+  sets.forEach((rows, i) => {
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x += 1) {
+        const k = row[x];
+        if (k === "." || !COLORS[k]) continue;
+        ctx.fillStyle = COLORS[k];
+        ctx.fillRect((i * (W + 2) + x + 1) * scale, (y + 1) * scale, scale, scale);
+      }
+    });
+  });
+}
+
+window.dump = (rows) => rows.map((r) => '  "' + r + '",').join("\n");
+window.save = async (name) => { // needs a local server with the POST hook; otherwise right-click the canvas
+  const blob = await new Promise((r) => document.getElementById("c").toBlob(r, "image/png"));
+  const resp = await fetch("/__save?path=" + encodeURIComponent("_preview/" + name), { method: "POST", body: blob });
+  return resp.ok;
+};
+build();
+</script>
+</body></html>

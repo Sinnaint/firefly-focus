@@ -1215,7 +1215,7 @@ body[data-face="breathe"][data-running="false"] .ring::after {
    Study buddy — pixel-art capybara in a firefly costume.
    Markup is generated in shared.js, so these rules serve both the side panel
    and the fullscreen page. The fur is deliberately theme-neutral warm brown;
-   only the costume (lantern, wings, antennae) follows --accent.
+   only the costume (wings, antennae) follows --accent.
 
    .buddy is a full-width track and .buddy-walk spans it, sliding the sprite
    from one edge to the other. Everything moves by transform, so pacing back
@@ -1224,15 +1224,15 @@ body[data-face="breathe"][data-running="false"] .ring::after {
    resolve against the wrong axis in the second one.
    ========================================================================== */
 .buddy {
-  --buddy-size: clamp(64px, 22vw, 96px);
+  --buddy-size: clamp(76px, 25vw, 104px);
   --buddy-walk: 26s;
 
   position: relative;
   display: block;
   width: 100%;
-  /* The sprite's viewBox is 40x30, so the track is 3/4 as tall as it is wide. */
-  height: calc(var(--buddy-size) * 0.75);
-  margin: 0 0 10px;
+  /* The sprite's viewBox is 50x54, so the track is a little taller than wide. */
+  height: calc(var(--buddy-size) * 1.08);
+  margin: 0 0 8px;
 }
 
 .buddy[hidden] {
@@ -1240,8 +1240,8 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 body[data-view="compact"] .buddy {
-  --buddy-size: clamp(52px, 18vw, 74px);
-  margin-bottom: 6px;
+  --buddy-size: clamp(58px, 19vw, 80px);
+  margin-bottom: 4px;
 }
 
 .buddy-walk {
@@ -1278,32 +1278,26 @@ body[data-view="compact"] .buddy {
 }
 
 /* ---------- Capybara ---------- */
-.px-fur { fill: #b5825a; }
-.px-fur-dark { fill: #8a5f39; }
-.px-fur-light { fill: #cfa075; }
-.px-muzzle { fill: #d9b48c; }
-.px-nose { fill: #4a3220; }
-.px-eye { fill: #3a2618; }
+.px-outline { fill: #5a3120; }
+.px-fur-dark { fill: #8b4f2b; }
+.px-fur { fill: #b06b3c; }
+.px-fur-light { fill: #c98a55; }
+.px-muzzle { fill: #96552c; }
+.px-nose { fill: #40200f; }
 
 /* ---------- Firefly costume ---------- */
 .px-glow { fill: var(--accent); }
-.px-glow-hot { fill: #fffdf8; fill-opacity: 0.8; }
-.px-halo { fill: var(--accent); fill-opacity: 0.16; }
+.px-glow-hot { fill: color-mix(in srgb, var(--accent) 32%, #ffffff); }
 
-.buddy-wing-far { opacity: 0.22; }
-.buddy-wing-near { opacity: 0.34; }
+.buddy-wings { opacity: 0.88; }
 
-/* ---------- Awake vs dozing ---------- */
-.buddy-eye-shut,
+/* ---------- Dozing ---------- */
+/* The reference face is a contented closed eye, so the buddy keeps it awake
+   or asleep; the "z", the halted walk and the folded wings carry the state. */
 .buddy-sleep {
   display: none;
 }
 
-body[data-running="false"] .buddy-eye-open {
-  display: none;
-}
-
-body[data-running="false"] .buddy-eye-shut,
 body[data-running="false"] .buddy-sleep {
   display: block;
 }
@@ -1321,12 +1315,13 @@ body[data-running="false"] .buddy-sleep {
 .buddy-body { animation: buddyStride 0.62s linear infinite; }
 
 .buddy-wings {
-  animation: buddyFlutter 2.6s ease-in-out infinite;
-  transform-origin: 15px 5px;
+  animation: buddyFlutter 2.4s ease-in-out infinite;
+  transform-origin: 26px 18px;
 }
 
-.buddy-lamp {
-  animation: buddyLamp 2.8s ease-in-out infinite;
+.buddy-antennae {
+  animation: buddySway 3.4s ease-in-out infinite;
+  transform-origin: 31px 18px;
 }
 
 .buddy-z1 { animation: buddyZ 4.6s ease-in-out infinite; }
@@ -1337,7 +1332,7 @@ body[data-running="false"] .buddy-sleep {
   50%, 100% { opacity: 0; }
 }
 
-/* Splayed legs put the belly a pixel closer to the ground. */
+/* The crossed-leg frame puts the belly a pixel closer to the ground. */
 @keyframes buddyStride {
   0%, 49.99% { transform: translateY(0); }
   50%, 100% { transform: translateY(1px); }
@@ -1345,18 +1340,18 @@ body[data-running="false"] .buddy-sleep {
 
 @keyframes buddyFlutter {
   0%, 100% { transform: scaleY(1) rotate(0deg); }
-  50% { transform: scaleY(0.86) rotate(4deg); }
+  50% { transform: scaleY(0.9) rotate(3.5deg); }
 }
 
-@keyframes buddyLamp {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+@keyframes buddySway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2.5deg); }
 }
 
 @keyframes buddyZ {
   0% { opacity: 0; transform: translate(0, 2px); }
   30% { opacity: 0.85; }
-  100% { opacity: 0; transform: translate(3px, -7px); }
+  100% { opacity: 0; transform: translate(4px, -9px); }
 }
 
 /* Dozing: it stops where it stands rather than snapping back to the start. */
@@ -1368,7 +1363,7 @@ body[data-running="false"] .buddy-art {
 body[data-running="false"] .buddy-legs-a { animation: none; opacity: 1; }
 body[data-running="false"] .buddy-legs-b { animation: none; opacity: 0; }
 body[data-running="false"] .buddy-wings { animation: none; }
-body[data-running="false"] .buddy-lamp { animation-duration: 5.5s; }
+body[data-running="false"] .buddy-antennae { animation-duration: 6s; }
 
 body[data-running="false"] .buddy-body {
   animation: buddyDoze 6.5s ease-in-out infinite;
@@ -1386,7 +1381,7 @@ body[data-running="false"] .buddy-body {
   .buddy-legs-b,
   .buddy-body,
   .buddy-wings,
-  .buddy-lamp,
+  .buddy-antennae,
   .buddy-z1,
   .buddy-z2,
   body[data-running="false"] .buddy-body {

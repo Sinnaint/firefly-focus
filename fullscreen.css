@@ -424,12 +424,12 @@ body[data-face="breathe"] .fs-ring {
  * itself, and an own declaration beats an inherited one.
  */
 .fs-body {
-  --fs-buddy-size: clamp(88px, 9vw, 150px);
+  --fs-buddy-size: clamp(76px, 7vw, 132px);
   --fs-buddy-walk: 54s;
-  --fs-buddy-bottom: clamp(12px, 3vh, 44px);
-  /* Only the capybara itself: the top quarter of its viewBox is empty
-     headroom for the drifting "z" and does not need clearing. */
-  --fs-buddy-lane: calc(var(--fs-buddy-size) * 0.55 + var(--fs-buddy-bottom) + 14px);
+  --fs-buddy-bottom: clamp(10px, 2.4vh, 34px);
+  /* Only the capybara itself: the strip of viewBox above its antennae is
+     empty headroom for the drifting "z" and does not need clearing. */
+  --fs-buddy-lane: calc(var(--fs-buddy-size) * 1.02 + var(--fs-buddy-bottom) + 10px);
 }
 
 .fs-buddy {
@@ -445,26 +445,26 @@ body[data-face="breathe"] .fs-ring {
   margin: 0;
 }
 
-/* Keep the centred column out of the lane — otherwise the buddy walks across
-   the session counter every time it crosses the middle of the screen. */
+/*
+ * Reserve the lane, and pull the dial in to pay for it — otherwise the timer
+ * column simply overflows the viewport and the buddy walks across the session
+ * counter every time it crosses the middle. Both only apply while it is on.
+ */
 body:has(#studyBuddy:not([hidden])) .fs {
   padding-bottom: var(--fs-buddy-lane);
 }
 
-@media (max-height: 560px) {
-  .fs-body {
-    --fs-buddy-size: clamp(72px, 7vw, 110px);
-    --fs-buddy-walk: 46s;
-  }
+body:has(#studyBuddy:not([hidden])) .fs-ring {
+  --fs-ring: min(52vh, 44vw, 560px);
 }
 
-/*
- * A short window has no spare height, so the timer column would otherwise
- * overflow straight into the buddy's lane. Shrink the dial instead — only
- * while the buddy is actually on.
- */
 @media (max-height: 620px) {
+  .fs-body {
+    --fs-buddy-size: clamp(64px, 6vw, 96px);
+    --fs-buddy-walk: 46s;
+  }
+
   body:has(#studyBuddy:not([hidden])) .fs-ring {
-    --fs-ring: min(50vh, 30vw, 340px);
+    --fs-ring: min(42vh, 30vw, 300px);
   }
 }

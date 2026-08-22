@@ -920,85 +920,162 @@ function bindPresetPicker(root) {
  * Study buddy — a pixel-art capybara in a firefly costume that paces along the
  * bottom of the timer.
  *
- * The sprite is built from a character grid: one cell = one viewBox unit, drawn
+ * The sprite is built from character grids: one cell = one viewBox unit, drawn
  * with shape-rendering="crispEdges" so the pixels stay hard-edged at any size.
  * Letters name CSS classes rather than colours, so the palette stays in
  * sidepanel.css with everything else — the costume follows --accent while the
  * fur stays warm brown in every theme, because this is a character, not chrome.
  * Inline SVG, no assets: the extension ships nothing it has to fetch.
  *
+ * The grids were traced off reference art with a shape rasteriser rather than
+ * typed by hand, which is why the silhouette carries a proper dark rim and the
+ * curves are even. Every row of a grid must stay the same width (46).
+ *
  * Reacts to body[data-running]: walks and flutters while the timer runs, stops
- * where it stands with its eyes shut and a "z" drifting up when it does not.
- * All the motion lives in sidepanel.css, shared by the panel and fullscreen.
+ * where it stands with a "z" drifting up when it does not. All the motion
+ * lives in sidepanel.css, shared by the panel and the fullscreen page.
  */
 const BUDDY_CLASSES = {
-  f: "px-fur",        // mid brown
-  d: "px-fur-dark",   // shading under the sunlit back, far legs
-  l: "px-fur-light",  // sunlit back and belly
+  o: "px-outline",    // dark rim around the silhouette
+  d: "px-fur-dark",   // belly shadow, far legs
+  f: "px-fur",        // main coat
+  l: "px-fur-light",  // sunlit back and crown
   m: "px-muzzle",
-  n: "px-nose",       // nose and mouth
+  n: "px-nose",       // nose, eye, smile
   a: "px-glow",       // costume — follows --accent
-  g: "px-glow-hot",   // the bright core of the glow
+  g: "px-glow-hot",   // the bright core of the wings and the antenna tips
 };
 
-/*
- * Facing right, 32 columns wide — CSS only has to mirror it when it turns.
- * The head is deliberately set three rows above the back with a notch between
- * them: without that shoulder line the whole animal reads as one long loaf.
- */
+/* Facing right — CSS only has to mirror it when it turns at the end of a lap. */
 const BUDDY_BODY = [
-  "................g.............g.",
-  ".................a...........a..",
-  "..................a.........a...",
-  "...................a.ddd...a....",
-  "...................a.ddd...a....",
-  "....................fffffffff...",
-  "...................fffffffffff..",
-  "...................ffffffffffff.",
-  ".....lllllllllllll.ffffffffffff.",
-  "...ffffffffffffffffffffffffmmnn.",
-  "..fffddddddddffffffffffffffmmnn.",
-  ".fffffdddddddffffffffffffffmmmm.",
-  ".ffffffffffffffffffffffffffmnnm.",
-  ".ffffffffffffffffffffffffffmmm..",
-  ".ffffffffffffffffffffffffff.....",
-  ".fffllllllllllllllfffffff.......",
-  ".fflllllllllllllllffff..........",
-  "..flllllllllllllllfff...........",
-  "...ddddddddddddddddd............",
+  "......................oooo....................",
+  ".....................offffo...................",
+  "....................offddllo.oooooooo.........",
+  "....................olddddllolllllllloo.......",
+  "....................olddddllllllllllllloo.....",
+  "....................olddddlllllllllllllllo....",
+  ".....................oddddlllllllllllllllo....",
+  "......................oddlllllllllllllllllo...",
+  ".......................ollllllllllllllllllo...",
+  "......................olllllllnnnnllllmmmnno..",
+  ".....................olllllllnllllnllmmmnnnno.",
+  "..........ooooooooooolllllllllllllllmmmmnnnno.",
+  "......oooollllllllllllllllllllllllllmmmmmnnno.",
+  "....oollllllllllllllllllllllllllllllmmmmmmmmmo",
+  "...olllllllllllllllllllllllllllllllmmmmmmmmmmo",
+  "..ollllllllllllllllllllllllllllllllmmmmmmmmmmo",
+  ".ollllllllllllllllllllllllllllllllllmmmmmmmmmo",
+  ".ofllllllllllllllllllllllllllllllllfmmmmmmmmmo",
+  "offllllllllllllllllllllllllllllllllfmnmmmnmmmo",
+  "offfllllllllllllllllllllllllllllllfffmnnnmmmo.",
+  "offffllllllllllllllllllllllllllllfffffmmmmmoo.",
+  "offfffllllllllllllllllllllllllllfffffffoooo...",
+  "offffffllllllllllllllllllllllllfffffffo.......",
+  "offfffffffllllllllllllllllllfffffffffo........",
+  "offffffffffffllllllllllllffffffffffffo........",
+  "offffffffffffffffffffffffffffffffffffo........",
+  "offffffffffffffffffffffffffffffffffffo........",
+  "offffffffffffffffffffffffffffffffffffo........",
+  "offffffffffffffffffffffffffffffffffffo........",
+  "offffffffffffffffffffffffffffffffffffo........",
+  ".offffffffffffffffffffffffffffffffffo.........",
+  ".offffffffffffffffffffffffffffffffffo.........",
+  "..offffffffffffffffffffffffffffffffo..........",
+  "...offffffddddddddddddddffffffffffo...........",
+  "....ooddddddddddddddddddddddffffoo............",
+  "......ooooddddddddddddoooooooooo..............",
+  "..........oooooooooooo........................",
+];
+
+/* Behind the body: two wings fanning up and back off the shoulder. */
+const BUDDY_WING = [
+  "..aaaaa.......................................",
+  ".aaaaaaaaa....................................",
+  "aaaaaaaaaaaa..................................",
+  "aaaaaaaaaaaaaa................................",
+  ".agggggaaaaaaaaa..............................",
+  ".agggggggaaaaaaaa.............................",
+  "..aggggggggaaaaaaa............................",
+  "...agggggggggaaaaaaa..........................",
+  "....agggggggggaaaaaaa.........................",
+  "......gggggggggaaaaaaa........................",
+  "..aaaaagggggggggaaaaaaa.......................",
+  ".aaaaaaaaggggggggaaaaaa.......................",
+  "aagggggggaagggggggaaaaaa......................",
+  "aaggggggggggggggggaaaaaa......................",
+  ".aagggggggggggggaaaaaaa.......................",
+  "..aagggggggggggggaaaaaa.......................",
+  "....aaagggggggggggaaaaaa......................",
+  "......aaaaagggggggaaaaaa......................",
+  "........aaaaaaaaaaaaaaa.......................",
+  "............aaaaaaaaaa........................",
+];
+
+/* In front of the head, so the stems sit on the crown. */
+const BUDDY_ANTENNAE = [
+  "..........................gggg................",
+  "..........................gggg................",
+  "..........................gggg................",
+  "..........................gggg................",
+  "...........................a............gggg..",
+  "...........................a........aaaagggg..",
+  "...........................a.......aa...gggg..",
+  "...........................aa.....aa....gggg..",
+  "............................a....aa...........",
+  "............................a....a............",
+  "............................aa................",
+  ".............................a................",
 ];
 
 /*
- * Two leg poses, swapped a few times a second: standing square, then mid-swing
- * with each leg two cells from where it was. The near pair is fur-coloured and
- * the far pair dark, so four legs read as two sides rather than a fence. The
- * body drops a pixel on the swing frame — what a real stride does, and what
- * sells the walk at this size.
+ * Two leg poses swapped a few times a second: stance, then mid-stride with the
+ * near and far legs crossed. Each leg carries its own dark rim, so a near leg
+ * still reads as separate when it passes in front of the far one. The body
+ * drops a pixel on the stride frame — what a real gait does, and what sells
+ * the walk at this size.
  */
 const BUDDY_LEGS = [
   [
-    ".....ff.dd....ff.dd.............",
-    ".....ff.dd....ff.dd.............",
-    ".....dd.dd....dd.dd.............",
+    ".......oo......oo......oo......oo.............",
+    "......oddo....offo....oddo....offo............",
+    "......oddo....offo....oddo....offo............",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    ".....oddddo..offffo..oddddo..offffo...........",
+    "......oddo....offo....oddo....offo............",
+    "......oddo....offo....oddo....offo............",
+    ".......oo......oo......oo......oo.............",
   ],
   [
-    "....ff...dd..ff...dd............",
-    "...ff.....dd.ff....dd...........",
-    "...dd.....dd.dd....dd...........",
+    ".........oo..oo..........oo..oo...............",
+    "........offooddo........offooddo..............",
+    "........offooddo........offooddo..............",
+    ".......offffodddo......offffodddo.............",
+    ".......offffodddo......offffodddo.............",
+    ".......offffodddo......offffodddo.............",
+    ".......offffodddo......offffodddo.............",
+    ".......offffodddo......offffodddo.............",
+    ".......offffodddo......offffodddo.............",
+    "........offooddo........offooddo..............",
+    "........offooddo........offooddo..............",
+    ".........oo..oo..........oo..oo...............",
   ],
 ];
 
-/* One wing, drawn twice at different offsets so the far one peeks out. */
-const BUDDY_WING = [
-  "aaaa........",
-  "aaaaaaa.....",
-  ".aaaaaaaaa..",
-  "..aaaaaaaaa.",
-  ".....aaaaaa.",
-  "........aa..",
-];
+/* Where each grid sits in the sprite's coordinate system. */
+const BUDDY_OFFSETS = { body: 7, wing: 3, antennae: 0, legs: 36 };
 
-function buddyRects(rows, offsetX, offsetY) {
+/*
+ * Runs of identical cells become one rect, and a run repeated on the next row
+ * grows the rect above it instead of stacking a new one — a few hundred nodes
+ * instead of a couple of thousand.
+ */
+function buddyRects(rows, offsetY) {
+  const filled = (x, y) => !!(rows[y] && BUDDY_CLASSES[rows[y][x]]);
+
   const runs = [];
 
   rows.forEach((row, y) => {
@@ -1024,11 +1101,25 @@ function buddyRects(rows, offsetX, offsetY) {
   });
 
   return runs
-    .map(
-      (r) =>
-        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x + offsetX}" y="${r.y + offsetY}"` +
-        ` width="${r.w}" height="${r.h}"/>`
-    )
+    .map((r) => {
+      /*
+       * Grow half a cell into whichever neighbour will paint over the overlap.
+       * Without this the sprite shows hairline seams wherever it lands on a
+       * fractional scale — the edges anti-alias and the backdrop bleeds
+       * through. Growth stops at the silhouette, so the outline stays exact.
+       */
+      let w = r.w, h = r.h;
+      let right = true, down = true;
+      for (let y = r.y; y < r.y + r.h; y += 1) if (!filled(r.x + r.w, y)) right = false;
+      for (let x = r.x; x < r.x + r.w; x += 1) if (!filled(x, r.y + r.h)) down = false;
+      if (right) w += 0.5;
+      if (down) h += 0.5;
+
+      return (
+        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x}" y="${r.y + offsetY}"` +
+        ` width="${w}" height="${h}"/>`
+      );
+    })
     .join("");
 }
 
@@ -1046,33 +1137,24 @@ function buildBuddySvg() {
   const legs = BUDDY_LEGS
     .map(
       (frame, i) =>
-        `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">${buddyRects(frame, 0, 19)}</g>`
+        `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">` +
+        `${buddyRects(frame, BUDDY_OFFSETS.legs)}</g>`
     )
     .join("");
 
   // Legs are drawn before the body so the body hides their tops when it dips.
   return `
-<svg class="buddy-art" viewBox="-6 -8 40 30" xmlns="http://www.w3.org/2000/svg"
+<svg class="buddy-art" viewBox="-2 -4 50 54" xmlns="http://www.w3.org/2000/svg"
      shape-rendering="crispEdges" aria-hidden="true" focusable="false">
   <g class="buddy-sleep">
-    ${buddyZ(10, -3, 3, "buddy-z1")}
-    ${buddyZ(15, -7, 4, "buddy-z2")}
+    ${buddyZ(1, 3, 4, "buddy-z1")}
+    ${buddyZ(7, -2, 5, "buddy-z2")}
   </g>
   ${legs}
   <g class="buddy-body">
-    <g class="buddy-lamp">
-      <rect class="px-halo" x="-5" y="12" width="8" height="6"/>
-      <rect class="px-halo" x="-4" y="11" width="6" height="8"/>
-      <rect class="px-glow" x="-2" y="13" width="2" height="4"/>
-      <rect class="px-glow-hot" x="-2" y="13" width="1" height="1"/>
-    </g>
-    <g class="buddy-wings">
-      <g class="buddy-wing-far">${buddyRects(BUDDY_WING, 8, 1)}</g>
-      <g class="buddy-wing-near">${buddyRects(BUDDY_WING, 6, 3)}</g>
-    </g>
-    ${buddyRects(BUDDY_BODY, 0, 0)}
-    <rect class="px-eye buddy-eye-open" x="24" y="9" width="2" height="2"/>
-    <rect class="px-eye buddy-eye-shut" x="23" y="10" width="3" height="1"/>
+    <g class="buddy-wings">${buddyRects(BUDDY_WING, BUDDY_OFFSETS.wing)}</g>
+    ${buddyRects(BUDDY_BODY, BUDDY_OFFSETS.body)}
+    <g class="buddy-antennae">${buddyRects(BUDDY_ANTENNAE, BUDDY_OFFSETS.antennae)}</g>
   </g>
 </svg>`;
 }
