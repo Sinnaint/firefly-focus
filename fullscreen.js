@@ -309,6 +309,7 @@ function renderTaskSurfaces(force = false) {
     cardSignature = cardKey;
     renderTasksInto(els.taskCardList, open, dictionary, {
       simple: true,
+      withDeadline: true,
       emptyText: dictionary.noTaskYet
     });
   }
@@ -564,6 +565,22 @@ els.taskCardForm.addEventListener("submit", async (event) => {
   const response = await send("ADD_TASK", { text });
   if (response?.ok) state = response.state;
   els.taskCardInput.value = "";
+  renderTaskSurfaces(true);
+  clampCardPosition();
+});
+
+/* Setting a deadline straight off the floating card. */
+els.taskCardList.addEventListener("change", async (event) => {
+  if (!event.target.matches("input[type='date']")) return;
+
+  const li = event.target.closest(".task");
+  if (!li?.dataset.id) return;
+
+  const response = await send("SET_TASK_DEADLINE", {
+    id: li.dataset.id,
+    deadline: event.target.value || null
+  });
+  if (response?.ok) state = response.state;
   renderTaskSurfaces(true);
   clampCardPosition();
 });

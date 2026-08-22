@@ -25,6 +25,8 @@
       noTasks: "Задач ще немає",
       taskPlaceholder: "Нова задача…",
       addTaskAria: "Додати задачу",
+      addDeadlineTitle: "Додати дедлайн",
+      deadlineTitle: "Дедлайн задачі",
       openHint: "Клік по віджету відкриває повну панель"
     },
     en: {
@@ -46,6 +48,8 @@
       noTasks: "No tasks yet",
       taskPlaceholder: "New task…",
       addTaskAria: "Add task",
+      addDeadlineTitle: "Add deadline",
+      deadlineTitle: "Task deadline",
       openHint: "Click the widget to open the full panel"
     },
     de: {
@@ -67,6 +71,8 @@
       noTasks: "Noch keine Aufgaben",
       taskPlaceholder: "Neue Aufgabe…",
       addTaskAria: "Aufgabe hinzufügen",
+      addDeadlineTitle: "Frist hinzufügen",
+      deadlineTitle: "Frist der Aufgabe",
       openHint: "Klicke das Widget an, um das volle Panel zu öffnen"
     },
     es: {
@@ -88,6 +94,8 @@
       noTasks: "Aún no hay tareas",
       taskPlaceholder: "Nueva tarea…",
       addTaskAria: "Añadir tarea",
+      addDeadlineTitle: "Añadir fecha límite",
+      deadlineTitle: "Fecha límite de la tarea",
       openHint: "Haz clic en el widget para abrir el panel completo"
     },
     it: {
@@ -109,6 +117,8 @@
       noTasks: "Ancora nessuna attività",
       taskPlaceholder: "Nuova attività…",
       addTaskAria: "Aggiungi attività",
+      addDeadlineTitle: "Aggiungi scadenza",
+      deadlineTitle: "Scadenza dell'attività",
       openHint: "Clicca il widget per aprire il pannello completo"
     },
     sk: {
@@ -130,6 +140,8 @@
       noTasks: "Zatiaľ žiadne úlohy",
       taskPlaceholder: "Nová úloha…",
       addTaskAria: "Pridať úlohu",
+      addDeadlineTitle: "Pridať termín",
+      deadlineTitle: "Termín úlohy",
       openHint: "Klikni na widget, aby si otvoril celý panel"
     },
     cs: {
@@ -151,6 +163,8 @@
       noTasks: "Zatím žádné úkoly",
       taskPlaceholder: "Nový úkol…",
       addTaskAria: "Přidat úkol",
+      addDeadlineTitle: "Přidat termín",
+      deadlineTitle: "Termín úkolu",
       openHint: "Klikni na widget pro otevření celého panelu"
     }
   };
@@ -165,6 +179,9 @@
   let sessionDismissed = false;
   let fireflyRecycleTimer = null;
   let fireflyConfigKey = "";
+  // Fingerprint of the rendered task list, so a 500 ms tick does not rebuild
+  // it under an open date picker.
+  let tasksSignature = "";
 
   function safeSend(type, payload = {}) {
     return new Promise((resolve) => {
@@ -850,13 +867,69 @@
         box-shadow: inset 3px 0 0 0 #c0304a;
       }
 
-      .task input {
+      .task input[type="checkbox"] {
         width: 15px;
         height: 15px;
         margin: 0;
         accent-color: var(--accent);
         cursor: pointer;
       }
+
+      .task-body {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+
+      /*
+       * Same chip as the panel: a task without a deadline shrinks to a small
+       * calendar affordance so the row stays a glance, and only fills out once
+       * there is a date to read.
+       */
+      .task-deadline {
+        width: auto;
+        min-width: 112px;
+        max-width: 100%;
+        min-height: 22px;
+        padding: 1px 8px;
+        border: 1px solid var(--w-border);
+        border-radius: 999px;
+        background: var(--w-soft);
+        color: var(--w-muted);
+        font: inherit;
+        font-size: calc(10px * var(--text-scale, 1));
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity .15s ease, border-color .15s ease;
+      }
+
+      .task-deadline.is-empty {
+        min-width: 0;
+        padding: 1px 5px;
+        opacity: 0.5;
+      }
+
+      .task-deadline.is-empty:hover {
+        opacity: 1;
+      }
+
+      .task-deadline.soon {
+        color: #d9932e;
+        border-color: rgba(217, 147, 46, 0.5);
+        opacity: 1;
+      }
+
+      .task-deadline.overdue {
+        color: #c0304a;
+        border-color: rgba(192, 48, 74, 0.5);
+        opacity: 1;
+      }
+
+      /* Native pickers follow color-scheme, so tell them which world they are in. */
+      .widget { color-scheme: dark; }
+      .widget[data-theme="daylight"] { color-scheme: light; }
 
       .task span {
         min-width: 0;
@@ -1035,6 +1108,24 @@
       await safeSend("OPEN_SIDE_PANEL");
     });
 
+    // Setting a deadline straight from the widget.
+    nodes.tasksList.addEventListener("change", async (event) => {
+      if (!event.target.matches("input[type='date']")) return;
+      event.stopPropagation();
+
+      const li = event.target.closest(".task");
+      if (!li?.dataset?.id) return;
+
+      const response = await safeSend("SET_TASK_DEADLINE", {
+        id: li.dataset.id,
+        deadline: event.target.value || null
+      });
+      if (response.ok) {
+        state = response.state;
+        render();
+      }
+    });
+
     // Adding a task from the widget itself, so capturing a thought does not
     // mean leaving the page for the side panel.
     nodes.taskForm.addEventListener("submit", async (event) => {
@@ -1061,6 +1152,10 @@
      */
     for (const type of ["keydown", "keyup", "keypress"]) {
       nodes.taskInput.addEventListener(type, (event) => event.stopPropagation());
+      // Deadline chips are rebuilt on every change, so guard them by delegation.
+      nodes.tasksList.addEventListener(type, (event) => {
+        if (event.target.matches("input")) event.stopPropagation();
+      });
     }
 
     nodes.collapseBtn.addEventListener("click", async (event) => {
@@ -1402,30 +1497,58 @@
       return;
     }
 
-    nodes.tasksList.innerHTML = "";
+    /*
+     * Rebuild only when a task actually changed. The widget re-renders twice a
+     * second; without this guard the native date picker would be torn out of
+     * the DOM and snap shut while the user is still choosing a day.
+     */
+    const signature = [
+      getLanguage(),
+      new Date().toDateString(),
+      activeTasks
+        .map((task) => `${task.id}~${task.text}~${task.done ? 1 : 0}~${task.deadline || ""}`)
+        .join("|")
+    ].join("##");
 
-    if (!activeTasks.length) {
-      const empty = document.createElement("li");
-      empty.className = "empty";
-      empty.textContent = dictionary.noTasks;
-      nodes.tasksList.appendChild(empty);
-    } else {
-      for (const task of activeTasks) {
-        const li = document.createElement("li");
-        li.className = `task ${task.done ? "done" : ""}`;
-        const urgency = deadlineUrgency(task.deadline, task.done);
-        if (urgency) li.classList.add(urgency);
-        li.dataset.id = task.id;
+    if (signature !== tasksSignature) {
+      tasksSignature = signature;
+      nodes.tasksList.innerHTML = "";
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = task.done;
+      if (!activeTasks.length) {
+        const empty = document.createElement("li");
+        empty.className = "empty";
+        empty.textContent = dictionary.noTasks;
+        nodes.tasksList.appendChild(empty);
+      } else {
+        for (const task of activeTasks) {
+          const li = document.createElement("li");
+          li.className = `task ${task.done ? "done" : ""}`;
+          const urgency = deadlineUrgency(task.deadline, task.done);
+          if (urgency) li.classList.add(urgency);
+          li.dataset.id = task.id;
 
-        const text = document.createElement("span");
-        text.textContent = task.text;
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = task.done;
 
-        li.append(checkbox, text);
-        nodes.tasksList.appendChild(li);
+          const text = document.createElement("span");
+          text.textContent = task.text;
+
+          const deadline = document.createElement("input");
+          deadline.type = "date";
+          deadline.className = "task-deadline";
+          deadline.value = task.deadline || "";
+          deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
+          if (urgency) deadline.classList.add(urgency);
+          if (!task.deadline) deadline.classList.add("is-empty");
+
+          const body = document.createElement("div");
+          body.className = "task-body";
+          body.append(text, deadline);
+
+          li.append(checkbox, body);
+          nodes.tasksList.appendChild(li);
+        }
       }
     }
 

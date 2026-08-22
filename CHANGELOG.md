@@ -9,6 +9,7 @@ First Chrome Web Store release.
 
 ### Added
 - **Add a task from anywhere.** The fullscreen task card and the floating widget both grew a one-line input, so a thought can be captured without opening the side panel: type, press Enter, it appears in every surface at once. In fullscreen the ambient fade holds off while the field has focus, and in the widget the keystrokes are kept from reaching the host page's own keyboard shortcuts.
+- **Deadlines everywhere too.** The same date chip the panel uses now sits on tasks in the fullscreen card and the floating widget, with the overdue (red) and due-soon (amber) highlighting that goes with it. The widget only rebuilds its list when a task actually changes, so the native date picker no longer closes under the twice-a-second redraw.
 - **New brand identity** — "Firefly Focus" name and a firefly-in-a-timer-ring icon in the Moon palette, shipped as 16/32/48/128 px PNGs. The logo, wordmark and both store promo tiles share it.
 - **Three themes** — Midnight (dark), Daylight (light) and Sage (calm green), each with its own tasteful accent palette. Theme switcher lives in the panel header, next to the language selector.
 - **Task deadlines** — optional due date per task, with overdue (red) and due-soon (amber) highlighting in both the side panel and the floating widget.

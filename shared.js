@@ -805,7 +805,29 @@ function tasksSignature(tasks, lang, extra = "") {
   return `${lang}##${new Date().toDateString()}##${extra}##${list}`;
 }
 
-function renderTasksInto(listEl, tasks, dictionary, { simple = false, emptyText } = {}) {
+/* The deadline chip is the same control on every surface that offers one. */
+function buildDeadlineInput(task, urgency, dictionary) {
+  const deadline = document.createElement("input");
+  deadline.type = "date";
+  deadline.className = "task-deadline";
+  deadline.value = task.deadline || "";
+  deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
+  if (urgency) deadline.classList.add(urgency);
+  if (!task.deadline) deadline.classList.add("is-empty");
+  return deadline;
+}
+
+/*
+ * simple: checkbox + text, for the compact surfaces. withDeadline adds the
+ * date chip under the text without the delete button, which is what the
+ * fullscreen card wants — enough to plan, not a full editor.
+ */
+function renderTasksInto(
+  listEl,
+  tasks,
+  dictionary,
+  { simple = false, withDeadline = false, emptyText } = {}
+) {
   listEl.replaceChildren();
 
   if (!tasks.length) {
@@ -837,7 +859,16 @@ function renderTasksInto(listEl, tasks, dictionary, { simple = false, emptyText 
 
     if (simple) {
       if (urgency) li.classList.add(urgency);
-      li.append(checkbox, text);
+
+      if (withDeadline) {
+        const compactBody = document.createElement("div");
+        compactBody.className = "task-body";
+        compactBody.append(text, buildDeadlineInput(task, urgency, dictionary));
+        li.append(checkbox, compactBody);
+      } else {
+        li.append(checkbox, text);
+      }
+
       listEl.appendChild(li);
       continue;
     }
@@ -847,15 +878,7 @@ function renderTasksInto(listEl, tasks, dictionary, { simple = false, emptyText 
     const body = document.createElement("div");
     body.className = "task-body";
 
-    const deadline = document.createElement("input");
-    deadline.type = "date";
-    deadline.className = "task-deadline";
-    deadline.value = task.deadline || "";
-    deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
-    if (urgency) deadline.classList.add(urgency);
-    if (!task.deadline) deadline.classList.add("is-empty");
-
-    body.append(text, deadline);
+    body.append(text, buildDeadlineInput(task, urgency, dictionary));
 
     const del = document.createElement("button");
     del.type = "button";

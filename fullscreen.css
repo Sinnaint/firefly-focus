@@ -396,6 +396,25 @@ body.is-settings-open {
   border-radius: 12px;
 }
 
+/* The card is 300px wide: shrink the chip so a dated task still fits on
+   one line beside the checkbox. */
+.fs-tasks-list .task-deadline {
+  min-width: 108px;
+  min-height: 22px;
+  padding: 1px 8px;
+  font-size: calc(10.5px * var(--text-scale, 1));
+}
+
+/* Undated tasks keep the collapsed affordance from the panel — the scoped
+   min-width above would otherwise out-specify .task-deadline.is-empty. */
+.fs-tasks-list .task-deadline.is-empty {
+  min-width: 0;
+}
+
+.fs-tasks-list .task-body {
+  gap: 4px;
+}
+
 .fs-tasks-list .task.soon {
   box-shadow: inset 3px 0 0 0 var(--warn-stroke);
 }
