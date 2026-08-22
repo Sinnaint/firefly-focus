@@ -351,6 +351,37 @@ body.is-settings-open {
   text-transform: uppercase;
 }
 
+/* Add a task without leaving the ambient view. Sized down from the panel's
+   own form so it fits a card that floats over the timer. */
+.fs-tasks-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 8px;
+  padding: 0 12px 10px;
+}
+
+.fs-tasks-form input {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font-size: calc(12px * var(--text-scale, 1));
+}
+
+.fs-tasks-form button {
+  min-height: 34px;
+  padding: 0;
+  border-radius: 11px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font-size: calc(17px * var(--text-scale, 1));
+  font-weight: 800;
+  line-height: 1;
+}
+
+.fs-tasks-form button:hover {
+  transform: translateY(-1px);
+}
+
 .fs-tasks-list {
   margin: 0;
   padding: 0 12px 12px;

@@ -23,6 +23,8 @@
       longBreak: "Довга перерва",
       tasks: "Задачі",
       noTasks: "Задач ще немає",
+      taskPlaceholder: "Нова задача…",
+      addTaskAria: "Додати задачу",
       openHint: "Клік по віджету відкриває повну панель"
     },
     en: {
@@ -42,6 +44,8 @@
       longBreak: "Long break",
       tasks: "Tasks",
       noTasks: "No tasks yet",
+      taskPlaceholder: "New task…",
+      addTaskAria: "Add task",
       openHint: "Click the widget to open the full panel"
     },
     de: {
@@ -61,6 +65,8 @@
       longBreak: "Lange Pause",
       tasks: "Aufgaben",
       noTasks: "Noch keine Aufgaben",
+      taskPlaceholder: "Neue Aufgabe…",
+      addTaskAria: "Aufgabe hinzufügen",
       openHint: "Klicke das Widget an, um das volle Panel zu öffnen"
     },
     es: {
@@ -80,6 +86,8 @@
       longBreak: "Descanso largo",
       tasks: "Tareas",
       noTasks: "Aún no hay tareas",
+      taskPlaceholder: "Nueva tarea…",
+      addTaskAria: "Añadir tarea",
       openHint: "Haz clic en el widget para abrir el panel completo"
     },
     it: {
@@ -99,6 +107,8 @@
       longBreak: "Pausa lunga",
       tasks: "Attività",
       noTasks: "Ancora nessuna attività",
+      taskPlaceholder: "Nuova attività…",
+      addTaskAria: "Aggiungi attività",
       openHint: "Clicca il widget per aprire il pannello completo"
     },
     sk: {
@@ -118,6 +128,8 @@
       longBreak: "Dlhá prestávka",
       tasks: "Úlohy",
       noTasks: "Zatiaľ žiadne úlohy",
+      taskPlaceholder: "Nová úloha…",
+      addTaskAria: "Pridať úlohu",
       openHint: "Klikni na widget, aby si otvoril celý panel"
     },
     cs: {
@@ -137,6 +149,8 @@
       longBreak: "Dlouhá přestávka",
       tasks: "Úkoly",
       noTasks: "Zatím žádné úkoly",
+      taskPlaceholder: "Nový úkol…",
+      addTaskAria: "Přidat úkol",
       openHint: "Klikni na widget pro otevření celého panelu"
     }
   };
@@ -744,6 +758,52 @@
         transform: none;
       }
 
+      /* Adding a task without opening the panel. Kept compact — the widget is
+         a glance surface, not a form. */
+      .task-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 28px;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .task-input {
+        width: 100%;
+        min-height: 28px;
+        padding: 0 9px;
+        border: 1px solid var(--w-border);
+        border-radius: 10px;
+        outline: none;
+        color: var(--w-text);
+        background: var(--w-task-bg);
+        font: inherit;
+        font-size: calc(11.5px * var(--text-scale, 1));
+      }
+
+      .task-input::placeholder {
+        color: var(--w-subtle);
+      }
+
+      .task-input:focus {
+        border-color: var(--accent);
+      }
+
+      .task-add {
+        min-height: 28px;
+        padding: 0;
+        border: 0;
+        border-radius: 10px;
+        color: var(--on-accent);
+        background: var(--accent);
+        font-size: calc(14px * var(--text-scale, 1));
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .task-add:hover {
+        transform: translateY(-1px);
+      }
+
       .tasks {
         display: grid;
         gap: 6px;
@@ -828,6 +888,19 @@
         text-align: center;
       }
 
+      /* The task form made the widget taller. On a short window give the space
+         back: the hint is the one purely decorative line, and the list can
+         start scrolling a little sooner. */
+      @media (max-height: 520px) {
+        .hint {
+          display: none;
+        }
+
+        .tasks {
+          max-height: 76px;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .firefly-layer {
           display: none;
@@ -894,6 +967,10 @@
             <span class="tasks-title"></span>
             <button class="open" type="button"></button>
           </div>
+          <form class="task-form">
+            <input class="task-input" type="text" maxlength="90" />
+            <button class="task-add" type="submit">+</button>
+          </form>
           <ul class="tasks"></ul>
         </div>
         <div class="hint"></div>
@@ -919,6 +996,9 @@
       pauseBtn: wrapper.querySelector(".pause"),
       openBtn: wrapper.querySelector(".open"),
       tasksTitle: wrapper.querySelector(".tasks-title"),
+      taskForm: wrapper.querySelector(".task-form"),
+      taskInput: wrapper.querySelector(".task-input"),
+      taskAddBtn: wrapper.querySelector(".task-add"),
       tasksList: wrapper.querySelector(".tasks"),
       hint: wrapper.querySelector(".hint"),
       main: wrapper.querySelector(".main")
@@ -955,6 +1035,34 @@
       await safeSend("OPEN_SIDE_PANEL");
     });
 
+    // Adding a task from the widget itself, so capturing a thought does not
+    // mean leaving the page for the side panel.
+    nodes.taskForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const text = nodes.taskInput.value.trim();
+      if (!text) return;
+
+      const response = await safeSend("ADD_TASK", { text });
+      if (response.ok) {
+        state = response.state;
+        nodes.taskInput.value = "";
+        render();
+      }
+    });
+
+    /*
+     * The widget lives inside someone else's page. Keystrokes typed here must
+     * not reach the site's own shortcut handlers — and because the shadow root
+     * retargets events, a site that guards its shortcuts with
+     * `target.tagName === "INPUT"` sees the host div instead and fires anyway.
+     * Stopping propagation is what keeps a typed "/" from opening their search.
+     */
+    for (const type of ["keydown", "keyup", "keypress"]) {
+      nodes.taskInput.addEventListener(type, (event) => event.stopPropagation());
+    }
+
     nodes.collapseBtn.addEventListener("click", async (event) => {
       event.stopPropagation();
       if (!state) return;
@@ -982,7 +1090,9 @@
 
     nodes.main.addEventListener("click", async (event) => {
       if (movedDuringPointer) return;
-      if (event.target.closest("button, input")) return;
+      // The form counts too: its gap is thin, and a stray click on it should
+      // not yank the user out to the side panel mid-typing.
+      if (event.target.closest("button, input, form")) return;
       await safeSend("OPEN_SIDE_PANEL");
     });
 
@@ -1273,6 +1383,9 @@
     nodes.pauseBtn.textContent = dictionary.pause;
     nodes.openBtn.textContent = dictionary.open;
     nodes.tasksTitle.textContent = dictionary.tasks;
+    nodes.taskInput.placeholder = dictionary.taskPlaceholder;
+    nodes.taskAddBtn.title = dictionary.addTaskAria;
+    nodes.taskAddBtn.setAttribute("aria-label", dictionary.addTaskAria);
     nodes.hint.textContent = dictionary.openHint;
 
     nodes.time.textContent = time;

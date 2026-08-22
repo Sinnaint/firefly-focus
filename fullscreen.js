@@ -38,7 +38,9 @@ const els = {
   taskCardDrag: $("taskCardDrag"),
   taskCardTitle: $("taskCardTitle"),
   taskCardDragLabel: $("taskCardDragLabel"),
-  taskCardList: $("taskCardList")
+  taskCardList: $("taskCardList"),
+  taskCardForm: $("taskCardForm"),
+  taskCardInput: $("taskCardInput")
 };
 
 const TASKS_POSITION_KEY = "fullscreenTasksPosition";
@@ -208,8 +210,9 @@ function isSettingsOpen() {
 function markActive() {
   document.body.classList.remove("is-idle");
   clearTimeout(idleTimer);
-  // Reading the settings without touching the mouse must not blank the screen.
-  if (isSettingsOpen()) return;
+  // Reading the settings — or typing a task — without touching the mouse must
+  // not blank the screen out from under the user.
+  if (isSettingsOpen() || document.activeElement === els.taskCardInput) return;
   idleTimer = setTimeout(() => {
     document.body.classList.add("is-idle");
   }, 4000);
@@ -478,6 +481,8 @@ function render() {
   els.taskCard.hidden = state.settings.fullscreenTasksEnabled === false;
   els.taskCardTitle.textContent = dictionary.tasksTitle;
   els.taskCardDragLabel.textContent = dictionary.tasksDrag;
+  els.taskCardInput.placeholder = dictionary.taskPlaceholder;
+  els.taskCardForm.querySelector("button").setAttribute("aria-label", dictionary.addTaskAria);
   renderTaskSurfaces();
   clampCardPosition();
 
@@ -541,6 +546,26 @@ els.openPanelBtn.addEventListener("click", async () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isSettingsOpen()) closeSettings();
+});
+
+/* Adding a task straight from the floating card — no detour through the
+   settings sheet. Same message the panel sends. */
+// Typing counts as activity: without this the ambient fade takes the card
+// away four seconds into a slowly typed task.
+els.taskCardInput.addEventListener("focus", markActive);
+els.taskCardInput.addEventListener("blur", markActive);
+els.taskCardInput.addEventListener("input", markActive);
+
+els.taskCardForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const text = els.taskCardInput.value.trim();
+  if (!text) return;
+
+  const response = await send("ADD_TASK", { text });
+  if (response?.ok) state = response.state;
+  els.taskCardInput.value = "";
+  renderTaskSurfaces(true);
+  clampCardPosition();
 });
 
 /* Ticking a task straight off the floating card. */
