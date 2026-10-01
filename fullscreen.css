@@ -477,7 +477,7 @@ body[data-face="breathe"] .fs-ring {
   --fs-buddy-size: clamp(76px, 7vw, 132px);
   --fs-buddy-walk: 54s;
   --fs-buddy-bottom: clamp(10px, 2.4vh, 34px);
-  /* Only the capybara itself: the strip of viewBox above its antennae is
+  /* Only the cat itself: the strip of viewBox above its antennae is
      empty headroom for the drifting "z" and does not need clearing. */
   --fs-buddy-lane: calc(var(--fs-buddy-size) * 1.02 + var(--fs-buddy-bottom) + 10px);
 }

@@ -6,16 +6,20 @@
 <canvas id="c"></canvas>
 <script src="shapes.js"></script>
 <script>
-const W = 56, H = 52;
+const W = 56, H = 59;
 const COLORS = {
-  o: "#5a3120",  // silhouette outline
-  d: "#8b4f2b",  // shadow / belly / far legs
-  f: "#b06b3c",  // main fur
-  l: "#c98a55",  // sunlit top
-  m: "#96552c",  // muzzle patch
-  n: "#40200f",  // nose, eye, mouth
-  a: "#c56fdd",  // costume
-  g: "#ecb8f7",  // costume highlight
+  o: "#4e2210",  // silhouette outline, ear tufts, band underline
+  d: "#b5531c",  // tabby stripes, shadow, far legs
+  f: "#e07a2c",  // ginger coat
+  l: "#f4a65a",  // sunlit back
+  c: "#fbe3c0",  // cream ruff, muzzle, paws
+  p: "#ef8f8f",  // nose, inner ear
+  e: "#8cc43c",  // green iris
+  n: "#22140c",  // pupil, closed eye, mouth
+  w: "#fff6e8",  // whiskers
+  a: "#d45fce",  // headband — follows --accent
+  g: "#f1cbef",  // bulb core
+  h: "#6e2d70",  // bulb halo (translucent accent on the real page)
 };
 
 function blank(w, h) { return Array.from({ length: h }, () => new Array(w).fill(".")); }
@@ -64,6 +68,37 @@ function shade(grid, cx, cy, rx, ry, key) {
       if (dx * dx + dy * dy <= 1) grid[y][x] = key;
     }
   }
+}
+
+/* Filled triangle — ears. */
+function tri(grid, ax, ay, bx, by, cx, cy, key) {
+  const s = (px, py, qx, qy, rx, ry) => (px - rx) * (qy - ry) - (qx - rx) * (py - ry);
+  for (let y = 0; y < grid.length; y += 1) {
+    for (let x = 0; x < grid[0].length; x += 1) {
+      const px = x + 0.5, py = y + 0.5;
+      const d1 = s(px, py, ax, ay, bx, by), d2 = s(px, py, bx, by, cx, cy), d3 = s(px, py, cx, cy, ax, ay);
+      const neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
+      if (!(neg && pos)) grid[y][x] = key;
+    }
+  }
+}
+
+/* A thick stroke along a quadratic curve, radius varying from start to end —
+   the bushy tail. radius(t) gets t in 0..1. */
+function tube(grid, p0, p1, p2, radius, key) {
+  for (let t = 0; t <= 1.0001; t += 0.02) {
+    const x = (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0];
+    const y = (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1];
+    const r = radius(t);
+    blob(grid, x, y, r, r, key, 2);
+  }
+}
+
+/* Paint cells that are already filled and satisfy test(x, y). */
+function paintIf(grid, key, test) {
+  for (let y = 0; y < grid.length; y += 1)
+    for (let x = 0; x < grid[0].length; x += 1)
+      if (grid[y][x] !== "." && test(x, y, grid[y][x])) grid[y][x] = key;
 }
 
 function rect(grid, x0, y0, w, h, key) {

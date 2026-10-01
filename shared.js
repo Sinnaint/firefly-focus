@@ -94,7 +94,7 @@ const i18n = {
     faceRing: "Кільце",
     faceDigits: "Тільки цифри",
     faceBreathe: "Дихальне коло",
-    studyBuddyLabel: "Капібара-компаньйон у костюмі світлячка",
+    studyBuddyLabel: "Котик-компаньйон з обручем світлячка",
     tasksDrag: "Перетягни"
   },
   en: {
@@ -186,7 +186,7 @@ const i18n = {
     faceRing: "Ring",
     faceDigits: "Digits only",
     faceBreathe: "Breathing circle",
-    studyBuddyLabel: "Capybara study buddy in a firefly costume",
+    studyBuddyLabel: "Cat study buddy in a firefly headband",
     tasksDrag: "Drag"
   },
   de: {
@@ -274,7 +274,7 @@ const i18n = {
     faceRing: "Ring",
     faceDigits: "Nur Ziffern",
     faceBreathe: "Atmender Kreis",
-    studyBuddyLabel: "Capybara-Lernbegleiter im Glühwürmchen-Kostüm",
+    studyBuddyLabel: "Katzen-Lernbegleiter mit Glühwürmchen-Haarreif",
     tasksDrag: "Ziehen"
   },
   es: {
@@ -362,7 +362,7 @@ const i18n = {
     faceRing: "Anillo",
     faceDigits: "Solo dígitos",
     faceBreathe: "Círculo que respira",
-    studyBuddyLabel: "Compañero capibara con disfraz de luciérnaga",
+    studyBuddyLabel: "Gato compañero con diadema de luciérnaga",
     tasksDrag: "Arrastrar"
   },
   it: {
@@ -450,7 +450,7 @@ const i18n = {
     faceRing: "Anello",
     faceDigits: "Solo cifre",
     faceBreathe: "Cerchio che respira",
-    studyBuddyLabel: "Compagno capibara in costume da lucciola",
+    studyBuddyLabel: "Gatto compagno con cerchietto da lucciola",
     tasksDrag: "Trascina"
   },
   sk: {
@@ -538,7 +538,7 @@ const i18n = {
     faceRing: "Prstenec",
     faceDigits: "Iba číslice",
     faceBreathe: "Dýchajúci kruh",
-    studyBuddyLabel: "Kapybara-spoločník v kostýme svetlušky",
+    studyBuddyLabel: "Mačací spoločník s čelenkou svetlušky",
     tasksDrag: "Presuň"
   },
   cs: {
@@ -626,7 +626,7 @@ const i18n = {
     faceRing: "Prstenec",
     faceDigits: "Jen číslice",
     faceBreathe: "Dýchající kruh",
-    studyBuddyLabel: "Kapybara-společník v kostýmu světlušky",
+    studyBuddyLabel: "Kočičí společník s čelenkou světlušky",
     tasksDrag: "Táhni"
   }
 };
@@ -915,6 +915,43 @@ function derivePreset(values) {
 
 /* Two-way: picking a rhythm fills the durations, editing a duration by hand
    drops the picker back to "Custom". */
+/*
+ * Text size applies the moment it changes. Every click on the spinner arrows
+ * saves it, so the panel, the fullscreen page and the floating widget resize
+ * together without a trip to the Save button. Typing previews as you go and
+ * saves on Enter or when the field loses focus — and a half-typed "1" on the
+ * way to "120" is out of range, so it leaves the preview alone instead of
+ * snapping the whole interface down to 80 % for a keystroke.
+ *
+ * Each page also has to stop its own render loop from re-applying the stored
+ * size while this field has focus, or a typed preview is undone within 500 ms.
+ */
+const TEXT_SCALE_RANGE = { min: 80, max: 140, fallback: 100 };
+
+function bindTextScale(input, save) {
+  if (!input) return;
+
+  const preview = (percent) =>
+    document.documentElement.style.setProperty("--text-scale", String(percent / 100));
+
+  input.addEventListener("input", () => {
+    const value = Number(input.value);
+    if (Number.isFinite(value) && value >= TEXT_SCALE_RANGE.min && value <= TEXT_SCALE_RANGE.max) {
+      preview(value);
+    }
+  });
+
+  input.addEventListener("change", () => {
+    const raw = Number(input.value);
+    const value = Number.isFinite(raw)
+      ? Math.min(TEXT_SCALE_RANGE.max, Math.max(TEXT_SCALE_RANGE.min, Math.round(raw)))
+      : TEXT_SCALE_RANGE.fallback;
+    input.value = value;
+    preview(value);
+    save(value);
+  });
+}
+
 function bindPresetPicker(root) {
   const picker = root.querySelector("#timerPreset");
   if (!picker) return;
@@ -940,216 +977,242 @@ function bindPresetPicker(root) {
 }
 
 /*
- * Study buddy — a pixel-art capybara in a firefly costume that paces along the
- * bottom of the timer, sits down when the timer stops, and eventually curls up
- * and falls asleep.
+ * Study buddy — a pixel-art ginger Maine Coon in a firefly headband. It paces
+ * along the bottom of the timer, sits down when the timer stops, and if the
+ * timer stays stopped curls up and falls asleep.
  *
  * The sprite is built from character grids: one cell = one viewBox unit, drawn
  * with shape-rendering="crispEdges" so the pixels stay hard-edged at any size.
  * Letters name CSS classes rather than colours, so the palette stays in
- * sidepanel.css with everything else — the costume follows --accent while the
- * fur stays warm brown in every theme, because this is a character, not chrome.
+ * sidepanel.css with everything else — the headband follows --accent while the
+ * coat stays ginger in every theme, because this is a character, not chrome.
  * Inline SVG, no assets: the extension ships nothing it has to fetch.
  *
- * The grids were traced off reference art with the shape rasteriser in
- * tools/buddy-sprite/ rather than typed by hand, which is why the silhouettes
- * carry a proper dark rim and the curves are even. Every row of every grid
- * must stay the same width (49).
+ * The grids are rasterised from shapes by the tool in tools/buddy-sprite/
+ * rather than typed by hand, which is why every part carries a proper dark rim
+ * and the curves are even. Every row of every grid must stay the same width
+ * (50).
  *
- * Three poses share one head, so the face stays recognisable while the body
- * under it changes. Which one shows is decided entirely in CSS from
- * body[data-running]; see the study-buddy block in sidepanel.css.
+ * Three poses share one head, so it stays the same cat whatever the body is
+ * doing. Which one shows is decided entirely in CSS from body[data-running];
+ * see the study-buddy block in sidepanel.css.
  */
 const BUDDY_CLASSES = {
-  o: "px-outline",    // dark rim around the silhouette
-  d: "px-fur-dark",   // belly shadow, haunch, far legs
-  f: "px-fur",        // main coat
+  o: "px-outline",    // dark rim, lynx ear tufts, the line under the band
+  d: "px-fur-dark",   // tabby stripes, shade, far legs
+  f: "px-fur",        // ginger coat
   l: "px-fur-light",  // sunlit back and crown
-  m: "px-muzzle",
-  n: "px-nose",       // nose, eye, smile
-  a: "px-glow",       // costume — follows --accent
-  g: "px-glow-hot",   // the bright core of the wings and the antenna tips
+  c: "px-cream",      // ruff, muzzle, paws
+  p: "px-pink",       // nose and inner ear
+  e: "px-eye",        // green iris
+  n: "px-ink",        // pupil, shut eye, mouth
+  w: "px-whisker",
+  a: "px-glow",       // headband and antennae — follow --accent
+  g: "px-glow-hot",   // the bright core of each bulb
+  h: "px-halo",       // the glow round each bulb; it pulses like a firefly
 };
 
 /* Standing, facing right — CSS mirrors it when it turns at the end of a lap. */
 const BUDDY_STAND = [
-  ".................................................",
-  ".................................................",
-  "........................oooo.....................",
-  ".......................offffo....................",
-  "......................offddllo.oooooooo..........",
-  "......................olddddllolllllllloo........",
-  "......................olddddllllllllllllloo......",
-  "......................olddddlllllllllllllllo.....",
-  ".......................oddddlllllllllllllllo.....",
-  "........................oddlllllllllllllllllo....",
-  ".........................ollllllllllllllllllo....",
-  "........................olllllllnnnnllllmmmnno...",
-  ".......................olllllllnllllnllmmmnnnno..",
-  "............ooooooooooolllllllllllllllmmmmnnnno..",
-  "........oooollllllllllllllllllllllllllmmmmmnnno..",
-  "......oollllllllllllllllllllllllllllllmmmmmmmmmo.",
-  ".....olllllllllllllllllllllllllllllllmmmmmmmmmmo.",
-  "....ollllllllllllllllllllllllllllllllmmmmmmmmmmo.",
-  "...ollllllllllllllllllllllllllllllllllmmmmmmmmmo.",
-  "...ofllllllllllllllllllllllllllllllllfmmmmmmmmmo.",
-  "..offllllllllllllllllllllllllllllllllfmnmmmnmmmo.",
-  "..offfllllllllllllllllllllllllllllllfffmnnnmmmo..",
-  "..offffllllllllllllllllllllllllllllfffffmmmmmoo..",
-  "..offfffllllllllllllllllllllllllllfffffffoooo....",
-  "..offffffllllllllllllllllllllllllfffffffo........",
-  "..offfffffffllllllllllllllllllfffffffffo.........",
-  "..offffffffffffllllllllllllffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffffffo.........",
-  "..offffffffffffffffffffffffffffffffffffo.........",
-  "...offffffffffffffffffffffffffffffffffo..........",
-  "...offffffffffffffffffffffffffffffffffo..........",
-  "....offffffffffffffffffffffffffffffffo...........",
-  ".....offffffddddddddddddddffffffffffo............",
-  "......ooddddddddddddddddddddddffffoo.............",
-  "........ooooddddddddddddoooooooooo...............",
-  "............oooooooooooo.........................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  ".........................................o........",
+  ".........................................o........",
+  "...............................o..................",
+  "...............................o.........o........",
+  "...............................o.........o........",
+  "...............................o........ofo.......",
+  "...............................oo.......opo.......",
+  "...............................oo......ofpo.......",
+  "...............................odo.....oppfo......",
+  "..............................oddo.aaaaaappo......",
+  "..............................olllaooooooalo......",
+  "..............................olllollllllollo.....",
+  "..............................ollllllldldlllo.....",
+  "..............................ollllllldldlllfo....",
+  "..............................ollllllllllllffo....",
+  ".............................offflllllllenefffo...",
+  ".............................offffffffffenefffo...",
+  ".............................offffdddfffffffffo...",
+  ".............................offdddfffffffcccpp...",
+  "............................olllfffffffffcccccowww",
+  "...........oooooo...oooooo..olllllffffffccccnno...",
+  ".........oodlllldoooldlllloolllllllffcccccccccoww.",
+  "........offddlllddlllddlllddllllllccccccccccco...w",
+  "........offddfllddlllddlllddllllfccccccccccco.....",
+  ".......offffdffffdffffdffffdffffcccccccccooo......",
+  ".......offffddfffddfffddfffddffccccccccco.........",
+  ".......offffddfffddfffddfffddffccccccccco.........",
+  ".......offfffdffffdffffdffffdffccccccccco.........",
+  ".......offfffddfffddfffddfffddfccccccccco.........",
+  ".......offfffddfffddfffddfffddfcccccccco..........",
+  ".......offffffdffffdffffdffffdfcccccccco..........",
+  ".......offfffffffffffffffffffffcccccccco..........",
+  "........offffffffffffffffffffffccccccco...........",
+  "........offfffffffffffffffffffffccccco............",
+  ".........ooffffffoofffffffoffoooooooo.............",
+  "...........oooooo..ooooooo.oo.....................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
 ];
 
-/* Sitting back on the haunches, front legs propped, head still up. */
+/* Raised and gently curled. Its own layer, so it can sway while she walks. */
+const BUDDY_TAIL = [
+  ".....oo...........................................",
+  "....odfo..........................................",
+  "...odddo..........................................",
+  "..oddddo..........................................",
+  "..odddfo..........................................",
+  ".ofdddo...........................................",
+  ".ofddfo...........................................",
+  ".ofddfo...........................................",
+  "offddfo...........................................",
+  "offddfo...........................................",
+  "offddffo..........................................",
+  "offdddfo..........................................",
+  "offdddfo..........................................",
+  "offdddfo..........................................",
+  ".ofdddffo.........................................",
+  ".ofdddffo.........................................",
+  "..ofddfflo........................................",
+  "..ofddffllo.......................................",
+  "...oddffllo.......................................",
+  "....odfffffo......................................",
+  ".....offffffo.....................................",
+  "......offfffo.....................................",
+  ".......ooffo......................................",
+  ".........oo.......................................",
+];
+
+/*
+ * Sitting upright: haunch on the ground, chest stacked straight above it, front
+ * legs as two columns, tail wrapped round to the front paws.
+ */
 const BUDDY_SIT = [
-  "........................oooo.....................",
-  ".......................offffo....................",
-  "......................offddllo.oooooooo..........",
-  "......................ofddddllolllllllloo........",
-  "......................ofddddllllllllllllloo......",
-  "......................ofddddlllllllllllllllo.....",
-  ".......................oddddlllllllllllllllo.....",
-  "........................oddlllllllllllllllllo....",
-  ".........................ollllllllllllllllllo....",
-  "........................olllllllnnnnllllmmmnno...",
-  "........................ollllllnllllnllmmmnnnno..",
-  ".......................ollllllllllllllmmmmnnnno..",
-  ".....................oolllllllllllllllmmmmmnnno..",
-  "....................olllllllllllllllllmmmmmmmmmo.",
-  "...................olllllllllllllllllmmmmmmmmmmo.",
-  "..................olllllllllllllllfffmmmmmmmmmmo.",
-  "..................olllllllllllllllffffmmmmmmmmmo.",
-  "..................olllllllllllllllffffmmmmmmmmmo.",
-  ".................ollllllllllllllllffffmnmmmnmmmo.",
-  ".................ollllllllllllllllfffffmnnnmmmo..",
-  "........ooooooooolllllllllllllllllffffffmmmmmoo..",
-  ".....ooolllllllllllllllllllllllllffffffffoooo....",
-  "....ollllllllllllllllllllllllllllffffffoo........",
-  "..ooffllllllllllllllllllllllllllfffffoo..........",
-  "..offffllllllllllllllllllllllllfffffo............",
-  ".offffffllllllllllllllllllllllffffffo............",
-  ".offffffffllllllllllllllllllffffffffo............",
-  "offffffddddddddlllllllllffffffffffffo............",
-  "offffddddddddddddfffffffffffffffffffo............",
-  "offfddddddddddddddffffffffffffffffffo............",
-  "offfddddddddddddddffffffffffffffffffo............",
-  "offddddddddddddddddfffffffffffffffffo............",
-  "offddddddddddddddddffffffffffffffffffooo.........",
-  "offddddddddddddddddfffffffffffffffffffffo........",
-  "offddddddddddddddddfffffffffffffffffffffo........",
-  ".ofddddddddddddddddfffffffffffffffffffffo........",
-  ".ofdddddddddddddddddddddddffffffffffffffo........",
-  "..ofddddddddddddddddddddddddddffffffffffo........",
-  "..ooddddddddddddddddddddooooodddffffffffo........",
-  "....oddddddddddddddddddo.....odddfffffffo........",
-  ".....oooddddddddddddooo......oddddooffffo........",
-  "........oooooooooooo..........oooo..oooo.........",
-  ".................................................",
+  "........................o.........................",
+  "........................o.........o...............",
+  "........................o.........o...............",
+  "........................o........ofo..............",
+  "........................oo.......opo..............",
+  "........................oo......ofpo..............",
+  "........................odo.....oppfo.............",
+  ".......................oddo.aaaaaappo.............",
+  ".......................olllaooooooalo.............",
+  ".......................olllollllllollo............",
+  ".......................ollllllldldlllo............",
+  ".......................ollllllldldlllfo...........",
+  ".......................ollllllllllllffo...........",
+  "......................offflllllllenefffo..........",
+  "......................offffffffffenefffo..........",
+  "......................offffdddfffffffffo..........",
+  "......................offdddfffffffcccpp..........",
+  ".....................offffffffffffcccccowww.......",
+  ".....................offfffffffffccccnno..........",
+  ".....................ollffffffcccccccccoww........",
+  ".....................ollllfccccccccccco...w.......",
+  ".....................oldllccccccccccco............",
+  ".....................olddlccccccccooo.............",
+  "....................ollddllcccccco................",
+  "....................ollddllfccccco................",
+  "...................olllddllccccccco...............",
+  "...................olllddllccccccco...............",
+  "...................olllddllccccccco...............",
+  "...................olllddlcccccccco...............",
+  "...................olllldlcccccccco...............",
+  "...................olllldfcccccccco...............",
+  "..................ollllfffcccccccco...............",
+  "..............oooollllllffcccccccco...............",
+  "............oollddllddllffooocoooco...............",
+  "...........oddllddllddlfffoddooffoo...............",
+  "...........oddffddffddfffodddofffoo...............",
+  "..........ofddffddffddfffodddofffo................",
+  "..........ofdfffdfffdffffodddofffo................",
+  "..........oddffddffddffffodddofffo................",
+  ".........ooddffddffddffffodddofffo................",
+  "........ofdodffddffddffffodddofffo................",
+  ".......ofddodffddffddffffodddofffo................",
+  ".......ofddfoooooooooooooodddofffo................",
+  ".......ofddfddffffddfffffodddofffo................",
+  ".......ofddfddffffddffffffoddooffo................",
+  "........oddfddffffddffffffoccocccco...............",
+  ".........oooodffffddoooooocccocccco...............",
+  ".............ooooooooooo..oooooooo................",
 ];
 
-/* Lying down: a loaf, chin resting on tucked paws. */
+/* Curled up asleep: chin on the paws, eyes shut, tail wrapped round the front. */
 const BUDDY_LIE = [
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".................................................",
-  ".........................oooo....................",
-  "........................offflo..oooooooo.........",
-  ".......................offddlloolllllllloo.......",
-  ".......................ofddddllllllllllllloo.....",
-  ".......................ofddddlllllllllllllllo....",
-  ".......................ofddddlllllllllllllllo....",
-  "........................oddddllllllllllllllllo...",
-  ".........................oddlllllllllllllllllo...",
-  ".........................olllllllnnnnllllmmmnno..",
-  ".....................oooolllllllnllllnllmmmnnnno.",
-  "...................oollllllllllllllllllmmmmnnnno.",
-  "......ooooooooooooollllllllllllllllllllmmmmmnnno.",
-  "....oolllllllllllllllllllllllllllllllllmmmmmmmmmo",
-  "..oollllllllllllllllllllllllllllllllllmmmmmmmmmmo",
-  ".ofllllllllllllllllllllllllllllllfffffmmmmmmmmmmo",
-  ".offllllllllllllllllllllllllllllfffffffmmmmmmmmmo",
-  "offfffllllllllllllllllllllllllfffffffffmmmmmmmmmo",
-  "offfffffffllllllllllllllllfffffffffffffmnmmmnmmmo",
-  "offfffffffffffffffffffffffffffffffffffffmnnnmmmo.",
-  "offffffffffffffffffffffffffffffffffffffffmmmmmoo.",
-  "offfffffffffffffffffffffffffffffffffffffffoooo...",
-  "offffffffffffffffffffffffffffffffffffffffo.......",
-  ".offffffffffffffffffffffffffffffffffffffffoo.....",
-  ".offfffffffddddddddddddddddffffffoffffffffffoo...",
-  "..oofffddddddddddddddddddddddddfo.offffffffffo...",
-  "....oodddddddddddddddddddddddddoo.offffffffffo...",
-  "......ooooooooooooooooooooooooo...ooffffffffoo...",
-  "....................................oooooooo.....",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  "..................................................",
+  ".........................................o........",
+  ".........................................o........",
+  "............................o.....................",
+  "............................o...........o.........",
+  ".......................................oo.........",
+  "............................o..........ofo........",
+  "............................oo........ofpo........",
+  "............................odo......ofppo........",
+  "............................oddo.....opppo........",
+  "............................oddo.aaaaaappo........",
+  "............................olllaooooooalo........",
+  "............................olllollllllollo.......",
+  "............................ollllllldldlllo.......",
+  "............................ollllllldldlllfo......",
+  "...........ooooooooooooooooolllllllllllllffo......",
+  ".........oodlllldlllldlllldllllllllllnlfffffo.....",
+  "........ollddlllddlllddlllddllllffffffnnnfffo.....",
+  ".......offfddlllddlllddlllddffffdddfffffffffo.....",
+  "......offfffdffffdffffdffffdffdddfffffffcccpp.....",
+  "......offfffddfffddfffddfffddffffffffffcccccowww..",
+  "......ooffffddfffddfffddfffddfffffffffccccnno.....",
+  ".....offoffffddfffddfffddfffddfffffcccccccccoww...",
+  ".....offfooffddfffddfffddfffddffccccccccccco...w..",
+  ".....offddfoooofffddfffddfffddfccccccccccco.......",
+  ".....offddffddfooooooooooooooofcccccccccco........",
+  ".....offddffdddfffddfffffddfffofccooccooooooo.....",
+  "......ofddffdddfffdddffffddfffoffo..oocccccccoo...",
+  ".......oodffdddfffdddffffddfffooo...occccccccco...",
+  ".........oooodffffddfffoooooooo.....oocccccccoo...",
+  ".............oooooooooo...............ooooooo.....",
 ];
 
-/* Behind the body: two wings fanning up and back off the shoulder. */
-const BUDDY_WING = [
-  "....aaaaa........................................",
-  "...aaaaaaaaa.....................................",
-  "..aaaaaaaaaaaa...................................",
-  "..aaaaaaaaaaaaaa.................................",
-  "...agggggaaaaaaaaa...............................",
-  "...agggggggaaaaaaaa..............................",
-  "....aggggggggaaaaaaa.............................",
-  ".....agggggggggaaaaaaa...........................",
-  "......agggggggggaaaaaaa..........................",
-  "........gggggggggaaaaaaa.........................",
-  "....aaaaagggggggggaaaaaaa........................",
-  "...aaaaaaaaggggggggaaaaaa........................",
-  "..aagggggggaagggggggaaaaaa.......................",
-  "..aaggggggggggggggggaaaaaa.......................",
-  "...aagggggggggggggaaaaaaa........................",
-  "....aagggggggggggggaaaaaa........................",
-  "......aaagggggggggggaaaaaa.......................",
-  "........aaaaagggggggaaaaaa.......................",
-  "..........aaaaaaaaaaaaaaa........................",
-  "..............aaaaaaaaaa.........................",
-];
-
-/* In front of the head, so the stems sit on the crown. */
+/* Two springs off the headband with a glowing bulb on each — the firefly. */
 const BUDDY_ANTENNAE = [
-  "............................gggg.................",
-  "............................gggg.................",
-  "............................gggg.................",
-  "............................gggg.................",
-  ".............................a............gggg...",
-  ".............................a........aaaagggg...",
-  ".............................a.......aa...gggg...",
-  ".............................aa.....aa....gggg...",
-  "..............................a....aa............",
-  "..............................a....a.............",
-  "..............................aa.................",
-  "...............................a.................",
+  "..............................haaah...hagah.......",
+  "..............................hggah...haaah.......",
+  "..............................haaah...hhahh.......",
+  "..............................hhhah.....ah........",
+  ".................................aa....a..........",
+  "..................................a....a..........",
+  "..................................a....a..........",
+  "..................................a....a..........",
+  "..................................aa..a...........",
+  "...................................a..a...........",
+  "...................................a..a...........",
+  "...................................a..a...........",
 ];
 
 /*
@@ -1161,46 +1224,53 @@ const BUDDY_ANTENNAE = [
  */
 const BUDDY_LEGS = [
   [
-    ".........oo......oo......oo......oo..............",
-    "........oddo....offo....oddo....offo.............",
-    "........oddo....offo....oddo....offo.............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    ".......oddddo..offffo..oddddo..offffo............",
-    "........oddo....offo....oddo....offo.............",
-    "........oddo....offo....oddo....offo.............",
-    ".........oo......oo......oo......oo..............",
+    "..........oooo.oooo........oooo.oooo..............",
+    "..........oddo.offo........oddo.offo..............",
+    "..........oddo.offo........oddo.offo..............",
+    ".........oddddoffffo......oddddoffffo.............",
+    ".........oddddoffffo......oddddoffffo.............",
+    ".........oddddoffffo......oddddoffffo.............",
+    ".........oddddoffffo......oddddoffffo.............",
+    ".........oddddoffffo......oddddoffffo.............",
+    ".........oddddoffffo......oddddoffffo.............",
+    "..........oddo.offo........oddo.offo..............",
+    "..........oddo.offo........oddo.offo..............",
+    "..........occcooccco.......occcooccco.............",
+    "..........occccocccco......occccocccco............",
+    "...........oooo.oooo........oooo.oooo.............",
   ],
   [
-    "...........oo..oo..........oo..oo................",
-    "..........offooddo........offooddo...............",
-    "..........offooddo........offooddo...............",
-    ".........offffodddo......offffodddo..............",
-    ".........offffodddo......offffodddo..............",
-    ".........offffodddo......offffodddo..............",
-    ".........offffodddo......offffodddo..............",
-    ".........offffodddo......offffodddo..............",
-    ".........offffodddo......offffodddo..............",
-    "..........offooddo........offooddo...............",
-    "..........offooddo........offooddo...............",
-    "...........oo..oo..........oo..oo................",
+    "...........ooooooo..........ooooooo...............",
+    "...........offoddo..........offoddo...............",
+    "...........offoddo..........offoddo...............",
+    "..........offffoddo........offffoddo..............",
+    "..........offffoddo........offffoddo..............",
+    "..........offffoddo........offffoddo..............",
+    "..........offffoddo........offffoddo..............",
+    "..........offffoddo........offffoddo..............",
+    "..........offffoddo........offffoddo..............",
+    "...........offoddo..........offoddo...............",
+    "...........offoddo..........offoddo...............",
+    "...........occcocco.........occcocco..............",
+    "...........occccocco........occccocco.............",
+    "............ooooooo..........ooooooo..............",
   ],
 ];
 
 /* Where each grid sits in the sprite's coordinate system. */
-const BUDDY_OFFSETS = { body: 5, wing: 3, antennae: 0, legs: 36 };
+const BUDDY_OFFSETS = { body: 0, tail: 6, antennae: 0, legs: 34 };
 
 /*
- * Shoulder and crown move between poses, so the wings and antennae have to
- * move with them. These are deltas on top of BUDDY_OFFSETS.
+ * The head moves between poses, so the antennae have to move with it — these
+ * are deltas on top of BUDDY_OFFSETS.antennae. `eye` is the top-left of the
+ * 3×2 open eye, for the blink; the sleeping pose has its eyes shut already.
+ * Only the standing pose carries the separate, swaying tail and the walking
+ * legs; the other two have theirs drawn into the body.
  */
 const BUDDY_POSES = [
-  { name: "stand", rows: BUDDY_STAND, legs: true, wing: [0, 0], antennae: [0, 0] },
-  { name: "sit", rows: BUDDY_SIT, legs: false, wing: [2, 0], antennae: [0, -2] },
-  { name: "lie", rows: BUDDY_LIE, legs: false, wing: [4, 11], antennae: [1, 12] },
+  { name: "stand", rows: BUDDY_STAND, tail: true, legs: true, antennae: [0, 0], eye: [40, 18] },
+  { name: "sit", rows: BUDDY_SIT, tail: false, legs: false, antennae: [-7, -5], eye: [33, 13] },
+  { name: "lie", rows: BUDDY_LIE, tail: false, legs: false, antennae: [-2, 15], eye: null },
 ];
 
 /*
@@ -1269,7 +1339,11 @@ function buddyZ(x, y, size, cls) {
 }
 
 function buddyPose(pose) {
-  // Legs are drawn before the body so the body hides their tops when it dips.
+  // The tail and legs go first, so the body hides where they join it.
+  const tail = pose.tail
+    ? `<g class="buddy-tail">${buddyRects(BUDDY_TAIL, 0, BUDDY_OFFSETS.tail)}</g>`
+    : "";
+
   const legs = pose.legs
     ? BUDDY_LEGS.map(
         (frame, i) =>
@@ -1278,12 +1352,20 @@ function buddyPose(pose) {
       ).join("")
     : "";
 
+  // A shut eye laid over the open one: the lid in the crown's colour, then the
+  // lash line. CSS shows it for a moment every few seconds.
+  const blink = pose.eye
+    ? `<g class="buddy-blink">` +
+      `<rect class="px-fur-light" x="${pose.eye[0]}" y="${pose.eye[1]}" width="3" height="1.5"/>` +
+      `<rect class="px-ink" x="${pose.eye[0]}" y="${pose.eye[1] + 1}" width="3" height="1"/></g>`
+    : "";
+
   return (
     `<g class="buddy-pose buddy-pose-${pose.name}">` +
-    `<g class="buddy-wings">` +
-    `${buddyRects(BUDDY_WING, pose.wing[0], BUDDY_OFFSETS.wing + pose.wing[1])}</g>` +
+    tail +
     legs +
     buddyRects(pose.rows, 0, BUDDY_OFFSETS.body) +
+    blink +
     `<g class="buddy-antennae">` +
     `${buddyRects(BUDDY_ANTENNAE, pose.antennae[0], BUDDY_OFFSETS.antennae + pose.antennae[1])}</g>` +
     `</g>`
@@ -1295,8 +1377,8 @@ function buildBuddySvg() {
 <svg class="buddy-art" viewBox="-2 -5 53 55" xmlns="http://www.w3.org/2000/svg"
      shape-rendering="crispEdges" aria-hidden="true" focusable="false">
   <g class="buddy-sleep">
-    ${buddyZ(30, 7, 4, "buddy-z1")}
-    ${buddyZ(37, 2, 5, "buddy-z2")}
+    ${buddyZ(42, 23, 4, "buddy-z1")}
+    ${buddyZ(46, 16, 5, "buddy-z2")}
   </g>
   <g class="buddy-body">
     ${BUDDY_POSES.map(buddyPose).join("")}

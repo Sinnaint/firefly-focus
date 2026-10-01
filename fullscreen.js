@@ -397,9 +397,14 @@ function bindSettingsSheet() {
 
   bindPresetPicker(mount);
 
-  q("textScale")?.addEventListener("input", (event) => {
-    const scale = clampNum(Number(event.target.value), 80, 140, 100) / 100;
-    document.documentElement.style.setProperty("--text-scale", String(scale));
+  // Saved on every change, like theme and language — no Save button needed.
+  bindTextScale(q("textScale"), async (textScale) => {
+    const settings = { ...collectSettingsFrom(mount, state?.settings || {}), textScale };
+    state = { ...state, settings };
+    render();
+    const response = await send("SAVE_SETTINGS", { settings });
+    if (response?.ok) state = response.state;
+    render();
   });
 }
 
@@ -439,10 +444,13 @@ function render() {
   document.body.dataset.theme = state.settings.theme || "midnight";
   document.body.dataset.face = state.settings.timerFace || "ring";
   document.body.dataset.running = String(Boolean(state.running));
-  document.documentElement.style.setProperty(
-    "--text-scale",
-    String((state.settings.textScale ?? 100) / 100)
-  );
+  // The sheet's size field owns the preview while it has focus.
+  if (document.activeElement?.id !== "textScale") {
+    document.documentElement.style.setProperty(
+      "--text-scale",
+      String((state.settings.textScale ?? 100) / 100)
+    );
+  }
   els.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
   els.ring.style.setProperty("--progress-pct", `${progress}%`);
 

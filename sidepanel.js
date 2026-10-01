@@ -278,7 +278,11 @@ function render() {
   const buddyOn = state.settings.studyBuddyEnabled !== false;
   if (buddyOn) renderBuddyInto(els.studyBuddy);
   els.studyBuddy.hidden = !buddyOn;
-  document.documentElement.style.setProperty("--text-scale", String((state.settings.textScale ?? 100) / 100));
+  // While the size field has focus it owns the preview; re-applying the stored
+  // value here would undo a typed-but-not-yet-committed size twice a second.
+  if (document.activeElement !== els.textScale) {
+    document.documentElement.style.setProperty("--text-scale", String((state.settings.textScale ?? 100) / 100));
+  }
   els.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
   // The digits face draws a linear bar, which a conic angle cannot express.
   els.ring.style.setProperty("--progress-pct", `${progress}%`);
@@ -392,11 +396,8 @@ els.fireflyIntervalUnit.addEventListener("change", () => {
 
 bindPresetPicker(document);
 
-// Live preview of text size while typing/stepping (persists on Save).
-els.textScale.addEventListener("input", () => {
-  const scale = clampNum(Number(els.textScale.value), 80, 140, 100) / 100;
-  document.documentElement.style.setProperty("--text-scale", String(scale));
-});
+// Saved on every change — no Save button for this one (see bindTextScale).
+bindTextScale(els.textScale, (textScale) => saveSettingsPatch({ textScale }));
 
 els.saveBtn.addEventListener("click", async () => {
   const response = await send("SAVE_SETTINGS", { settings: collectSettings() });

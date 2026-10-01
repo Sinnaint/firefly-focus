@@ -1,105 +1,272 @@
 /*
- * Shape recipes traced off the reference art. Three poses share one head and
- * one snout so the face stays recognisable; what changes is how the body sits
- * under it — standing, sitting back on the haunches, or lying down as a loaf.
+ * Shape recipes for the study buddy: a ginger Maine Coon in a firefly
+ * headband. Three poses share one head (catHead + catFace), so it stays the
+ * same cat whatever the body is doing — walking, sitting, or curled up asleep.
+ *
+ * Maine Coon tells, all of which have to survive at ~100 px: tufted lynx
+ * ears, a big head with a square muzzle, a cream ruff on the chest, a shaggy
+ * belly fringe, sturdy legs, and a big bushy ringed tail.
  */
 const GW = 56, GH = 52;
 
-/* Head, snout, ear and face, placed at (hx, hy) — the head centre. */
-function face(g, hx, hy, tilt) {
-  blob(g, hx, hy, 11, 11, "f", 2.2);
-  blob(g, hx + 8, hy + 3, 5.2, 6, "f", 2.1);
-  blob(g, hx - 9, hy - 9 + (tilt || 0), 3.8, 4.4, "f", 2);
+/* Skull geometry, kept in one place so the band can follow its top edge. */
+const SKULL = { rx: 8.6, ry: 7.8, n: 2.3 };
+
+function inSkull(hx, hy, x, y) {
+  const dx = (x + 0.5 - hx) / SKULL.rx, dy = (y + 0.5 - hy) / SKULL.ry;
+  return Math.pow(Math.abs(dx), SKULL.n) + Math.pow(Math.abs(dy), SKULL.n) <= 1;
 }
 
-function faceMarks(g, hx, hy, tilt) {
-  blobShade(g, hx, hy - 6, 10, 8, "l", 2.1);
-  blobShade(g, hx - 9, hy - 8 + (tilt || 0), 2.4, 2.8, "d", 2);
-  blobShade(g, hx + 8, hy + 2, 5.6, 6.4, "m", 2.1);
-  blob(g, hx + 9.5, hy - 2, 2.6, 2, "n", 2.4);
-  rect(g, hx - 3, hy - 4, 4, 1, "n");
-  rect(g, hx - 4, hy - 3, 1, 1, "n"); rect(g, hx + 1, hy - 3, 1, 1, "n");
-  rect(g, hx + 5, hy + 6, 3, 1, "n");
-  rect(g, hx + 4, hy + 5, 1, 1, "n"); rect(g, hx + 8, hy + 5, 1, 1, "n");
+/* Top edge of the skull in column x: where the headband sits. */
+function skullTop(hx, hy, x) {
+  for (let y = Math.floor(hy - SKULL.ry) - 1; y < hy; y += 1) if (inSkull(hx, hy, x, y)) return y;
+  return null;
 }
 
-/* Standing — the walking pose. Legs come from legFrame(). */
-function capyStand() {
+/* Ears sit wide apart, so the antennae can rise through the gap between. */
+function ears(hx, hy, tilt) {
+  return {
+    far: { base: [[hx - 8.4, hy - 3.6], [hx - 3.4, hy - 7.6]], tip: [hx - 6.6 - tilt, hy - 12.8] },
+    near: { base: [[hx + 0.2, hy - 7.8], [hx + 6.6, hy - 4.6]], tip: [hx + 3.8 + tilt, hy - 15] },
+  };
+}
+
+/* Paint onto a scratch grid, outline it on its own, and hand back the rows —
+   a part that keeps its own dark edge where it overlaps the body. */
+function part(paint) {
   const g = blank(GW, GH);
-  blob(g, 23, 31, 16.5, 13, "f", 2.5);
-  blob(g, 35, 29, 10.5, 14, "f", 2.5);
-  face(g, 40, 20);
-  blobShade(g, 26, 21, 17, 11, "l", 2.2);
-  blobShade(g, 24, 48, 16, 8, "d", 2.3);
-  faceMarks(g, 40, 20);
-  return outline(g, "o");
+  paint(g);
+  return toStrings(outline(g, "o"));
 }
 
+/* Silhouette of the head. Ears first, so the skull overlaps their bases. */
+function catHead(g, hx, hy, { earTilt = 0 } = {}) {
+  const e = ears(hx, hy, earTilt);
+  tri(g, ...e.far.base[0], ...e.far.base[1], ...e.far.tip, "d");     // far ear, in shade
+  tri(g, ...e.near.base[0], ...e.near.base[1], ...e.near.tip, "f");   // near ear
+  blob(g, hx, hy, SKULL.rx, SKULL.ry, "f", SKULL.n);
+  blob(g, hx - 1.2, hy + 4.2, 9.2, 4.8, "f", 2.2);    // fluffy cheeks
+  blob(g, hx + 5.8, hy + 2.8, 3.5, 2.8, "f", 2.2);    // square muzzle
+}
+
+/* Shading on the head — done before the outline pass. */
+function catHeadShade(g, hx, hy) {
+  blobShade(g, hx - 1, hy - 4.4, 7.4, 3.2, "l", 2.2);    // sunlit crown
+  blobShade(g, hx + 6, hy + 3.6, 3.7, 2.3, "c", 2.2);    // cream muzzle
+  blobShade(g, hx + 1.4, hy + 7, 6.4, 2.6, "c", 2.2);    // cream chin and throat
+  // tabby: an "M" on the forehead and a stripe back from the eye
+  rect(g, hx, hy - 5, 1, 2, "d");
+  rect(g, hx + 2, hy - 5, 1, 2, "d");
+  rect(g, hx - 4, hy, 3, 1, "d");
+  rect(g, hx - 6, hy + 1, 3, 1, "d");
+}
+
+function frontOfRow(g, y) {
+  for (let x = g[0].length - 1; x >= 0; x -= 1) if (g[y] && g[y][x] !== ".") return x;
+  return null;
+}
+
+/* Face and costume — after the outline, so they can sit on the edge. */
+function catFace(g, hx, hy, { asleep = false, earTilt = 0 } = {}) {
+  const e = ears(hx, hy, earTilt);
+
+  // inner ear: a smaller triangle inset from the near ear, fur left round it
+  const inner = blank(GW, GH);
+  tri(inner, hx + 1.6, hy - 7.6, hx + 5.2, hy - 6, e.near.tip[0] - 0.2, e.near.tip[1] + 3.4, "#");
+  paintIf(g, "p", (x, y, k) => inner[y][x] === "#" && k === "f");
+
+  // lynx tufts — the Maine Coon signature
+  for (const tip of [e.far.tip, e.near.tip]) {
+    rect(g, Math.round(tip[0] - 0.5), Math.round(tip[1]) - 2, 1, 2, "o");
+  }
+
+  // eye: green with a slit pupil, or shut
+  if (asleep) {
+    rect(g, hx + 2, hy - 1, 3, 1, "n");
+    rect(g, hx + 1, hy - 2, 1, 1, "n");
+  } else {
+    rect(g, hx + 2, hy - 2, 3, 2, "e");
+    rect(g, hx + 3, hy - 2, 1, 2, "n");
+  }
+
+  // nose at the very front of the muzzle, mouth tucked under it
+  const noseY = hy + 1;
+  const front = frontOfRow(g, noseY);
+  if (front !== null) {
+    rect(g, front - 1, noseY, 2, 1, "p");
+    rect(g, front - 2, noseY + 2, 2, 1, "n");
+    // whiskers fan out past the silhouette
+    rect(g, front + 1, noseY + 1, 3, 1, "w");
+    rect(g, front + 1, noseY + 3, 2, 1, "w");
+    rect(g, front + 3, noseY + 4, 1, 1, "w");
+  }
+
+  // headband over the crown, with a dark line under it so it reads on any coat
+  for (let x = hx - 4; x <= hx + 3; x += 1) {
+    const y = skullTop(hx, hy, x);
+    if (y === null) continue;
+    g[y][x] = "a";
+    if (g[y + 1] && g[y + 1][x] !== ".") g[y + 1][x] = "o";
+  }
+}
+
+/* Tabby stripes: slanted bands, only over fur, only above a line. */
+function stripes(g, xs, { slope = 0.35, width = 0.9, below = 99, above = 0 } = {}) {
+  paintIf(g, "d", (x, y, k) =>
+    (k === "f" || k === "l") && y < below && y > above &&
+    xs.some((x0) => Math.abs((x - x0) - (y - 30) * slope) < width));
+}
+
+/* Long fur hanging off the belly: little downward tufts. */
+function fringe(g, xs, y) {
+  for (const x of xs) tri(g, x - 1.3, y, x + 1.3, y, x, y + 2.6, "f");
+}
+
+/* A leg with its paw, as it stands on the ground line (y = 47). */
+function leg(g, x, top, key) {
+  blob(g, x, (top + 46) / 2, 2.7, (46 - top) / 2 + 0.4, key, 2.4);
+  blob(g, x + 0.6, 46.2, 3.1, 1.6, "c", 2.2);
+}
+
+/* A bushy tail with tabby rings. Rings run across the tube. */
+function bushyTail(g, p0, p1, p2, radius, rings) {
+  tube(g, p0, p1, p2, radius, "f");
+  for (let i = 0; i < rings.length; i += 1) {
+    const t = rings[i];
+    const x = (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0];
+    const y = (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1];
+    blobShade(g, x, y, 1.1, radius(t) + 1, "d", 2, 0);
+  }
+}
+
+/* ---------------- Standing / walking ---------------- */
+const STAND_HEAD = [42, 20];
+
+function catStand() {
+  const g = blank(GW, GH);
+  const [hx, hy] = STAND_HEAD;
+  blob(g, 18, 31, 7.4, 8, "f", 2.2);        // fluffy rump
+  blob(g, 27, 31, 13.5, 7.6, "f", 2.4);     // long body
+  blob(g, 38, 29.5, 6.8, 8.6, "f", 2.2);    // chest under the head
+  fringe(g, [20, 24, 28, 32], 37.6);
+  catHead(g, hx, hy);
+
+  blobShade(g, 27, 24.5, 12, 2.8, "l", 2.2);           // sunlit back
+  stripes(g, [17, 22, 27, 32], { below: 34 });
+  blobShade(g, 39.5, 32, 4.8, 6.2, "c", 2.2);           // cream ruff
+  catHeadShade(g, hx, hy);
+
+  const o = outline(g, "o");
+  catFace(o, hx, hy);
+  return o;
+}
+
+/* Raised, gently curled tail. Its own layer so it can sway. */
+function tailStand() {
+  return part((g) => {
+    bushyTail(g, [14, 27], [4, 19], [10, 8],
+      (t) => 2.7 + Math.sin(t * Math.PI) * 1.4 - t * 0.6, [0.32, 0.55, 0.78, 0.95]);
+    paintIf(g, "l", (x, y, k) => k === "f" && x > 11 && y > 14 && y < 25);
+  });
+}
+
+/* ---------------- Sitting ---------------- */
 /*
- * Sitting — rump on the ground, chest upright, front legs propped straight.
- * The haunch is a darker bump so the folded rear leg reads.
+ * Upright, the way a cat actually sits: haunch on the ground, chest stacked
+ * straight above its front, head over the chest, front legs as two columns.
+ * The first draft leaned the chest and head up and forward off the haunch on
+ * a diagonal, and the whole cat read as toppling over.
  */
-function capySit() {
+const SIT_HEAD = [35, 15];
+
+function catSit() {
   const g = blank(GW, GH);
-  blob(g, 37, 42, 3, 5.5, "f", 2.4);          // front legs, propped
-  blob(g, 43, 42, 3, 5.5, "f", 2.4);
-  blob(g, 19, 36, 14, 11, "f", 2.5);          // rump on the ground
-  blob(g, 32, 30, 10.5, 14, "f", 2.4);        // upright chest
-  face(g, 40, 18);
-  blobShade(g, 24, 23, 15, 10, "l", 2.2);
-  blobShade(g, 24, 49, 16, 8, "d", 2.3);
-  blobShade(g, 16, 39, 8, 7, "d", 2.4);       // folded haunch
-  faceMarks(g, 40, 18);
-  return outline(g, "o");
+  const [hx, hy] = SIT_HEAD;
+  blob(g, 24, 39.6, 10.4, 8.2, "f", 2.3);   // haunch, sat on the ground
+  blob(g, 31, 30.5, 8.2, 11, "f", 2.2);     // chest, straight up from it — Maine Coon broad
+  catHead(g, hx, hy);
+
+  blobShade(g, 26, 25, 5, 6, "l", 2.2);                 // sunlit shoulder
+  blobShade(g, 21, 33, 7, 2.4, "l", 2.2);               // sunlit haunch
+  stripes(g, [17, 21, 25], { below: 43, above: 32, slope: -0.15 });
+  stripes(g, [28], { below: 31, above: 20, slope: 0.1 });
+  blobShade(g, 34.6, 30.5, 4.2, 8.2, "c", 2.2);         // cream ruff
+  catHeadShade(g, hx, hy);
+
+  // tail wrapped round on the ground in front of the haunch, then the legs
+  stamp(g, part((p) => bushyTail(p, [14, 41.5], [11, 46], [30, 44.6],
+    (t) => 2.3 + Math.sin(t * Math.PI) * 0.6, [0.3, 0.55, 0.8])), 0, 0);
+  stamp(g, part((p) => leg(p, 31.8, 33, "d")), 0, 0);    // far front leg
+  stamp(g, part((p) => leg(p, 35.6, 33, "f")), 0, 0);    // near front leg
+
+  const o = outline(g, "o");
+  catFace(o, hx, hy);
+  return o;
 }
 
-/* Lying — a loaf. Legs tucked away, head low and forward, back flat. */
-function capyLie() {
+/* ---------------- Lying, asleep ---------------- */
+const LIE_HEAD = [40, 35];
+
+function catLie() {
   const g = blank(GW, GH);
-  blob(g, 22, 39, 17, 8.5, "f", 2.7);         // flat back
-  blob(g, 31, 38, 9, 9.5, "f", 2.5);          // shoulder
-  blob(g, 45, 45, 6.5, 2.8, "f", 2.4);        // paws tucked under the chin
-  face(g, 41, 32, 1);
-  blobShade(g, 23, 32, 16, 6, "l", 2.3);
-  blobShade(g, 24, 50, 17, 7, "d", 2.4);
-  faceMarks(g, 41, 32, 1);
-  return outline(g, "o");
+  const [hx, hy] = LIE_HEAD;
+  blob(g, 25, 39.5, 15.4, 8, "f", 2.6);     // curled body
+  catHead(g, hx, hy, { earTilt: 1.2 });
+
+  blobShade(g, 24, 33, 13, 3, "l", 2.2);
+  stripes(g, [14, 19, 24, 29], { below: 42 });
+  catHeadShade(g, hx, hy);
+
+  // tail wrapped right round the front, chin resting on the paws
+  stamp(g, part((p) => bushyTail(p, [11, 40.5], [12, 46.2], [33, 44.4],
+    (t) => 2.4 + Math.sin(t * Math.PI) * 0.7, [0.3, 0.52, 0.74, 0.92])), 0, 0);
+  stamp(g, part((p) => blob(p, 45.5, 45.4, 5.6, 2.4, "c", 2.4)), 0, 0);
+
+  const o = outline(g, "o");
+  catFace(o, hx, hy, { asleep: true, earTilt: 1.2 });
+  return o;
 }
 
-/* Two wings fanning up and back off the shoulder, brighter along the spine. */
-function wings() {
-  const g = blank(GW, GH);
-  blob(g, 19, 11, 13, 4.8, "a", 2.2, 30);
-  blob(g, 19, 18, 12, 4.4, "a", 2.2, 14);
-  blobShade(g, 17, 12, 9, 2.6, "g", 2.2, 30);
-  blobShade(g, 17, 18, 8.5, 2.2, "g", 2.2, 14);
-  return toStrings(g);
-}
-
+/* ---------------- Headband antennae ---------------- */
+/*
+ * Built for the standing head; the other poses reuse it with a delta. The
+ * stems rise through the gap between the ears and the bulbs clear the tufts,
+ * so ears and antennae never read as one shape.
+ */
 function antennae() {
   const g = blank(GW, GH);
+  const [hx, hy] = STAND_HEAD;
+  const left = [hx - 3, skullTop(hx, hy, hx - 3) - 1];
+  const right = [hx, skullTop(hx, hy, hx) - 1];
+  const bulbs = [[hx - 5.6, hy - 18.4], [hx + 2.6, hy - 19.2]];
+
+  for (const [bx, by] of bulbs) blob(g, bx, by, 2.9, 2.9, "h", 2);
+
   const curve = (p0, p1, p2) => {
     for (let t = 0; t <= 1; t += 0.01) {
-      const x = (1-t)*(1-t)*p0[0] + 2*(1-t)*t*p1[0] + t*t*p2[0];
-      const y = (1-t)*(1-t)*p0[1] + 2*(1-t)*t*p1[1] + t*t*p2[1];
+      const x = (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0];
+      const y = (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1];
       if (g[Math.round(y)]) g[Math.round(y)][Math.round(x)] = "a";
     }
   };
-  curve([36, 11], [33, 4], [35, 2]);
-  curve([40, 9], [45, 2], [49, 6]);
-  blob(g, 35, 2, 2.2, 2.2, "g", 3);
-  blob(g, 49, 6, 2.2, 2.2, "g", 3);
+  curve(left, [hx - 3.6, hy - 14.5], bulbs[0]);
+  curve(right, [hx + 0.6, hy - 15], bulbs[1]);
+
+  for (const [bx, by] of bulbs) {
+    blob(g, bx, by, 1.6, 1.6, "a", 2.4);
+    blob(g, bx - 0.3, by - 0.3, 0.8, 0.8, "g", 2);
+  }
   return toStrings(g);
 }
 
-/* Each leg is outlined on its own before compositing, so a near leg still
-   reads as separate when it crosses in front of the far one. */
+/* Walking legs. Each is outlined on its own before compositing, so a near leg
+   still reads as separate when it crosses in front of the far one. */
 function legFrame(far, near) {
-  const out = blank(GW, 12);
+  const out = blank(GW, 14);
   const one = (x, key) => {
-    const l = blank(GW, 12);
-    blob(l, x, 6, 2.8, 6, key, 2.4);
-    return toStrings(outline(l, "o"));
+    const l = blank(GW, GH);
+    leg(l, x, 34, key);
+    return toStrings(outline(l, "o")).slice(34, 48);
   };
   far.forEach((x) => stamp(out, one(x, "d"), 0, 0));
   near.forEach((x) => stamp(out, one(x, "f"), 0, 0));
@@ -107,30 +274,37 @@ function legFrame(far, near) {
 }
 
 function build() {
-  const stand = toStrings(capyStand());
-  const sit = toStrings(capySit());
-  const lie = toStrings(capyLie());
-  const wing = wings();
+  const stand = toStrings(catStand());
+  const sit = toStrings(catSit());
+  const lie = toStrings(catLie());
+  const tail = tailStand();
   const ant = antennae();
-  const legsA = legFrame([15, 31], [23, 39]);
-  const legsB = legFrame([21, 37], [17, 33]);
+  const legsA = legFrame([16, 33], [21, 38]);
+  const legsB = legFrame([20, 37], [17, 34]);
 
-  // Head centres per pose drive where the wings and antennae get stamped.
+  // Antennae follow the head between poses.
   const POSE = {
-    stand: { wing: [0, 0], ant: [0, 0] },
-    sit: { wing: [2, 0], ant: [0, -2] },
-    lie: { wing: [4, 11], ant: [1, 12] },
+    stand: { ant: [0, 0] },
+    sit: { ant: [SIT_HEAD[0] - STAND_HEAD[0], SIT_HEAD[1] - STAND_HEAD[1]] },
+    lie: { ant: [LIE_HEAD[0] - STAND_HEAD[0], LIE_HEAD[1] - STAND_HEAD[1]] },
   };
 
-  const mk = (bodyRows, legs, key) => {
-    const c = blank(GW, GH);
-    stamp(c, wing, POSE[key].wing[0], POSE[key].wing[1]);
-    if (legs) stamp(c, legs, 0, 36);
-    stamp(c, bodyRows, 0, 0);
-    stamp(c, ant, POSE[key].ant[0], POSE[key].ant[1]);
+  // Preview only: pad the top, or a raised head's antennae fall off the grid.
+  const PAD = 7;
+  const mk = (bodyRows, key, extra) => {
+    const c = blank(GW, GH + PAD);
+    if (extra?.tail) stamp(c, extra.tail, 0, PAD);
+    if (extra?.legs) stamp(c, extra.legs, 0, 34 + PAD);
+    stamp(c, bodyRows, 0, PAD);
+    stamp(c, ant, POSE[key].ant[0], POSE[key].ant[1] + PAD);
     return toStrings(c);
   };
 
-  window.OUT = { stand, sit, lie, wing, ant, legsA, legsB, POSE };
-  draw([mk(stand, legsA, 'stand'), mk(stand, legsB, 'stand'), mk(sit, null, 'sit'), mk(lie, null, 'lie')], 7);
+  window.OUT = { stand, sit, lie, tail, ant, legsA, legsB, POSE };
+  draw([
+    mk(stand, "stand", { tail, legs: legsA }),
+    mk(stand, "stand", { tail, legs: legsB }),
+    mk(sit, "sit"),
+    mk(lie, "lie"),
+  ], 7);
 }

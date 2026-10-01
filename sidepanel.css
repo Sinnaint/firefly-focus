@@ -1224,10 +1224,10 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 /* ==========================================================================
-   Study buddy — pixel-art capybara in a firefly costume.
+   Study buddy — pixel-art ginger Maine Coon in a firefly headband.
    Markup is generated in shared.js, so these rules serve both the side panel
-   and the fullscreen page. The fur is deliberately theme-neutral warm brown;
-   only the costume (wings, antennae) follows --accent.
+   and the fullscreen page. The coat is deliberately theme-neutral ginger;
+   only the headband and its glowing bulbs follow --accent.
 
    .buddy is a full-width track and .buddy-walk spans it, sliding the sprite
    from one edge to the other. Everything moves by transform, so pacing back
@@ -1238,7 +1238,7 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 .buddy {
   --buddy-size: clamp(76px, 25vw, 104px);
   --buddy-walk: 26s;
-  /* How long the timer has to stay stopped before she lies down. */
+  /* How long the timer has to stay stopped before the cat lies down. */
   --buddy-doze-at: 14s;
 
   position: relative;
@@ -1300,27 +1300,29 @@ body[data-view="compact"] .buddy {
   50%, 100% { transform: scaleX(-1); }
 }
 
-/* ---------- Capybara ---------- */
-.px-outline { fill: #5a3120; }
-.px-fur-dark { fill: #8b4f2b; }
-.px-fur { fill: #b06b3c; }
-.px-fur-light { fill: #c98a55; }
-.px-muzzle { fill: #96552c; }
-.px-nose { fill: #40200f; }
+/* ---------- Ginger Maine Coon ---------- */
+.px-outline { fill: #4e2210; }
+.px-fur-dark { fill: #b5531c; }
+.px-fur { fill: #e07a2c; }
+.px-fur-light { fill: #f4a65a; }
+.px-cream { fill: #fbe3c0; }
+.px-pink { fill: #ef8f8f; }
+.px-eye { fill: #8cc43c; }
+.px-ink { fill: #22140c; }
+.px-whisker { fill: #fff6e8; fill-opacity: 0.85; }
 
-/* ---------- Firefly costume ---------- */
+/* ---------- Firefly headband ---------- */
 .px-glow { fill: var(--accent); }
 .px-glow-hot { fill: color-mix(in srgb, var(--accent) 32%, #ffffff); }
-
-.buddy-wings { opacity: 0.88; }
+.px-halo { fill: var(--accent); fill-opacity: 0.28; }
 
 /* ==========================================================================
    Poses. Walking, sitting and lying are three separate sprites stacked in the
    same SVG; which one shows is decided here, entirely from body[data-running].
 
-   Stopping the timer plays a chain: she crouches, sits back on her haunches,
-   and — if the timer stays stopped for --buddy-doze-at — slumps down into a
-   loaf and starts snoozing. Each step is a one-shot animation with a delay and
+   Stopping the timer plays a chain: the cat crouches, sits back on its haunches,
+   and — if the timer stays stopped for --buddy-doze-at — lies down,
+   curls up and starts snoozing. Each step is a one-shot animation with a delay and
    `forwards`, so the chain needs no JS timer and rewinds by itself the moment
    the timer starts again. Order matters: where two animations on one element
    are both filling, the last one listed wins.
@@ -1358,7 +1360,7 @@ body[data-running="false"] .buddy-pose-lie {
 }
 
 @keyframes buddySitDown {
-  /* Starts at full opacity: the delay alone keeps her hidden until the
+  /* Starts at full opacity: the delay alone keeps it hidden until the
      crouch has finished, so the swap is a clean cut with no ghosting. */
   0% { opacity: 1; transform: scaleY(1.07); }
   55% { transform: scaleY(0.97); }
@@ -1384,14 +1386,32 @@ body[data-running="false"] .buddy-pose-lie {
 .buddy-legs-b { animation: buddyStep 0.62s linear -0.31s infinite; }
 .buddy-body { animation: buddyStride 0.62s linear infinite; }
 
-.buddy-wings {
-  animation: buddyFlutter 2.4s ease-in-out infinite;
-  transform-origin: 26px 18px;
+/*
+ * Both pivot on their own boxes (fill-box), so the origin follows them from
+ * pose to pose instead of being pinned to one set of coordinates: the
+ * antennae rock on the band, the tail swings from where it leaves the rump.
+ */
+.buddy-antennae {
+  animation: buddySway 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
 }
 
-.buddy-antennae {
-  animation: buddySway 3.4s ease-in-out infinite;
-  transform-origin: 31px 18px;
+.buddy-tail {
+  animation: buddyTail 2.2s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 100% 100%;
+}
+
+/* The bulbs glow and dim like real fireflies. */
+.px-halo {
+  animation: buddyGlow 2.4s ease-in-out infinite;
+}
+
+/* A slow blink every few seconds — the shut eye is laid over the open one. */
+.buddy-blink {
+  opacity: 0;
+  animation: buddyBlink 5.6s linear infinite;
 }
 
 @keyframes buddyStep {
@@ -1405,18 +1425,28 @@ body[data-running="false"] .buddy-pose-lie {
   50%, 100% { transform: translateY(1px); }
 }
 
-@keyframes buddyFlutter {
-  0%, 100% { transform: scaleY(1) rotate(0deg); }
-  50% { transform: scaleY(0.9) rotate(3.5deg); }
+@keyframes buddySway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
 }
 
-@keyframes buddySway {
-  0%, 100% { transform: rotate(-2deg); }
-  50% { transform: rotate(2.5deg); }
+@keyframes buddyTail {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(6deg); }
+}
+
+@keyframes buddyGlow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes buddyBlink {
+  0%, 95.99% { opacity: 0; }
+  96%, 100% { opacity: 1; }
 }
 
 /* ---------- Stopped ---------- */
-/* She halts where she stands rather than snapping back to the start. */
+/* It halts where it stands rather than snapping back to the start. */
 body[data-running="false"] .buddy-walk,
 body[data-running="false"] .buddy-art {
   animation-play-state: paused;
@@ -1424,8 +1454,8 @@ body[data-running="false"] .buddy-art {
 
 body[data-running="false"] .buddy-legs-a { animation: none; opacity: 1; }
 body[data-running="false"] .buddy-legs-b { animation: none; opacity: 0; }
-body[data-running="false"] .buddy-wings { animation: none; }
 body[data-running="false"] .buddy-antennae { animation-duration: 6s; }
+body[data-running="false"] .px-halo { animation-duration: 5s; }
 
 body[data-running="false"] .buddy-body {
   animation: buddyBreathe 6.5s ease-in-out infinite;
@@ -1436,7 +1466,7 @@ body[data-running="false"] .buddy-body {
   50% { transform: translateY(1px); }
 }
 
-/* The "z" waits for her to actually be lying down before it starts drifting. */
+/* The "z" waits for the cat to actually be lying down before it starts drifting. */
 .buddy-sleep {
   display: none;
 }
@@ -1470,15 +1500,17 @@ body[data-running="false"] .buddy-sleep {
   .buddy-legs-a,
   .buddy-legs-b,
   .buddy-body,
-  .buddy-wings,
+  .buddy-tail,
   .buddy-antennae,
+  .buddy-blink,
+  .px-halo,
   .buddy-z1,
   .buddy-z2,
   body[data-running="false"] .buddy-body {
     animation: none;
   }
 
-  /* No chain, no squash: she is simply lying down while the timer is stopped. */
+  /* No chain, no squash: it is simply curled up asleep while the timer is stopped. */
   body[data-running="false"] .buddy-pose-stand {
     animation: none;
     opacity: 0;

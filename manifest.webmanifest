@@ -1,7 +1,7 @@
 {
   "name": "Firefly Focus — Pomodoro Timer & Tasks",
   "short_name": "Firefly Focus",
-  "description": "A calm Pomodoro timer with tasks, deadlines, three themes and a pixel-art capybara. Fully local: no accounts, no analytics, no network requests.",
+  "description": "A calm Pomodoro timer with tasks, deadlines, three themes and a pixel-art ginger cat. Fully local: no accounts, no analytics, no network requests.",
   "id": "firefly-focus",
   "start_url": ".",
   "scope": ".",

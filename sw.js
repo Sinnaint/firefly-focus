@@ -9,7 +9,7 @@
  * Bump CACHE when any precached file changes, or an installed copy will keep
  * serving the old one.
  */
-const CACHE = "firefly-focus-v2.5.0";
+const CACHE = "firefly-focus-v2.5.0-cat";
 
 const PRECACHE = [
   "./",
