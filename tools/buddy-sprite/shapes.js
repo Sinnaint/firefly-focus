@@ -172,33 +172,79 @@ function tailStand() {
 
 /* ---------------- Sitting ---------------- */
 /*
- * Upright, the way a cat actually sits: haunch on the ground, chest stacked
- * straight above its front, head over the chest, front legs as two columns.
- * The first draft leaned the chest and head up and forward off the haunch on
- * a diagonal, and the whole cat read as toppling over.
+ * Traced from a photo of a cat sitting in profile. The body is one tall
+ * teardrop leaning forward: a single back line runs from the nape down to the
+ * rump, and the haunch is just its lower bulge. Long front legs come straight
+ * down from the chest with the paws a touch forward; the hind paw lies flat on
+ * the ground between them and the haunch; and the tail goes out behind along
+ * the ground with the tip curled up — not round the front, which is what the
+ * first two drafts did and why they never looked like a cat sitting.
  */
-const SIT_HEAD = [35, 15];
+const SIT_HEAD = [40, 16];
+
+/*
+ * A part whose own dark rim only starts at row yFrom. Above that row it is
+ * plain fur and melts into whatever it overlaps — the chest — so a leg grows
+ * out of the body; below it, the rim marks the leg out against the belly.
+ */
+function partFrom(paint, yFrom) {
+  const rows = part(paint).map((r) => r.split(""));
+  for (let y = 0; y < Math.min(yFrom, rows.length); y += 1)
+    for (let x = 0; x < rows[y].length; x += 1)
+      if (rows[y][x] === "o") rows[y][x] = "f";
+  return rows.map((r) => r.join(""));
+}
+
+/* A slimmer front leg than the walking one — sitting, they read long. */
+function frontLeg(g, x, top, key) {
+  blob(g, x, (top + 46) / 2, 2.2, (46 - top) / 2 + 0.4, key, 2.4);
+  blob(g, x + 1, 46.2, 3, 1.5, "c", 2.2);
+}
 
 function catSit() {
   const g = blank(GW, GH);
   const [hx, hy] = SIT_HEAD;
-  blob(g, 24, 39.6, 10.4, 8.2, "f", 2.3);   // haunch, sat on the ground
-  blob(g, 31, 30.5, 8.2, 11, "f", 2.2);     // chest, straight up from it — Maine Coon broad
+
+  /*
+   * Legs must grow out of the body, not stand under it. Stamped on top as
+   * separately outlined parts, each kept a dark rim across its top and read as
+   * a stick propped under the cat — "the legs are detached from the body".
+   * So: the tail, the hind paw and the far front leg go in first, plain fur
+   * with no rim, and the body is painted over their roots. Only the near front
+   * leg sits in front, and its rim starts below the chest (see partFrom).
+   */
+  stamp(g, part((p) => bushyTail(p, [21, 42.8], [8, 48.6], [6.4, 39.2],
+    (t) => 2.3 - t * 0.8 + Math.sin(t * Math.PI) * 0.4, [0.36, 0.56, 0.76, 0.93])), 0, 0);
+  blob(g, 33.6, 46.1, 4.4, 1.7, "f", 2.2);          // hind paw, flat on the ground
+  blob(g, 36.8, 46.3, 1.8, 1.3, "c", 2);
+  // As in the photo, the far front leg stands a touch ahead of the near one and
+  // shows to its right.
+  frontLeg(g, 44.4, 31, "d");
+
+  blob(g, 27, 38.8, 9.2, 8.2, "f", 2.2);            // haunch — the folded hind leg
+  blob(g, 36.4, 41.6, 3.4, 3.8, "f", 2.2);          // belly between haunch and front legs — no hole
+  blob(g, 31, 31.5, 8.4, 11.4, "f", 2.2, 30);       // torso, leaning forward, back bowed
+  blob(g, 36.2, 24.6, 6, 5.6, "f", 2.2);            // shoulders into the neck
+  blob(g, 27.2, 30.6, 6.2, 6.4, "f", 2.2);          // rounds the back out — the photo's back is convex
+  // The chest runs on down from the chin into the front legs. Without it the
+  // space under the chin was empty and the legs started below a notch.
+  blob(g, 41.2, 30.4, 4.3, 7.3, "f", 2.2, -6);
   catHead(g, hx, hy);
 
-  blobShade(g, 26, 25, 5, 6, "l", 2.2);                 // sunlit shoulder
-  blobShade(g, 21, 33, 7, 2.4, "l", 2.2);               // sunlit haunch
-  stripes(g, [17, 21, 25], { below: 43, above: 32, slope: -0.15 });
-  stripes(g, [28], { below: 31, above: 20, slope: 0.1 });
-  blobShade(g, 34.6, 30.5, 4.2, 8.2, "c", 2.2);         // cream ruff
+  blobShade(g, 29.5, 24.5, 4, 3.4, "l", 2.2);       // sun on the shoulders
+  blobShade(g, 23.5, 33.5, 6, 2.6, "l", 2.2);       // sun on the top of the thigh
+  paintIf(g, "d", (x, y, k) => (k === "f" || k === "l") && x >= 17 && x <= 34 && y >= 35 && y <= 45 &&
+    [20.5, 24.5, 28.5].some((c) => Math.abs((x - c) + (y - 40) * 0.25) < 0.8));     // thigh stripes
+  // flank stripes run round the body, across the spine rather than along it
+  paintIf(g, "d", (x, y, k) => (k === "f" || k === "l") && x >= 22 && x <= 35 && y >= 23 && y <= 34 &&
+    [24.5, 28.5].some((c) => Math.abs((x - c) - (y - 28) * 0.6) < 0.7));
+  blobShade(g, 39, 26.5, 3, 4.6, "c", 2.2, 24);     // cream throat — a bib, not a sash
   catHeadShade(g, hx, hy);
 
-  // tail wrapped round on the ground in front of the haunch, then the legs
-  stamp(g, part((p) => bushyTail(p, [14, 41.5], [11, 46], [30, 44.6],
-    (t) => 2.3 + Math.sin(t * Math.PI) * 0.6, [0.3, 0.55, 0.8])), 0, 0);
-  stamp(g, part((p) => leg(p, 31.8, 33, "d")), 0, 0);    // far front leg
-  stamp(g, part((p) => leg(p, 35.6, 33, "f")), 0, 0);    // near front leg
+  // the near front leg, in front of the belly but melting into the chest
+  stamp(g, partFrom((p) => frontLeg(p, 41.2, 31, "f"), 38), 0, 0);
 
+  fillHoles(g, "f");
   const o = outline(g, "o");
   catFace(o, hx, hy);
   return o;
@@ -211,16 +257,21 @@ function catLie() {
   const g = blank(GW, GH);
   const [hx, hy] = LIE_HEAD;
   blob(g, 25, 39.5, 15.4, 8, "f", 2.6);     // curled body
+  // Front legs reach forward out of the chest and the chin rests on them.
+  // Plain fur in the body grid, so they grow out of it — a separately
+  // outlined paw read as a cushion left lying under the chin.
+  blob(g, 42.6, 44.6, 6.6, 2.4, "f", 2.4);
+  blob(g, 48, 45.5, 2.6, 1.5, "c", 2.2);    // the paws themselves
   catHead(g, hx, hy, { earTilt: 1.2 });
 
   blobShade(g, 24, 33, 13, 3, "l", 2.2);
   stripes(g, [14, 19, 24, 29], { below: 42 });
   catHeadShade(g, hx, hy);
 
-  // tail wrapped right round the front, chin resting on the paws
+  // tail wrapped round the front of the body, in front of it
   stamp(g, part((p) => bushyTail(p, [11, 40.5], [12, 46.2], [33, 44.4],
     (t) => 2.4 + Math.sin(t * Math.PI) * 0.7, [0.3, 0.52, 0.74, 0.92])), 0, 0);
-  stamp(g, part((p) => blob(p, 45.5, 45.4, 5.6, 2.4, "c", 2.4)), 0, 0);
+  fillHoles(g, "f");
 
   const o = outline(g, "o");
   catFace(o, hx, hy, { asleep: true, earTilt: 1.2 });

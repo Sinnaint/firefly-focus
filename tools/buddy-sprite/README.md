@@ -14,9 +14,21 @@ draws the result zoomed so it can be judged.
 
 The three poses share `catHead()`, `catHeadShade()` and `catFace()`, so the
 head stays the same cat whatever the body is doing. Change one of those and
-all three poses follow. Parts that overlap the body — the wrapped tail, the
-sitting front legs, the paws under the sleeping chin — go through `part()`,
-which outlines them on their own first; otherwise they melt into the body.
+all three poses follow.
+
+Two opposite rules for things that overlap the body:
+
+- A **tail** lying across the body goes through `part()`, which outlines it on
+  its own first — otherwise it melts into the flank.
+- **Legs must grow out of the body.** Paint the far legs, the hind paw and the
+  sleeping cat's forelegs as plain fur *before* the body, so the body covers
+  their roots. The one leg in front of the body uses `partFrom(paint, row)`:
+  its own rim only starts below `row`, so it melts into the chest above.
+  Outlined all round and stamped on top, a leg gets a dark cap and reads as a
+  stick propped under the cat.
+
+Finish every pose with `fillHoles()` before the outline pass — overlapping
+parts leave tiny enclosed pockets that the outline would ring into pinholes.
 
 ## Editing the art
 
@@ -25,8 +37,11 @@ which outlines them on their own first; otherwise they melt into the body.
 2. Change the shapes in `shapes.js` and reload — the canvas shows the two walk
    frames, the sitting pose and the sleeping pose side by side, on a padded
    top so the antennae of a raised head stay in view.
-3. Keep every pose on the ground line (row 47) and the sitting cat upright —
-   chest stacked over the haunch, not leaning off it.
+3. Keep every pose on the ground line (row 47) and everything right of grid
+   column 4, which the trim cuts off. The sitting pose is traced from a photo
+   of a cat in profile: one tall body leaning forward with a rounded back,
+   long front legs, the hind paw flat on the ground, and the tail out behind
+   along the floor with the tip curled up. Keep it that way.
 4. When it looks right, run this in the console to get the grid strings:
 
 ```js
