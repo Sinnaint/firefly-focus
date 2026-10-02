@@ -15,7 +15,7 @@ The extension saves the following **locally on your device** using the browser's
 - Timer state (current mode, whether it's running, remaining time).
 - Your tasks, including any optional deadlines and completion status.
 - Your settings (durations, theme, language, sound style, toggles, etc.).
-- Daily statistics (sessions completed today, focus time, totals) and where you last left the floating widget's timer and cat.
+- Daily statistics (sessions completed today, focus time, totals) where you last left the floating widget's timer and cat, and whether the cat plays or strolls.
 
 This data never leaves your browser. It is not sent to us or to any third party, and there is no account or login of any kind.
 

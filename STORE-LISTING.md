@@ -40,7 +40,7 @@ WHY YOU'LL LIKE IT
 FEATURES
 
 • Classic Pomodoro cycles — focus, short break and long break, with adjustable lengths and optional auto-continue.
-• Floating widget on any page — the countdown in one small card, and a pixel-art cat standing on a toolbar above your open tasks in another. Drag each anywhere, add or tick off tasks right there, click the time to open the full panel, or hide either in one tap.
+• Floating widget on any page — the countdown in a small card with your open tasks in a drawer underneath, and a pixel-art cat on a shelf that plays with a ball or strolls along the bottom of the tab. Drag each anywhere, add or tick off tasks right there, click the time to open the full panel, or hide either in one tap.
 • Full side panel — the complete timer, tasks, daily stats and settings in Chrome's native side panel.
 • Tasks with deadlines — give any task an optional due date. Overdue tasks turn red, tasks due soon turn amber. Your tasks are saved across days and restarts, so you can pick up unfinished work tomorrow.
 • Firefly animation — continuous, softly glowing fireflies that match the current theme and mode.

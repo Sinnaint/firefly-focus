@@ -11,16 +11,18 @@
   /*
    * Two things float over the page, each dragged and remembered on its own:
    *
-   * - the timer — a small card with the ring, the time and Start/Pause. It
-   *   keeps the storage key the old one-piece widget used, so its position
-   *   carries over;
-   * - the cat — the study buddy from buddy.js standing on a little toolbar,
-   *   with the open tasks in a card underneath.
+   * - the timer — a small card with the ring, the time and Start/Pause, and
+   *   the open tasks in a drawer underneath. It keeps the storage key the old
+   *   one-piece widget used, so its position carries over;
+   * - the cat — the study buddy from buddy.js on a little shelf of buttons.
+   *   It either stays there playing with a ball, or jumps down and strolls
+   *   along the bottom of the tab; the choice is remembered.
    *
    * Both live in one shadow root, so no page style reaches them.
    */
   const TIMER_POSITION_KEY = "pomodoroFloatingPosition";
   const BUDDY_POSITION_KEY = "pomodoroBuddyPosition";
+  const BUDDY_MODE_KEY = "pomodoroBuddyMode";
   const HOST_ID = "ai-pomodoro-floating-widget-host";
   const MAX_TASKS = 4;
 
@@ -37,13 +39,16 @@
       longBreak: "Довга перерва",
       tasks: "Задачі",
       noTasks: "Задач ще немає — додай першу",
+      newTask: "Нова задача",
       more: "і ще {n}",
       taskPlaceholder: "Нова задача…",
       addTaskAria: "Додати задачу",
       addDeadlineTitle: "Додати дедлайн",
       deadlineTitle: "Дедлайн задачі",
       purr: "Мурчання котика",
-      catToolbar: "Котик і задачі",
+      walkMode: "Гуляти по сторінці",
+      playMode: "Гратися з м'ячиком",
+      catToolbar: "Котик",
       openHint: "Відкрити повну панель"
     },
     en: {
@@ -58,13 +63,16 @@
       longBreak: "Long break",
       tasks: "Tasks",
       noTasks: "No tasks yet — add the first one",
+      newTask: "New task",
       more: "and {n} more",
       taskPlaceholder: "New task…",
       addTaskAria: "Add task",
       addDeadlineTitle: "Add deadline",
       deadlineTitle: "Task deadline",
       purr: "Cat purring",
-      catToolbar: "Cat and tasks",
+      walkMode: "Stroll around the page",
+      playMode: "Play with the ball",
+      catToolbar: "Cat",
       openHint: "Open the full panel"
     },
     de: {
@@ -79,13 +87,16 @@
       longBreak: "Lange Pause",
       tasks: "Aufgaben",
       noTasks: "Noch keine Aufgaben — füge die erste hinzu",
+      newTask: "Neue Aufgabe",
       more: "und {n} weitere",
       taskPlaceholder: "Neue Aufgabe…",
       addTaskAria: "Aufgabe hinzufügen",
       addDeadlineTitle: "Frist hinzufügen",
       deadlineTitle: "Frist der Aufgabe",
       purr: "Schnurren",
-      catToolbar: "Katze und Aufgaben",
+      walkMode: "Über die Seite spazieren",
+      playMode: "Mit dem Ball spielen",
+      catToolbar: "Katze",
       openHint: "Das volle Panel öffnen"
     },
     es: {
@@ -100,13 +111,16 @@
       longBreak: "Descanso largo",
       tasks: "Tareas",
       noTasks: "Aún no hay tareas: añade la primera",
+      newTask: "Nueva tarea",
       more: "y {n} más",
       taskPlaceholder: "Nueva tarea…",
       addTaskAria: "Añadir tarea",
       addDeadlineTitle: "Añadir fecha límite",
       deadlineTitle: "Fecha límite de la tarea",
       purr: "Ronroneo",
-      catToolbar: "Gato y tareas",
+      walkMode: "Pasear por la página",
+      playMode: "Jugar con la pelota",
+      catToolbar: "Gato",
       openHint: "Abrir el panel completo"
     },
     it: {
@@ -121,13 +135,16 @@
       longBreak: "Pausa lunga",
       tasks: "Attività",
       noTasks: "Ancora nessuna attività: aggiungi la prima",
+      newTask: "Nuova attività",
       more: "e altre {n}",
       taskPlaceholder: "Nuova attività…",
       addTaskAria: "Aggiungi attività",
       addDeadlineTitle: "Aggiungi scadenza",
       deadlineTitle: "Scadenza dell'attività",
       purr: "Fusa del gatto",
-      catToolbar: "Gatto e attività",
+      walkMode: "Passeggiare sulla pagina",
+      playMode: "Giocare con la palla",
+      catToolbar: "Gatto",
       openHint: "Apri il pannello completo"
     },
     sk: {
@@ -142,13 +159,16 @@
       longBreak: "Dlhá prestávka",
       tasks: "Úlohy",
       noTasks: "Zatiaľ žiadne úlohy — pridaj prvú",
+      newTask: "Nová úloha",
       more: "a ďalšie {n}",
       taskPlaceholder: "Nová úloha…",
       addTaskAria: "Pridať úlohu",
       addDeadlineTitle: "Pridať termín",
       deadlineTitle: "Termín úlohy",
       purr: "Priadenie mačky",
-      catToolbar: "Mačka a úlohy",
+      walkMode: "Prechádzať sa po stránke",
+      playMode: "Hrať sa s loptičkou",
+      catToolbar: "Mačka",
       openHint: "Otvoriť celý panel"
     },
     cs: {
@@ -163,13 +183,16 @@
       longBreak: "Dlouhá přestávka",
       tasks: "Úkoly",
       noTasks: "Zatím žádné úkoly — přidej první",
+      newTask: "Nový úkol",
       more: "a další {n}",
       taskPlaceholder: "Nový úkol…",
       addTaskAria: "Přidat úkol",
       addDeadlineTitle: "Přidat termín",
       deadlineTitle: "Termín úkolu",
       purr: "Předení kočky",
-      catToolbar: "Kočka a úkoly",
+      walkMode: "Procházet se po stránce",
+      playMode: "Hrát si s míčkem",
+      catToolbar: "Kočka",
       openHint: "Otevřít celý panel"
     }
   };
@@ -181,6 +204,9 @@
   // Where each piece sits, and whether × hid it on this page.
   const positions = { timer: null, buddy: null };
   const dismissed = { timer: false, buddy: false };
+  // "play" — the cat stays on its shelf with a ball; "roam" — it strolls
+  // along the bottom of the tab.
+  let buddyMode = "play";
   let drag = null;
   let movedDuringPointer = false;
   let formOpen = false;
@@ -480,7 +506,7 @@
         cursor: grabbing;
       }
 
-      /* The glass shared by the timer, the toolbar and the task card. */
+      /* The glass shared by the timer, the shelf and the task drawer. */
       .glass {
         border: 1px solid var(--w-border);
         background: var(--w-glass);
@@ -545,17 +571,21 @@
         border-color: #c0304a;
       }
 
-      /* ---------- The timer ---------- */
+      /* ---------- The timer, with the tasks in a drawer under it ---------- */
+      .timer-piece {
+        width: calc(256px + 30px * (var(--text-scale) - 1));
+        cursor: grab;
+      }
+
       .timer {
+        position: relative;
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         gap: 12px;
-        width: calc(230px + 20px * (var(--text-scale) - 1));
         padding: 9px 10px 9px 9px;
         border-radius: 24px;
         color: var(--w-text);
-        cursor: grab;
       }
 
       .firefly-layer {
@@ -715,106 +745,49 @@
         transform: translateY(-1px);
       }
 
-      /* ---------- The cat, its toolbar and the tasks ---------- */
-      .companion {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: calc(268px + 36px * (var(--text-scale) - 1));
-      }
-
-      .stage {
-        position: relative;
+      /* The drawer's handle, on the timer's bottom edge. */
+      .fold {
+        position: absolute;
+        left: 50%;
+        bottom: -10px;
         z-index: 2;
-        display: flex;
-        justify-content: center;
-        min-width: 120px;
-        cursor: grab;
-      }
-
-      /* The lane is exactly as wide as the cat, so it never walks off: it
-         stands while the timer runs, sits when it stops, and dozes off. */
-      .stage .buddy {
-        --buddy-size: 140px;
-        width: calc(var(--px) * 68px);
-        /* paws on the toolbar's top edge, the ground shadow across it */
-        margin-bottom: calc(var(--px) * -2px);
-      }
-
-      .pill {
-        position: relative;
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        padding: 4px;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 18px;
+        padding: 0;
         border-radius: 999px;
         border: 1px solid var(--w-border);
         background: var(--w-pill);
-        box-shadow:
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-          0 14px 30px -16px var(--w-shadow-1);
+        color: var(--w-subtle);
+        transform: translateX(-50%);
+        box-shadow: 0 4px 10px -4px var(--w-shadow-2);
       }
 
-      .pill-btn {
-        display: grid;
-        place-items: center;
-        width: 38px;
-        height: 32px;
-        padding: 0;
-        border-radius: 999px;
-        color: var(--w-muted);
-        background: transparent;
-      }
-
-      .pill-btn:hover:not(:disabled) {
+      .fold:hover {
         color: var(--w-text);
-        background: var(--w-soft);
-      }
-
-      .pill-btn[aria-pressed="true"] {
-        color: var(--accent);
-        background: var(--w-soft);
-      }
-
-      .pill-btn svg {
-        width: 18px;
-        height: 18px;
-      }
-
-      .pill-sep {
-        width: 1px;
-        height: 18px;
-        background: var(--w-border);
+        border-color: var(--w-border-strong);
       }
 
       .fold svg {
+        width: 14px;
+        height: 14px;
+        transform: rotate(180deg);
         transition: transform 0.2s ease;
       }
 
-      .companion[data-folded="true"] .fold svg {
-        transform: rotate(180deg);
-      }
-
-      /* the purr button hums along while the cat purrs */
-      .purr[aria-pressed="true"] .waves {
-        animation: hum 0.16s steps(2) infinite;
-      }
-
-      @keyframes hum {
-        50% { transform: translateX(0.7px); }
+      .timer-piece[data-folded="true"] .fold svg {
+        transform: none;
       }
 
       .task-card {
-        width: 100%;
-        margin-top: 10px;
+        margin-top: 14px;
         padding: 10px;
         border-radius: 20px;
         color: var(--w-text);
-        cursor: grab;
       }
 
-      .companion[data-folded="true"] .task-card {
+      .timer-piece[data-folded="true"] .task-card {
         display: none;
       }
 
@@ -822,7 +795,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) 30px;
         gap: 6px;
-        margin-bottom: 8px;
+        margin-top: 8px;
       }
 
       .task-input {
@@ -856,6 +829,38 @@
         background: var(--accent);
         font-size: calc(15px * var(--text-scale, 1));
         font-weight: 800;
+        line-height: 1;
+      }
+
+      /* "+ New task" — opens the field; quieter than a task. */
+      .add-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 6px;
+        padding: 7px 9px;
+        border-radius: 12px;
+        color: var(--w-subtle);
+        background: none;
+        font-size: calc(12px * var(--text-scale, 1));
+        font-weight: 700;
+        text-align: left;
+      }
+
+      .add-row:hover {
+        color: var(--w-text);
+        background: var(--w-soft-2);
+      }
+
+      .add-row-plus {
+        display: grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        border: 2px dashed currentColor;
+        border-radius: 50%;
+        font-size: 12px;
         line-height: 1;
       }
 
@@ -1040,6 +1045,101 @@
         font-size: calc(11px * var(--text-scale, 1));
       }
 
+      /* ---------- The cat on its shelf ---------- */
+      .buddy-piece {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 232px;
+        cursor: grab;
+      }
+
+      /* As wide as the shelf: room for the cat and a ball to bat about. */
+      .stage {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+      }
+
+      .stage .buddy {
+        --buddy-size: 112px;
+        /* paws on the shelf's top edge, the ground shadow across it */
+        margin-bottom: calc(var(--px) * -2px);
+      }
+
+      .pill {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        width: 100%;
+        padding: 4px;
+        border-radius: 999px;
+        border: 1px solid var(--w-border);
+        background: var(--w-pill);
+        box-shadow:
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+          0 14px 30px -16px var(--w-shadow-1);
+      }
+
+      .pill-btn {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 32px;
+        padding: 0;
+        border-radius: 999px;
+        color: var(--w-muted);
+        background: transparent;
+      }
+
+      .pill-btn:hover:not(:disabled) {
+        color: var(--w-text);
+        background: var(--w-soft);
+      }
+
+      .pill-btn[aria-pressed="true"] {
+        color: var(--accent);
+        background: var(--w-soft);
+      }
+
+      .pill-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .pill-sep {
+        width: 1px;
+        height: 18px;
+        margin: 0 3px;
+        background: var(--w-border);
+      }
+
+      /* the purr button hums along while the cat purrs */
+      .purr[aria-pressed="true"] .waves {
+        animation: hum 0.32s steps(2) infinite;
+      }
+
+      @keyframes hum {
+        50% { transform: translateX(0.7px); }
+      }
+
+      /* Out strolling, the cat walks along the bottom of the tab. Only the cat
+         itself takes clicks; the rest of the strip lets them through. */
+      .floor {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+      }
+
+      .floor .buddy {
+        --buddy-size: 112px;
+      }
+
       @media (max-height: 560px) {
         .tasks {
           max-height: 108px;
@@ -1062,9 +1162,10 @@
   const ICONS = {
     play: '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.2-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z"/></svg>',
     pause: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg>',
-    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19.2 8.8a2.3 2.3 0 0 0-3.2-3.2L4.8 16.8 4 20z"/><path d="M14 7.6l3.2 3.2"/></svg>',
-    purr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><g class="waves"><path d="M4 10v4M8 7v10M12 4.5v15M16 7v10M20 10v4"/></g></svg>',
-    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>'
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>',
+    paw: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="6.2" cy="10.2" rx="2" ry="2.5"/><ellipse cx="9.9" cy="6.4" rx="2" ry="2.5"/><ellipse cx="14.1" cy="6.4" rx="2" ry="2.5"/><ellipse cx="17.8" cy="10.2" rx="2" ry="2.5"/><path d="M12 11.6c-3 0-5.6 3.2-5.6 5.6 0 1.6 1.3 2.5 2.8 2.5 1.1 0 1.9-.6 2.8-.6s1.7.6 2.8.6c1.5 0 2.8-.9 2.8-2.5 0-2.4-2.6-5.6-5.6-5.6z"/></svg>',
+    ball: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7.6"/><path d="M4.8 10.2c4.6 1.8 9.8 1.8 14.4 0M4.8 13.8c4.6-1.8 9.8-1.8 14.4 0"/></svg>',
+    purr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><g class="waves"><path d="M4 10v4M8 7v10M12 4.5v15M16 7v10M20 10v4"/></g></svg>'
   };
 
   function createWidget() {
@@ -1083,40 +1184,45 @@
     const fw = document.createElement("div");
     fw.className = "fw";
     fw.innerHTML = `
-      <section class="piece timer glass">
-        <div class="firefly-layer" aria-hidden="true"></div>
-        <button class="ring open-panel" type="button"><span class="ring-inner"></span></button>
-        <button class="readout open-panel" type="button">
-          <span class="time"></span>
-          <span class="mode"></span>
-        </button>
-        <div class="actions">
-          <button class="round primary start" type="button">${ICONS.play}</button>
-          <button class="round pause" type="button">${ICONS.pause}</button>
-        </div>
-        <button class="hide hide-timer" type="button">×</button>
-      </section>
+      <div class="floor" hidden></div>
 
-      <section class="piece companion" data-folded="false">
-        <div class="stage">
-          <div class="buddy" hidden></div>
-          <button class="hide hide-buddy" type="button">×</button>
-        </div>
-        <div class="pill" role="toolbar">
-          <button class="pill-btn add" type="button" aria-pressed="false">${ICONS.pencil}</button>
-          <span class="pill-sep" aria-hidden="true"></span>
-          <button class="pill-btn purr" type="button" aria-pressed="false">${ICONS.purr}</button>
-          <span class="pill-sep" aria-hidden="true"></span>
-          <button class="pill-btn fold" type="button" aria-expanded="true">${ICONS.chevron}</button>
+      <section class="piece timer-piece" data-folded="false">
+        <div class="timer glass">
+          <div class="firefly-layer" aria-hidden="true"></div>
+          <button class="ring open-panel" type="button"><span class="ring-inner"></span></button>
+          <button class="readout open-panel" type="button">
+            <span class="time"></span>
+            <span class="mode"></span>
+          </button>
+          <div class="actions">
+            <button class="round primary start" type="button">${ICONS.play}</button>
+            <button class="round pause" type="button">${ICONS.pause}</button>
+          </div>
+          <button class="fold" type="button" aria-expanded="true">${ICONS.chevron}</button>
         </div>
         <div class="task-card glass">
+          <ul class="tasks"></ul>
+          <div class="more" hidden></div>
           <form class="task-form" hidden>
             <input class="task-input" type="text" maxlength="90" />
             <button class="task-add" type="submit">+</button>
           </form>
-          <ul class="tasks"></ul>
-          <div class="more" hidden></div>
+          <button class="add-row" type="button"><span class="add-row-plus" aria-hidden="true">+</span><span class="add-row-text"></span></button>
         </div>
+        <button class="hide hide-timer" type="button">×</button>
+      </section>
+
+      <section class="piece buddy-piece">
+        <div class="stage">
+          <div class="buddy" hidden></div>
+        </div>
+        <div class="pill" role="toolbar">
+          <button class="pill-btn walk" type="button" aria-pressed="false">${ICONS.paw}</button>
+          <button class="pill-btn play" type="button" aria-pressed="true">${ICONS.ball}</button>
+          <span class="pill-sep" aria-hidden="true"></span>
+          <button class="pill-btn purr" type="button" aria-pressed="false">${ICONS.purr}</button>
+        </div>
+        <button class="hide hide-buddy" type="button">×</button>
       </section>
     `;
 
@@ -1126,7 +1232,8 @@
     const q = (selector) => fw.querySelector(selector);
     nodes = {
       fw,
-      timer: q(".timer"),
+      floor: q(".floor"),
+      timerPiece: q(".timer-piece"),
       fireflyLayer: q(".firefly-layer"),
       ring: q(".ring"),
       readout: q(".readout"),
@@ -1134,21 +1241,24 @@
       mode: q(".mode"),
       startBtn: q(".start"),
       pauseBtn: q(".pause"),
-      hideTimer: q(".hide-timer"),
-      companion: q(".companion"),
-      stage: q(".stage"),
-      buddyHost: q(".buddy"),
-      hideBuddy: q(".hide-buddy"),
-      pill: q(".pill"),
-      addBtn: q(".add"),
-      purrBtn: q(".purr"),
       foldBtn: q(".fold"),
+      hideTimer: q(".hide-timer"),
       taskCard: q(".task-card"),
       taskForm: q(".task-form"),
       taskInput: q(".task-input"),
       taskAddBtn: q(".task-add"),
+      addRow: q(".add-row"),
+      addRowText: q(".add-row-text"),
       tasksList: q(".tasks"),
-      more: q(".more")
+      more: q(".more"),
+      buddyPiece: q(".buddy-piece"),
+      stage: q(".stage"),
+      buddyHost: q(".buddy"),
+      pill: q(".pill"),
+      walkBtn: q(".walk"),
+      playBtn: q(".play"),
+      purrBtn: q(".purr"),
+      hideBuddy: q(".hide-buddy")
     };
 
     bindEvents();
@@ -1162,6 +1272,14 @@
     buddyPending = null;
   }
 
+  /* On its shelf to play, or down on the floor of the tab to stroll. */
+  function placeBuddyHost() {
+    const target = buddyMode === "roam" ? nodes.floor : nodes.stage;
+    if (nodes.buddyHost.parentNode === target) return false;
+    target.prepend(nodes.buddyHost);
+    return true;
+  }
+
   /*
    * The cat is the expensive part — a few dozen milliseconds to draw. It is
    * made in the page's first quiet moment rather than during its load, and
@@ -1170,6 +1288,7 @@
   function syncBuddy(wanted) {
     const night = (state?.settings?.theme || "midnight") !== "daylight";
     const running = Boolean(state?.running);
+    placeBuddyHost();
 
     if (buddy) {
       buddy.sync({ enabled: wanted, running, night });
@@ -1180,8 +1299,10 @@
     const make = () => {
       buddyPending = null;
       if (tornDown || buddy) return;
-      buddy = FireflyBuddy.create(nodes.buddyHost, { onPurrChange: () => render() });
-      faceTheMiddle();
+      buddy = FireflyBuddy.create(nodes.buddyHost, {
+        onPurrChange: () => render(),
+        activity: buddyMode
+      });
       render();
     };
     buddyPending = window.requestIdleCallback
@@ -1189,17 +1310,41 @@
       : setTimeout(make, 400);
   }
 
-  /* The cat looks toward the middle of the screen, whichever side it is on. */
-  function faceTheMiddle() {
-    if (!buddy || !nodes.companion) return;
-    const rect = nodes.companion.getBoundingClientRect();
-    buddy.face(rect.left + rect.width / 2 > window.innerWidth / 2 ? -1 : 1);
+  function setBuddyMode(mode, { save = true } = {}) {
+    if (mode !== "roam" && mode !== "play") return;
+    if (mode === buddyMode) return;
+    // The cat leaving its shelf (or coming back) changes how tall this piece
+    // is; keep the shelf itself where it was rather than let it jump.
+    const before = nodes.buddyPiece.getBoundingClientRect().height;
+    buddyMode = mode;
+    // The floor has to be showing before the cat lands on it, or the cat
+    // measures a lane of nothing and starts off in the corner.
+    nodes.floor.hidden = mode !== "roam" || nodes.buddyPiece.hidden;
+    const moved = placeBuddyHost();
+    if (buddy) {
+      buddy.setActivity(mode);
+      if (moved) buddy.appear();
+    }
+    const after = nodes.buddyPiece.getBoundingClientRect().height;
+    if (positions.buddy && before && after) {
+      positions.buddy.y += before - after;
+      clampAndApply("buddy");
+      savePositions();
+    }
+    if (save) {
+      try {
+        chrome.storage.local.set({ [BUDDY_MODE_KEY]: mode }).catch(() => {});
+      } catch (error) {
+        // The extension is gone; tick() will take the widget down.
+      }
+    }
+    render();
   }
 
   /* ---------- Events ---------- */
 
   function bindEvents() {
-    for (const piece of [nodes.timer, nodes.companion]) {
+    for (const piece of [nodes.timerPiece, nodes.buddyPiece]) {
       piece.addEventListener("pointerdown", startDrag);
       // A drag that ends over a button or the cat must not also click it.
       piece.addEventListener("click", (event) => {
@@ -1246,15 +1391,6 @@
       render();
     });
 
-    nodes.addBtn.addEventListener("click", () => {
-      setFormOpen(!formOpen || state?.settings?.floatingWidgetCompact === true);
-    });
-
-    nodes.purrBtn.addEventListener("click", () => {
-      buddy?.togglePurring();
-      render();
-    });
-
     nodes.foldBtn.addEventListener("click", async () => {
       if (!state) return;
 
@@ -1265,10 +1401,20 @@
         ...state,
         settings: { ...state.settings, floatingWidgetCompact: next }
       };
-      if (next) setFormOpen(false);
+      if (next) formOpen = false;
       render();
 
       await safeSend("SAVE_SETTINGS", { settings: state.settings });
+    });
+
+    nodes.addRow.addEventListener("click", () => setFormOpen(true));
+
+    nodes.walkBtn.addEventListener("click", () => setBuddyMode("roam"));
+    nodes.playBtn.addEventListener("click", () => setBuddyMode("play"));
+
+    nodes.purrBtn.addEventListener("click", () => {
+      buddy?.togglePurring();
+      render();
     });
 
     // Adding a task from the widget itself, so capturing a thought does not
@@ -1349,11 +1495,6 @@
 
   function setFormOpen(open) {
     formOpen = open;
-    if (open && state?.settings?.floatingWidgetCompact === true) {
-      // Asked to add a task while the list is folded away: unfold it first.
-      state = { ...state, settings: { ...state.settings, floatingWidgetCompact: false } };
-      safeSend("SAVE_SETTINGS", { settings: state.settings });
-    }
     render();
     if (open) nodes.taskInput?.focus();
   }
@@ -1362,7 +1503,6 @@
   function onResize() {
     clampAndApply("timer");
     clampAndApply("buddy");
-    faceTheMiddle();
     savePositions();
   }
 
@@ -1385,21 +1525,25 @@
         clampAndApply(piece);
       }
     }
+
+    if (changes[BUDDY_MODE_KEY]?.newValue) {
+      setBuddyMode(changes[BUDDY_MODE_KEY].newValue, { save: false });
+    }
   }
 
   /* ---------- Dragging ---------- */
 
   function pieceNode(piece) {
-    return piece === "timer" ? nodes.timer : nodes.companion;
+    return piece === "timer" ? nodes.timerPiece : nodes.buddyPiece;
   }
 
   function startDrag(event) {
     if (event.button !== 0) return;
     // Controls keep their own clicks; the cat itself is fair game — a tap
     // pets it, a drag moves it.
-    if (event.target.closest("input, form, .hide, .pill-btn, .round, .task-deadline")) return;
+    if (event.target.closest("input, form, .hide, .pill-btn, .round, .fold, .task-deadline, .add-row, .empty")) return;
 
-    const piece = event.currentTarget === nodes.timer ? "timer" : "buddy";
+    const piece = event.currentTarget === nodes.timerPiece ? "timer" : "buddy";
     const rect = pieceNode(piece).getBoundingClientRect();
 
     movedDuringPointer = false;
@@ -1459,10 +1603,7 @@
     }
     drag = null;
 
-    if (captured) {
-      if (piece === "buddy") faceTheMiddle();
-      await savePositions();
-    }
+    if (captured) await savePositions();
 
     // The click that ends a drag arrives right after pointerup.
     setTimeout(() => {
@@ -1476,8 +1617,8 @@
     if (!node || node.hidden) return;
 
     const rect = node.getBoundingClientRect();
-    const width = rect.width || (piece === "timer" ? 230 : 268);
-    const height = rect.height || (piece === "timer" ? 66 : 260);
+    const width = rect.width || (piece === "timer" ? 256 : 232);
+    const height = rect.height || (piece === "timer" ? 66 : 150);
     const pad = 10;
 
     if (!positions[piece]) {
@@ -1508,9 +1649,10 @@
 
   async function loadPositions() {
     try {
-      const data = await chrome.storage.local.get([TIMER_POSITION_KEY, BUDDY_POSITION_KEY]);
+      const data = await chrome.storage.local.get([TIMER_POSITION_KEY, BUDDY_POSITION_KEY, BUDDY_MODE_KEY]);
       positions.timer = data[TIMER_POSITION_KEY] || null;
       positions.buddy = data[BUDDY_POSITION_KEY] || null;
+      buddyMode = data[BUDDY_MODE_KEY] === "roam" ? "roam" : "play";
     } catch (error) {
       positions.timer = null;
       positions.buddy = null;
@@ -1742,15 +1884,16 @@
     const showCompanion = enabled && !dismissed.buddy;
 
     host.style.display = showTimer || showCompanion ? "block" : "none";
-    nodes.timer.hidden = !showTimer;
-    nodes.companion.hidden = !showCompanion;
+    nodes.timerPiece.hidden = !showTimer;
+    nodes.buddyPiece.hidden = !showCompanion;
+    nodes.floor.hidden = !(showCompanion && buddyMode === "roam");
 
     nodes.fw.dataset.theme = settings.theme || "midnight";
     nodes.fw.dataset.mode = state.mode;
     nodes.fw.dataset.running = String(Boolean(state.running));
     nodes.fw.style.setProperty("--text-scale", String(getTextScale()));
 
-    // ---- the timer
+    // ---- the timer and its task drawer
     const duration = getDurationMs(state.mode, settings);
     const remaining = getRemainingMs();
     const progress = Math.min(100, Math.max(0, 100 - (remaining / duration) * 100));
@@ -1765,25 +1908,31 @@
     nodes.pauseBtn.disabled = !state.running;
     label(nodes.hideTimer, dictionary.closeTitle);
 
-    // ---- the cat, its toolbar and the tasks
     const folded = settings.floatingWidgetCompact === true;
-    const catOn = showCompanion && settings.studyBuddyEnabled !== false;
-    syncBuddy(catOn);
-    nodes.companion.dataset.folded = String(folded);
-    nodes.pill.setAttribute("aria-label", dictionary.catToolbar);
-    label(nodes.addBtn, dictionary.addTaskAria);
-    nodes.addBtn.setAttribute("aria-pressed", String(formOpen && !folded));
-    label(nodes.purrBtn, dictionary.purr);
-    nodes.purrBtn.disabled = !catOn || !buddy;
-    nodes.purrBtn.setAttribute("aria-pressed", String(Boolean(buddy?.isPurring())));
+    nodes.timerPiece.dataset.folded = String(folded);
     label(nodes.foldBtn, folded ? dictionary.expandTitle : dictionary.collapseTitle);
     nodes.foldBtn.setAttribute("aria-expanded", String(!folded));
-    label(nodes.hideBuddy, dictionary.closeTitle);
     nodes.taskCard.setAttribute("aria-label", dictionary.tasks);
     nodes.taskForm.hidden = !formOpen;
+    nodes.addRow.hidden = formOpen;
+    nodes.addRowText.textContent = dictionary.newTask;
     nodes.taskInput.placeholder = dictionary.taskPlaceholder;
     label(nodes.taskAddBtn, dictionary.addTaskAria);
     if (!folded) renderTasks(dictionary);
+
+    // ---- the cat
+    const catOn = showCompanion && settings.studyBuddyEnabled !== false;
+    syncBuddy(catOn);
+    nodes.pill.setAttribute("aria-label", dictionary.catToolbar);
+    label(nodes.walkBtn, dictionary.walkMode);
+    label(nodes.playBtn, dictionary.playMode);
+    nodes.walkBtn.setAttribute("aria-pressed", String(buddyMode === "roam"));
+    nodes.playBtn.setAttribute("aria-pressed", String(buddyMode === "play"));
+    for (const button of [nodes.walkBtn, nodes.playBtn]) button.disabled = !catOn;
+    label(nodes.purrBtn, dictionary.purr);
+    nodes.purrBtn.disabled = !catOn || !buddy;
+    nodes.purrBtn.setAttribute("aria-pressed", String(Boolean(buddy?.isPurring())));
+    label(nodes.hideBuddy, dictionary.closeTitle);
 
     clampAndApply("timer");
     clampAndApply("buddy");

@@ -167,7 +167,7 @@
 }
 
 .fs-icon[aria-pressed="true"] .purr-waves {
-  animation: dockPurr 0.16s steps(2) infinite;
+  animation: dockPurr 0.32s steps(2) infinite;
 }
 
 .fs-daynight {

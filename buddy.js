@@ -81,6 +81,12 @@ const FireflyBuddy = (() => {
     y: "#b9eca3", // bulb, lit
     Y: "#f4ffee", // bulb, lit — core
     z: "rgba(36, 14, 6, 0.24)", // ground shadow
+    // the toy ball
+    R: "#e5483f", // ball
+    Q: "#ffcf5a", // the band round it
+    K: "#5a1712", // its rim
+    G: "rgba(255, 255, 255, 0.9)", // gloss
+    H: "rgba(40, 8, 6, 0.3)", // shade on its far side
   };
 
   /* ------------------------------------------------------------------ */
@@ -612,6 +618,8 @@ const FireflyBuddy = (() => {
   const SIT = {
     head: [45, 20],
     tipBase: [8.2, 52], // where the curled tip of the tail leaves the floor
+    shoulder: [46.6, 40.5], // the near front leg swings from here to bat a ball
+    reach: 56, // how far forward a bat lands
   };
 
   function frontLeg(g, x, top, key) {
@@ -646,14 +654,20 @@ const FireflyBuddy = (() => {
       [29.5, 34.5].some((c) => Math.abs(x - c - (y - 35) * 0.55) < 1 - (y - 30) * 0.04));
     shade(g, 45, 36.5, 3.6, 6, "c", 2.2, 22); // cream bib
 
-    // near front leg: in front of the belly, melting into the chest
-    const nearLeg = frameGrid();
-    frontLeg(nearLeg, 46.6, 38, "f");
-    fillHoles(nearLeg, "f");
-    stamp(g, outline(nearLeg, { from: 46 }));
-
     fillHoles(g, "f");
     return outline(g);
+  }
+
+  /*
+   * The near front leg is a layer of its own, so it can reach out and bat a
+   * ball. Its rim only starts below the chest, so it still grows out of it
+   * rather than hanging under it.
+   */
+  function sitNear() {
+    const leg = frameGrid();
+    frontLeg(leg, 46.6, 38, "f");
+    fillHoles(leg, "f");
+    return outline(leg, { from: 46 });
   }
 
   function sitTip() {
@@ -684,6 +698,44 @@ const FireflyBuddy = (() => {
 
   function lieTip() {
     return part((p) => bushyTail(p, [36, 55.8], [41.5, 56.4], [43.6, 52.6], (t) => 2.4 - t * 0.6, [0.55]));
+  }
+
+  /* ---------------- The toy ball ---------------- */
+
+  /*
+   * 9×9 art pixels. The band rolls round with the ball; the gloss, the shade
+   * and the shadow under it stay put, so it reads as a ball turning under a
+   * fixed light rather than a picture spinning.
+   */
+  const BALL_SIZE = 9;
+
+  function ballBody() {
+    const g = grid(BALL_SIZE, BALL_SIZE);
+    const c = BALL_SIZE / 2;
+    for (let y = 0; y < BALL_SIZE; y += 1) {
+      for (let x = 0; x < BALL_SIZE; x += 1) {
+        const dy = y + 0.5 - c;
+        const d = Math.hypot(x + 0.5 - c, dy);
+        if (d > c - 0.05) continue;
+        put(g, x, y, d > c - 1 ? "K" : Math.abs(dy) < 1.2 ? "Q" : "R");
+      }
+    }
+    return g;
+  }
+
+  function ballGloss() {
+    const g = grid(BALL_SIZE, BALL_SIZE + 1);
+    const c = BALL_SIZE / 2;
+    for (let y = 0; y < BALL_SIZE; y += 1) {
+      for (let x = 0; x < BALL_SIZE; x += 1) {
+        const dx = x + 0.5 - c;
+        const dy = y + 0.5 - c;
+        if (Math.hypot(dx, dy) <= c - 1 && dx + dy > 2.4) put(g, x, y, "H");
+      }
+    }
+    stampRows(g, ["GG", "G."], 2, 2);
+    for (let x = 2; x <= 6; x += 1) put(g, x, BALL_SIZE, "z");
+    return g;
   }
 
   /* A soft pixel shadow under whatever stands on the ground. */
@@ -733,8 +785,9 @@ const FireflyBuddy = (() => {
         day: [drawWhiskers(0, "v"), drawWhiskers(1, "v")],
       },
       walk: { body: walkBody(), tail: walkTail(), legs, shadow: groundShadow(30, 19) },
-      sit: { body: sitBody(), tip: sitTip(), shadow: groundShadow(33, 21) },
+      sit: { body: sitBody(), near: sitNear(), tip: sitTip(), shadow: groundShadow(33, 21) },
       lie: { body: lieBody(), tip: lieTip(), shadow: groundShadow(33, 22) },
+      ball: { body: ballBody(), gloss: ballGloss() },
     };
     return gridCache;
   }
@@ -757,6 +810,7 @@ const FireflyBuddy = (() => {
       stamp(g, legs.near);
     } else {
       stamp(g, P.body);
+      if (P.near) stamp(g, P.near);
       stamp(g, P.tip);
     }
     stamp(g, A.heads[eyes || (pose === "lie" ? "shut" : "open")], hx, hy);
@@ -846,7 +900,7 @@ const FireflyBuddy = (() => {
         shadow: cv(A.walk.shadow),
         legs: lazyFrames(A.walk.legs, cv),
       },
-      sit: { body: cv(A.sit.body), tip: cv(A.sit.tip), shadow: cv(A.sit.shadow) },
+      sit: { body: cv(A.sit.body), near: cv(A.sit.near), tip: cv(A.sit.tip), shadow: cv(A.sit.shadow) },
       lie: { body: cv(A.lie.body), tip: cv(A.lie.tip), shadow: cv(A.lie.shadow) },
       masks,
     };
@@ -919,14 +973,25 @@ const FireflyBuddy = (() => {
   /* ------------------------------------------------------------------ */
 
   /*
-   * A purr is a fast train of soft thumps — around 25 a second — that runs
-   * through the whole breath: louder and a touch slower breathing out, softer
-   * and quicker breathing in, with a hitch between. Three slightly different
-   * breaths are synthesised once into a buffer and looped, so the loop does
-   * not tick audibly. The breath timings are kept, so the cat's chest can
-   * move with what you hear.
+   * A purr is a train of soft thumps that runs through the whole breath:
+   * louder and a touch slower breathing out, softer and quicker breathing in,
+   * with a hitch between. Three slightly different breaths are synthesised
+   * once into a buffer and looped, so the loop does not tick audibly. The
+   * breath timings are kept, so the cat's chest can move with what you hear.
+   *
+   * PURR_SLOWDOWN stretches all of it in time: a real cat thrums about 25
+   * times a second, which proved too busy to sit beside — at 2 it is half
+   * that, a slow, drowsy rumble. Only the timing stretches, not the pitch:
+   * the thumps keep their sound, they just come further apart and breathe
+   * slower.
    */
-  function synthPurr(sampleRate) {
+  const PURR_SLOWDOWN = 2;
+  // The purr is all below 1 kHz, so it does not need a full-rate buffer;
+  // the audio graph resamples it.
+  const PURR_SAMPLE_RATE = 22050;
+
+  function synthPurr(sampleRate = PURR_SAMPLE_RATE) {
+    const k = PURR_SLOWDOWN;
     const breaths = [
       { out: 1.3, gapOut: 0.07, in: 1.0, gapIn: 0.1, level: 1 },
       { out: 1.16, gapOut: 0.06, in: 1.08, gapIn: 0.12, level: 0.9 },
@@ -935,10 +1000,10 @@ const FireflyBuddy = (() => {
     const phases = [];
     let t = 0.03;
     for (const b of breaths) {
-      phases.push({ from: t, to: t + b.out, kind: "out", level: b.level });
-      t += b.out + b.gapOut;
-      phases.push({ from: t, to: t + b.in, kind: "in", level: b.level * 0.62 });
-      t += b.in + b.gapIn;
+      phases.push({ from: t, to: t + b.out * k, kind: "out", level: b.level });
+      t += (b.out + b.gapOut) * k;
+      phases.push({ from: t, to: t + b.in * k, kind: "in", level: b.level * 0.62 });
+      t += (b.in + b.gapIn) * k;
     }
     const duration = t;
     const length = Math.round(duration * sampleRate);
@@ -950,12 +1015,16 @@ const FireflyBuddy = (() => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed / 0x7fffffff;
     };
-    const attack = Math.max(1, Math.round(0.0025 * sampleRate));
-    const decay = 0.0085 * sampleRate;
-    const span = Math.round(0.034 * sampleRate);
+    // Each thump: a quick swell, then a decay, stretched along with the rest.
+    const attack = Math.max(1, Math.round(0.0025 * k * sampleRate));
+    const decay = 0.0085 * k * sampleRate;
+    const span = Math.round(0.034 * k * sampleRate);
+    // Smoothing that turns white noise into a soft rumble (~1.5 kHz), the
+    // same whatever the sample rate.
+    const smooth = 1 - Math.exp((-2 * Math.PI * 1500) / sampleRate);
 
     for (const phase of phases) {
-      const rate = phase.kind === "out" ? 24 : 27.5;
+      const rate = (phase.kind === "out" ? 24 : 27.5) / k;
       let tp = phase.from;
       while (tp < phase.to) {
         const u = (tp - phase.from) / (phase.to - phase.from);
@@ -966,7 +1035,7 @@ const FireflyBuddy = (() => {
         let brown = 0;
         for (let i = 0; i < span && start + i < length; i += 1) {
           const e = i < attack ? i / attack : Math.exp(-(i - attack) / decay);
-          brown += (noise() * 2 - 1 - brown) * 0.18;
+          brown += (noise() * 2 - 1 - brown) * smooth;
           data[start + i] += amp * e * (brown * 1.6 + 0.55 * Math.sin((2 * Math.PI * body * i) / sampleRate));
         }
         tp += (1 / rate) * (1 + (noise() - 0.5) * 0.1);
@@ -998,8 +1067,8 @@ const FireflyBuddy = (() => {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return false;
       ctx = new AudioCtx();
-      const purr = synthPurr(ctx.sampleRate);
-      buffer = ctx.createBuffer(1, purr.data.length, ctx.sampleRate);
+      const purr = synthPurr(PURR_SAMPLE_RATE);
+      buffer = ctx.createBuffer(1, purr.data.length, PURR_SAMPLE_RATE);
       buffer.copyToChannel(purr.data, 0);
       phases = purr.phases;
       duration = purr.duration;
@@ -1206,6 +1275,20 @@ const FireflyBuddy = (() => {
 }
 .buddy-spark { width: calc(var(--px) * 5px); height: calc(var(--px) * 5px); }
 
+/* The toy ball rolls along the lane on its own, outside the cat's frame. */
+.buddy-ball {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--px) * 1px);
+  width: calc(var(--px) * ${BALL_SIZE}px);
+  height: calc(var(--px) * ${BALL_SIZE + 1}px);
+  pointer-events: none;
+  will-change: transform;
+}
+.buddy-ball .buddy-px { left: 0; top: 0; width: calc(var(--px) * ${BALL_SIZE}px); }
+.buddy-ball-body { height: calc(var(--px) * ${BALL_SIZE}px); will-change: transform; }
+.buddy-ball-gloss { height: calc(var(--px) * ${BALL_SIZE + 1}px); }
+
 @media (prefers-reduced-motion: reduce) {
   .buddy-bulb-lit, .buddy-glow { transition: none; }
 }
@@ -1230,8 +1313,14 @@ const FireflyBuddy = (() => {
    * controls. The page calls sync({ enabled, running, night }) from its own
    * render loop; everything else — poses, walking, breathing, blinking —
    * happens in here.
+   *
+   * `activity` says what the cat does with itself:
+   *   "timer" — the panel's cat: walks while the timer runs, sits when it
+   *             stops, falls asleep when it stays stopped;
+   *   "roam"  — strolls about the lane on its own, sits, now and then naps;
+   *   "play"  — stays put and plays with a ball.
    */
-  function create(host, { onPurrChange = null } = {}) {
+  function create(host, { onPurrChange = null, activity = "timer" } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -1274,6 +1363,7 @@ const FireflyBuddy = (() => {
       breath: 0.5,
       head: { x: 0, v: 0 },
       jitter: [0, 0],
+      jitterFrame: 0,
       purrLevel: 0,
       ant: [{ x: 0, v: 0 }, { x: 0, v: 0 }],
       tail: { x: 0, v: 0 },
@@ -1290,9 +1380,16 @@ const FireflyBuddy = (() => {
       zBig: false,
       written: new Map(),
       hideAnims: [],
+      // what it is up to, for "roam" and "play"
+      activity,
+      brain: { pose: "sit", until: nowMs() + rand(800, 2200), nextSwat: 0, restless: 0 },
+      goalX: null,
+      ball: null,
+      swat: null,
     };
 
     const dom = buildDom();
+    if (activity === "play") ensureBall();
 
     /* ---------- DOM ---------- */
 
@@ -1373,6 +1470,24 @@ const FireflyBuddy = (() => {
       return { probe, walker, pop, turn, rig, shadow, tail, far, body, near, tip, head, face, whiskers, antennae, fx, box };
     }
 
+    function ensureBall() {
+      if (st.ball) return;
+      const wrap = document.createElement("div");
+      wrap.className = "buddy-ball";
+      const body = gridToCanvas(buildGrids().ball.body);
+      body.className = "buddy-px buddy-ball-body";
+      const gloss = gridToCanvas(buildGrids().ball.gloss);
+      gloss.className = "buddy-px buddy-ball-gloss";
+      wrap.append(body, gloss);
+      host.appendChild(wrap);
+      st.ball = { el: wrap, body, x: null, v: 0, angle: 0 };
+    }
+
+    function removeBall() {
+      st.ball?.el.remove();
+      st.ball = null;
+    }
+
     // putImageData replaces every pixel, transparent ones too: clearing and
     // painting in one go.
     function paint(canvas, image) {
@@ -1418,6 +1533,11 @@ const FireflyBuddy = (() => {
     /* ---------- Poses ---------- */
 
     function targetPose(now) {
+      if (st.activity !== "timer") {
+        // a purring cat settles where it is
+        if (purr.on) return st.pose === "lie" ? "lie" : "sit";
+        return st.brain.pose;
+      }
       if (st.running) return "walk";
       return now - st.stoppedAt >= DOZE_AFTER_MS ? "lie" : "sit";
     }
@@ -1430,7 +1550,16 @@ const FireflyBuddy = (() => {
       paint(dom.tail, pose === "walk" ? A.tail : null);
       paint(dom.tip, pose === "walk" ? null : A.tip);
       st.legs = null;
-      setLegs(pose === "walk" ? "stand" : null);
+      if (pose === "walk") setLegs("stand");
+      else {
+        paint(dom.far, null);
+        paint(dom.near, A.near || null);
+      }
+      // a sitting cat bats with its near front leg, swung from the shoulder
+      const [sx, sy] = SIT.shoulder;
+      dom.near.style.transformOrigin =
+        `${((sx + FRAME.ox) / FRAME.w) * 100}% ${((sy + FRAME.oy) / FRAME.h) * 100}%`;
+      st.swat = null;
 
       const [hx, hy] = headOffset(pose);
       dom.box(dom.head, FRAME.ox + hx, FRAME.oy + hy, HEAD_W, HEAD_H);
@@ -1507,14 +1636,38 @@ const FireflyBuddy = (() => {
       return FRAME.w * st.px;
     }
 
+    function laneTravel() {
+      return Math.max(0, st.laneW - stageWidth());
+    }
+
     function stepWalk(now, dt) {
       if (!st.laneW) return 0;
-      const travel = Math.max(0, st.laneW - stageWidth());
+      const travel = laneTravel();
       if (st.x === null) st.x = travel / 2;
       st.x = clamp(st.x, 0, travel);
 
       let speed = 0;
-      if (!st.turn && now >= st.pauseUntil && travel > 0) {
+      if (st.activity !== "timer") {
+        // Roaming or playing: walk to wherever the cat has decided to go.
+        if (st.goalX !== null && !st.turn) {
+          const goal = clamp(st.goalX, 0, travel);
+          const dx = goal - st.x;
+          const dir = dx > 0 ? 1 : -1;
+          if (Math.abs(dx) < 0.5) {
+            st.x = goal;
+            st.goalX = null;
+          } else if (dir !== st.dir) {
+            face(dir);
+          } else {
+            speed = st.activity === "play" ? 11 : 8;
+            st.x += dir * Math.min(Math.abs(dx), speed * st.px * dt);
+            if (Math.abs(goal - st.x) < 0.5) {
+              st.x = goal;
+              st.goalX = null;
+            }
+          }
+        }
+      } else if (!st.turn && now >= st.pauseUntil && travel > 0) {
         // art pixels a second: an amble in the panel, a brisker trot across a
         // whole screen, and always the gait's own pace so paws never slide
         speed = clamp(travel / st.px / 24, 4.5, 16);
@@ -1538,6 +1691,178 @@ const FireflyBuddy = (() => {
         setLegs("stand");
       }
       return accel;
+    }
+
+    /* ---------- Roaming ---------- */
+
+    /*
+     * Stroll to a spot somewhere along the lane, sit a while — now and then
+     * lie down for a nap — and set off again, somewhere else.
+     */
+    function roamBrain(now) {
+      const br = st.brain;
+      if (st.reduced) {
+        br.pose = "sit";
+        st.goalX = null;
+        return;
+      }
+      if (purr.on || st.trans) return;
+      if (br.pose === "walk") {
+        if (st.goalX === null) {
+          br.pose = Math.random() < 0.2 ? "lie" : "sit";
+          br.until = now + (br.pose === "lie" ? rand(10000, 18000) : rand(2500, 8000));
+        }
+        return;
+      }
+      if (now < br.until) return;
+      const travel = laneTravel();
+      if (travel < 8 * st.px) {
+        br.until = now + 4000;
+        return;
+      }
+      const here = st.x ?? travel / 2;
+      let x = rand(0, travel);
+      if (Math.abs(x - here) < travel * 0.25) {
+        x = here < travel / 2 ? rand(travel * 0.55, travel) : rand(0, travel * 0.45);
+      }
+      st.goalX = x;
+      br.pose = "walk";
+    }
+
+    /* ---------- Playing with the ball ---------- */
+
+    const ballRadius = () => (BALL_SIZE / 2) * st.px;
+    const catCenter = () => (st.x ?? 0) + stageWidth() / 2;
+    // How far in front of the cat's middle a bat lands, in lane pixels.
+    const pawFront = () => (FRAME.ox + SIT.reach - FRAME.w / 2) * st.px;
+
+    /* How far in front of the cat the ball is: negative when it is behind. */
+    function ballFront(dir = st.dir) {
+      return (st.ball.x - catCenter()) * dir;
+    }
+
+    /* From under the chest out to the end of a swing: a paw can get there. */
+    function ballInReach(slack) {
+      const front = ballFront();
+      return front >= 6 * st.px && front - ballRadius() <= pawFront() + slack * st.px;
+    }
+
+    /*
+     * Keep an eye on the ball, turn to it, bat it when it comes in reach, and
+     * trot after it when it rolls off and comes to rest out of reach.
+     */
+    function playBrain(now) {
+      const br = st.brain;
+      const ball = st.ball;
+      if (!ball || ball.x === null) return;
+      if (st.reduced) {
+        br.pose = "sit";
+        st.goalX = null;
+        return;
+      }
+      if (purr.on || st.trans) return;
+
+      const r = ballRadius();
+      const side = ball.x >= catCenter() ? 1 : -1;
+      const heading = st.turn ? st.turn.to : st.dir;
+      const slow = Math.abs(ball.v) < 14 * st.px;
+
+      if (br.pose === "walk") {
+        // stop with the ball just inside the end of a swing
+        const center = ball.x - side * (pawFront() + r - 2 * st.px);
+        st.goalX = clamp(center - stageWidth() / 2, 0, laneTravel());
+        const there = Math.abs(st.goalX - (st.x ?? 0)) < 1.5 * st.px;
+        if (there || (slow && side === st.dir && ballInReach(0))) {
+          st.goalX = null;
+          br.pose = "sit";
+          br.nextSwat = now + rand(250, 600);
+        }
+        return;
+      }
+
+      // sitting, watching
+      if (!st.swat && side !== heading && Math.abs(ball.x - catCenter()) > 6 * st.px) {
+        face(side);
+        return;
+      }
+      if (!st.swat && !st.turn && st.pose === "sit" && ballInReach(5) && now >= br.nextSwat) {
+        st.swat = { start: now, hit: false };
+        // now and then it just sits and watches for a bit
+        br.nextSwat = now + (Math.random() < 0.15 ? rand(2500, 5500) : rand(650, 1500));
+        br.restless = 0;
+        return;
+      }
+      // out of reach and settled for a moment: shuffle or trot over to it
+      if (slow && !st.swat && !ballInReach(5)) {
+        br.restless ||= now;
+        if (now - br.restless > 1400) {
+          br.pose = "walk";
+          br.restless = 0;
+        }
+      } else {
+        br.restless = 0;
+      }
+    }
+
+    /* Rolls, slows, and bounces back off the ends of the lane. */
+    function stepBall(dt) {
+      const ball = st.ball;
+      if (!ball || !st.laneW) return;
+      const r = ballRadius();
+      if (ball.x === null) ball.x = clamp(catCenter() + st.dir * (pawFront() + r), r, st.laneW - r);
+      if (st.reduced) {
+        ball.v = 0;
+        return;
+      }
+      ball.v *= Math.exp(-1.3 * dt);
+      if (Math.abs(ball.v) < 3 * st.px) ball.v = 0;
+      ball.x += ball.v * dt;
+      // off the ends of the shelf it bounces back — sometimes hard enough to
+      // roll right under the cat, which then has to turn round for it
+      if (ball.x < r) {
+        ball.x = r;
+        ball.v = Math.abs(ball.v) * 0.7;
+      }
+      if (ball.x > st.laneW - r) {
+        ball.x = st.laneW - r;
+        ball.v = -Math.abs(ball.v) * 0.7;
+      }
+      ball.angle += (ball.v * dt) / r;
+    }
+
+    // A bat: the paw comes up and forward, taps the ball at the top of the
+    // swing, and settles back down.
+    const SWAT = { up: 110, hold: 70, down: 230 };
+
+    function stepSwat(now) {
+      const sw = st.swat;
+      if (!sw) return;
+      const t = now - sw.start;
+      if (!sw.hit && t >= SWAT.up) {
+        sw.hit = true;
+        const ball = st.ball;
+        if (ball && ballInReach(7)) {
+          ball.v = st.dir * rand(40, 130) * st.px; // a dab or a proper whack
+          st.ant[0].v += rand(-3, 3);
+          st.ant[1].v += rand(-3, 3);
+        }
+        st.head.v += 6; // a little nod into the swing
+      }
+      if (t >= SWAT.up + SWAT.hold + SWAT.down) st.swat = null;
+    }
+
+    function pawAngle(now) {
+      const sw = st.swat;
+      if (!sw) return 0;
+      const t = now - sw.start;
+      const top = -0.85;
+      if (t < SWAT.up) {
+        const p = t / SWAT.up;
+        return top * (1 - (1 - p) * (1 - p));
+      }
+      if (t < SWAT.up + SWAT.hold) return top;
+      const p = Math.min(1, (t - SWAT.up - SWAT.hold) / SWAT.down);
+      return top * (1 - p * p * (3 - 2 * p));
     }
 
     /* A turn plays out in any pose: wait for its start, swing, done. */
@@ -1569,6 +1894,7 @@ const FireflyBuddy = (() => {
     function baseEyes(now) {
       if (st.pose === "lie") return "shut";
       if (purr.on) return "happy";
+      if (st.activity === "play" && st.ball) return "look"; // eyes on the ball
       if (st.pose === "walk" && st.speed > 0) return "look";
       if (now < st.glance.until) return "look";
       if (now >= st.glance.next) {
@@ -1809,6 +2135,9 @@ const FireflyBuddy = (() => {
       st.clock += dt;
       const t = st.clock;
 
+      if (st.activity === "roam") roamBrain(now);
+      else if (st.activity === "play") playBrain(now);
+
       if (!st.pose) showPose(targetPose(now));
       if (!st.trans && targetPose(now) !== st.pose) {
         if (st.reduced) showPose(targetPose(now));
@@ -1832,6 +2161,11 @@ const FireflyBuddy = (() => {
         }
       }
 
+      if (st.activity === "play") {
+        stepBall(dt);
+        stepSwat(now);
+      }
+
       // breathing, or the purr's own breaths while it purrs
       const sample = purr.sample();
       const period = st.pose === "lie" ? 4.6 : 3.6;
@@ -1851,9 +2185,13 @@ const FireflyBuddy = (() => {
         headTarget = -rise * st.breath * (GROUND - headY) * (st.pose === "lie" ? 0.6 : 1);
       }
 
-      // purring makes the body hum: a tiny jitter, stronger as it gets louder
+      // purring makes the body hum: a tiny jitter, stronger as it gets louder,
+      // and only as quick as the purr itself
       const jitterAmp = st.reduced ? 0 : 0.5 * level;
-      st.jitter = [rand(-1, 1) * jitterAmp, rand(-1, 1) * jitterAmp];
+      st.jitterFrame = (st.jitterFrame + 1) % PURR_SLOWDOWN;
+      if (st.jitterFrame === 0 || jitterAmp === 0) {
+        st.jitter = [rand(-1, 1) * jitterAmp, rand(-1, 1) * jitterAmp];
+      }
 
       // springs, in small steps so stiff ones stay stable
       const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
@@ -1889,7 +2227,8 @@ const FireflyBuddy = (() => {
           if (now >= st.flick.next) {
             st.flick.to = (Math.random() < 0.5 ? -1 : 1) * rand(0.18, 0.32);
             st.flick.until = now + rand(250, 450);
-            st.flick.next = now + rand(2500, 7000);
+            // a cat at play twitches its tail a lot more
+            st.flick.next = now + (st.activity === "play" ? rand(1100, 2800) : rand(2500, 7000));
           }
           const sway = 0.05 * Math.sin((2 * Math.PI * t) / 4.3);
           springStep(st.tip, now < st.flick.until ? st.flick.to : sway, 40, 0.28, h);
@@ -1934,6 +2273,12 @@ const FireflyBuddy = (() => {
           `translate3d(${toPx(jx)}px, ${toPx(jy)}px, 0) scale(${(1 + 0.008 * b).toFixed(4)}, ${(1 + rise * b).toFixed(4)})`);
         setTransform(dom.tip, `rotate(${st.tip.x.toFixed(4)}rad)`);
       }
+      setTransform(dom.near, st.pose === "sit" ? `rotate(${pawAngle(now).toFixed(4)}rad)` : "none");
+
+      if (st.ball && st.ball.x !== null) {
+        setTransform(st.ball.el, `translate3d(${snap(st.ball.x - ballRadius())}px, 0, 0)`);
+        setTransform(st.ball.body, `rotate(${st.ball.angle.toFixed(3)}rad)`);
+      }
 
       setTransform(dom.head, `translate3d(${toPx(jx)}px, ${toPx(st.head.x + jy)}px, 0)`);
 
@@ -1948,7 +2293,7 @@ const FireflyBuddy = (() => {
       // a purr hums through the band: the antennae buzz with it
       const buzz = st.reduced ? 0 : st.purrLevel * 0.03;
       dom.antennae.forEach((a, i) => {
-        const angle = st.ant[i].x + buzz * Math.sin(2 * Math.PI * 9 * t + i * 1.7);
+        const angle = st.ant[i].x + buzz * Math.sin(((2 * Math.PI * 9) / PURR_SLOWDOWN) * t + i * 1.7);
         setTransform(a.wrap, `rotate(${angle.toFixed(4)}rad)`);
       });
     }
@@ -2082,11 +2427,62 @@ const FireflyBuddy = (() => {
       }
       st.last = nowMs();
       render(nowMs());
-      return { pose: st.pose, x: st.x, dir: st.dir, eyes: st.eyes, px: st.px, trans: Boolean(st.trans) };
+      return {
+        pose: st.pose,
+        x: st.x,
+        dir: st.dir,
+        eyes: st.eyes,
+        px: st.px,
+        trans: Boolean(st.trans),
+        plan: st.brain.pose,
+        goal: st.goalX,
+        swat: Boolean(st.swat),
+        ball: st.ball ? { x: st.ball.x, v: st.ball.v } : null,
+      };
+    }
+
+    /* "timer", "roam" or "play" — see create(). */
+    function setActivity(name) {
+      if (name === st.activity) return;
+      st.activity = name;
+      st.goalX = null;
+      st.swat = null;
+      st.pauseUntil = 0;
+      st.brain = { pose: "sit", until: nowMs() + rand(800, 2200), nextSwat: 0, restless: 0 };
+      if (name === "play") ensureBall();
+      else removeBall();
+      // The host may just have moved to another lane: measure it and stand
+      // in the middle of it.
+      st.x = null;
+      if (!host.hidden) {
+        measure();
+        if (st.laneW) st.x = laneTravel() / 2;
+      }
+    }
+
+    /* Pop in with sparkles where the cat now is — after moving it somewhere new. */
+    function appear() {
+      if (!st.enabled || host.hidden) return;
+      render(nowMs());
+      if (st.reduced) {
+        dom.pop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" });
+        return;
+      }
+      dom.pop.animate(
+        [
+          { transform: "scale(0.2)", opacity: 0 },
+          { transform: "scale(1.12, 0.93)", opacity: 1, offset: 0.55 },
+          { transform: "scale(0.96, 1.04)", offset: 0.78 },
+          { transform: "scale(1)", opacity: 1 },
+        ],
+        { duration: 560, easing: "cubic-bezier(.25,.8,.3,1)" }
+      );
+      setTimeout(sparkle, 140);
     }
 
     /* Everything off: the loop, the purr, the watchers. */
     function destroy() {
+      removeBall();
       purr.stop();
       st.enabled = false;
       if (st.raf) cancelAnimationFrame(st.raf);
@@ -2113,6 +2509,8 @@ const FireflyBuddy = (() => {
     return {
       sync,
       face,
+      setActivity,
+      appear,
       destroy,
       setPurring,
       togglePurring: () => setPurring(!purr.on),

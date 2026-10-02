@@ -1282,7 +1282,7 @@ body[data-view="compact"] .buddy {
 
 /* The purr button hums along while the cat purrs. */
 .dock-btn[aria-pressed="true"] .purr-waves {
-  animation: dockPurr 0.16s steps(2) infinite;
+  animation: dockPurr 0.32s steps(2) infinite;
 }
 
 @keyframes dockPurr {

@@ -31,7 +31,7 @@
 ## ✨ Features
 
 - **Classic Pomodoro cycles** — focus, short break and long break, with configurable durations and auto-continue.
-- **Floating widget on any page** — two small things float over the sites you work on: the timer, and the ginger study cat standing on a little toolbar with your open tasks underneath. Drag each anywhere, tick tasks off or add new ones, and pet the cat to make it purr.
+- **Floating widget on any page** — two small things float over the sites you work on: the timer with your open tasks in a drawer underneath, and the ginger study cat on a little shelf. The cat either plays with a ball right there or strolls along the bottom of the tab; pet it to make it purr.
 - **Full side panel** — the complete UI in Chrome's native side panel: timer, tasks, daily stats and settings.
 - **Fullscreen mode** — open the timer as a whole-screen ambient clock on a spare monitor. The controls fade away while you work and return on the first mouse move.
 - **Tasks with deadlines** — add an optional due date to any task. Overdue tasks are flagged in red, tasks due soon in amber. Your tasks persist across days and restarts — pick up unfinished work the next morning.
@@ -71,7 +71,7 @@ Then visit `http://localhost:8080/` and use your browser's **Install** action. T
 ## 🚀 Usage
 
 - **Open the panel** — click the toolbar icon to open the side panel with the full timer, tasks and settings.
-- **Floating widget** — appears automatically on regular web pages (`http`/`https`) as two pieces you can drag apart: the **timer** (click the time to open the panel) and the **cat with your tasks** (✎ adds a task, the wave makes the cat purr, ⌄ folds the list away; a tap on the cat purrs too). Hover either and press **×** to hide it on the current page (it comes back on reload). To turn it off everywhere, use **Settings → Floating widget on websites**.
+- **Floating widget** — appears automatically on regular web pages (`http`/`https`) as two pieces you can drag apart: the **timer** (click the time to open the panel; the handle under it folds the task drawer away, and "+ New task" adds one) and the **cat** on its shelf (🐾 lets it stroll along the bottom of the tab, ⚽ keeps it home playing with a ball, the wave makes it purr; a tap on the cat purrs too). Hover either and press **×** to hide it on the current page (it comes back on reload). To turn it off everywhere, use **Settings → Floating widget on websites**.
 - **Add a deadline** — click the date pill under a task to set or change its due date; clear the date to remove it.
 - **Switch theme / language** — both selectors live at the top of the side panel.
 - **Tune it** — set focus/break lengths, long-break cadence, reminder time, daily goal, sound style and firefly frequency in **Settings**.
