@@ -1224,148 +1224,17 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 /* ==========================================================================
-   Study buddy — pixel-art ginger Maine Coon in a sage firefly headband.
-   buddy.js builds the markup and moves everything; these rules only size and
-   stack it, for the side panel and the fullscreen page alike.
-
-   The cat is a pile of small canvases at one canvas pixel per art pixel,
-   scaled up here with image-rendering: pixelated. --px is how many CSS
-   pixels one art pixel takes: buddy.js rounds --buddy-size to a whole number
-   of device pixels per art pixel and writes the result on .buddy. Everything
-   that moves has will-change: transform and only ever moves by transform.
+   Study buddy. The cat's own styles live in buddy.js — they have to work
+   inside the floating widget's shadow DOM as well — and are injected ahead
+   of this file, so a rule here wins. Only the panel's sizing is set here.
    ========================================================================== */
-.buddy {
-  /* Roughly how wide the sprite should be — the real size is rounded. */
-  --buddy-size: clamp(112px, 36vw, 128px);
-  --px: 2;
-
-  position: relative;
-  display: block;
-  width: 100%;
-  /* 62 of the frame's 66 rows: the top ones are headroom the antennae swing
-     into, and they may poke above the lane rather than pad it. */
-  height: calc(var(--px) * 62px);
-  margin: 0 0 6px;
-  /*
-   * The walker slides along the whole lane, and its box would give the page
-   * a horizontal scroll range. `clip`, not `hidden`: mixing hidden with
-   * visible turns both axes into auto, and vertically the antennae and the
-   * sleepy "z" have to be free to rise above the lane.
-   */
-  overflow-x: clip;
-  overflow-y: visible;
-  color: var(--muted); /* the "z" of a sleeping cat */
-  pointer-events: none;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.buddy[hidden] {
-  display: none;
+.timer-shell .buddy {
+  margin-bottom: 6px;
 }
 
 body[data-view="compact"] .buddy {
   --buddy-size: clamp(64px, 22vw, 96px);
   margin-bottom: 2px;
-}
-
-.buddy-probe {
-  position: absolute;
-  width: var(--buddy-size);
-  height: 0;
-  visibility: hidden;
-}
-
-.buddy-walker {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: calc(var(--px) * 68px);
-  height: calc(var(--px) * 66px);
-  pointer-events: auto;
-  will-change: transform;
-}
-
-/* Petting the cat makes it purr — buddy.js only lights this over the cat. */
-.buddy-walker.is-over-cat {
-  cursor: pointer;
-}
-
-.buddy-pop,
-.buddy-turn,
-.buddy-rig,
-.buddy-fx {
-  position: absolute;
-  inset: 0;
-}
-
-/* Squashes, turns and entrances all pivot on the ground under the cat. */
-.buddy-pop,
-.buddy-turn,
-.buddy-rig {
-  transform-origin: 50% 95.5%;
-}
-
-.buddy-px,
-.buddy-head,
-.buddy-antenna {
-  position: absolute;
-}
-
-.buddy-px {
-  image-rendering: pixelated;
-}
-
-.buddy-turn,
-.buddy-rig,
-.buddy-body,
-.buddy-tail,
-.buddy-tip,
-.buddy-head,
-.buddy-whisker,
-.buddy-antenna {
-  will-change: transform;
-}
-
-/* ---------- Firefly bulbs ----------
-   Day is energy-saving mode: the bulbs stay dark, and buddy.js makes them
-   wink now and then at random. Night switches them fully on, with a steady
-   soft sage neon glow. */
-.buddy-bulb-lit,
-.buddy-glow {
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-
-.buddy[data-night] .buddy-bulb-lit,
-.buddy[data-night] .buddy-glow {
-  opacity: 1;
-}
-
-.buddy-glow {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(244, 255, 238, 0.95) 0 22%, rgba(185, 236, 163, 0.6) 48%, rgba(185, 236, 163, 0) 72%);
-  box-shadow:
-    0 0 calc(var(--px) * 2.5px) calc(var(--px) * 1px) rgba(185, 236, 163, 0.7),
-    0 0 calc(var(--px) * 8px) calc(var(--px) * 3px) rgba(143, 200, 128, 0.34);
-  will-change: opacity;
-}
-
-/* ---------- The "z" of a sleeping cat, and sparkles when it appears ---------- */
-.buddy-z,
-.buddy-spark {
-  position: absolute;
-  display: block;
-  overflow: visible;
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-
-.buddy-spark {
-  width: calc(var(--px) * 5px);
-  height: calc(var(--px) * 5px);
 }
 
 /* ==========================================================================
@@ -1483,9 +1352,7 @@ body[data-view="compact"] .buddy-dock {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .daynight::before,
-  .buddy-bulb-lit,
-  .buddy-glow {
+  .daynight::before {
     transition: none;
   }
 

@@ -391,13 +391,31 @@ const FireflyBuddy = (() => {
     }
   }
 
-  /* `eyes` — a key of EYES. */
-  function drawHead(eyes) {
+  /* Everything on the head but the eyes and blush — drawn once. */
+  let headBase = null;
+  function bareHead() {
+    if (headBase) return headBase;
     const g = headGrid();
     headSilhouette(g);
     headShading(g);
     fillHoles(g, "f");
     const o = outline(g);
+    stampRows(o, NOSE, HEAD.nose[0], HEAD.nose[1]);
+    stampRows(o, MOUTH, HEAD.mouth[0], HEAD.mouth[1]);
+    // lynx tufts — the Maine Coon signature: a dark wisp off each tip
+    for (const x of [3, 22]) {
+      let y = -2;
+      while (y < 8 && !isFilled(o, x, y)) y += 1;
+      put(o, x, y - 1, "o");
+    }
+    costumeBand(o);
+    headBase = o;
+    return o;
+  }
+
+  /* `eyes` — a key of EYES. */
+  function drawHead(eyes) {
+    const o = clone(bareHead());
     const shapeOfEye = EYES[eyes] || EYES.open;
     for (const [ex, ey] of HEAD.eyes) {
       // a half-shut or shut eye is lid and fur round the line, not a hole
@@ -411,19 +429,10 @@ const FireflyBuddy = (() => {
       }
       stampRows(o, shapeOfEye, ex, ey);
     }
-    stampRows(o, NOSE, HEAD.nose[0], HEAD.nose[1]);
-    stampRows(o, MOUTH, HEAD.mouth[0], HEAD.mouth[1]);
     if (eyes !== "shut") {
       stampRows(o, ["bb"], 4, 20);
       stampRows(o, ["bb"], 20, 20);
     }
-    // lynx tufts — the Maine Coon signature: a dark wisp off each tip
-    for (const x of [3, 22]) {
-      let y = -2;
-      while (y < 8 && !isFilled(o, x, y)) y += 1;
-      put(o, x, y - 1, "o");
-    }
-    costumeBand(o);
     return o;
   }
 
@@ -704,8 +713,16 @@ const FireflyBuddy = (() => {
     const heads = {};
     for (const key of Object.keys(EYES)) heads[key] = drawHead(key);
 
+    // The eight frames of the gait are drawn the first time each is needed:
+    // a cat that never walks (the one on websites) never pays for them.
     const legs = [];
-    for (let i = 0; i < WALK.frames; i += 1) legs.push({ far: walkLegs(i, false), near: walkLegs(i, true) });
+    for (let i = 0; i < WALK.frames; i += 1) {
+      let frame = null;
+      Object.defineProperty(legs, i, {
+        get: () => (frame ??= { far: walkLegs(i, false), near: walkLegs(i, true) }),
+        enumerable: true,
+      });
+    }
     legs.stand = { far: walkLegs(null, false), near: walkLegs(null, true) };
 
     gridCache = {
@@ -753,30 +770,67 @@ const FireflyBuddy = (() => {
     return g;
   }
 
+  /* Palette letters as RGBA bytes, parsed once. */
+  let paletteRgba = null;
+  function rgbaOf(key) {
+    if (!paletteRgba) {
+      paletteRgba = {};
+      for (const [k, color] of Object.entries(PALETTE)) {
+        const hex = /^#([0-9a-f]{6})$/i.exec(color);
+        if (hex) {
+          const n = parseInt(hex[1], 16);
+          paletteRgba[k] = [n >> 16, (n >> 8) & 255, n & 255, 255];
+        } else {
+          const [r, g, b, a = 1] = color.match(/[\d.]+/g).map(Number);
+          paletteRgba[k] = [r, g, b, Math.round(a * 255)];
+        }
+      }
+    }
+    return paletteRgba[key];
+  }
+
+  /* A grid as pixels, one per cell. */
+  function gridToImage(g) {
+    const image = new ImageData(g.w, g.h);
+    const px = image.data;
+    for (let i = 0; i < g.c.length; i += 1) {
+      const key = g.c[i];
+      if (key === ".") continue;
+      const rgba = rgbaOf(key);
+      if (rgba) px.set(rgba, i * 4);
+    }
+    return image;
+  }
+
   /* Paint a grid onto a canvas, one canvas pixel per cell. */
   function gridToCanvas(g, canvas = document.createElement("canvas")) {
     canvas.width = g.w;
     canvas.height = g.h;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, g.w, g.h);
-    for (let y = 0; y < g.h; y += 1) {
-      for (let x = 0; x < g.w; x += 1) {
-        const key = g.c[y * g.w + x];
-        if (key === "." || !PALETTE[key]) continue;
-        ctx.fillStyle = PALETTE[key];
-        ctx.fillRect(x, y, 1, 1);
-      }
-    }
+    canvas.getContext("2d").putImageData(gridToImage(g), 0, 0);
     return canvas;
   }
 
   let artCache = null;
 
-  /* The grids turned into canvases the engine copies from. */
+  /* Pixels for the gait, each made on first use like its grid. */
+  function lazyFrames(gridLegs, cv) {
+    const frames = [];
+    for (let i = 0; i < WALK.frames; i += 1) {
+      let frame = null;
+      Object.defineProperty(frames, i, {
+        get: () => (frame ??= { far: cv(gridLegs[i].far), near: cv(gridLegs[i].near) }),
+        enumerable: true,
+      });
+    }
+    frames.stand = { far: cv(gridLegs.stand.far), near: cv(gridLegs.stand.near) };
+    return frames;
+  }
+
+  /* The grids turned into pixels the engine copies into its layers. */
   function buildArt() {
     if (artCache) return artCache;
     const A = buildGrids();
-    const cv = (g) => gridToCanvas(g);
+    const cv = (g) => gridToImage(g);
     const masks = {};
     for (const pose of Object.keys(POSES)) {
       const flat = compose(pose, { costume: false });
@@ -790,9 +844,7 @@ const FireflyBuddy = (() => {
         body: cv(A.walk.body),
         tail: cv(A.walk.tail),
         shadow: cv(A.walk.shadow),
-        legs: Object.assign(A.walk.legs.map((l) => ({ far: cv(l.far), near: cv(l.near) })), {
-          stand: { far: cv(A.walk.legs.stand.far), near: cv(A.walk.legs.stand.near) },
-        }),
+        legs: lazyFrames(A.walk.legs, cv),
       },
       sit: { body: cv(A.sit.body), tip: cv(A.sit.tip), shadow: cv(A.sit.shadow) },
       lie: { body: cv(A.lie.body), tip: cv(A.lie.tip), shadow: cv(A.lie.shadow) },
@@ -1078,6 +1130,98 @@ const FireflyBuddy = (() => {
   ];
 
   /* ------------------------------------------------------------------ */
+  /* Styles                                                              */
+  /* ------------------------------------------------------------------ */
+
+  /*
+   * The cat's CSS travels with it, because it has to work in two kinds of
+   * place: the extension's own pages, and the shadow root of the floating
+   * widget on websites, which no page stylesheet can reach. create() puts it
+   * at the very start of whichever root the cat lands in, so the page's own
+   * rules — sizes, margins, positions — come later and win.
+   *
+   * --px is how many CSS pixels one art pixel takes; measure() writes it.
+   * Everything that moves has will-change: transform and moves only by
+   * transform.
+   */
+  const BUDDY_CSS = `
+.buddy {
+  --buddy-size: clamp(112px, 36vw, 128px);
+  --px: 2;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: calc(var(--px) * ${LANE_ROWS}px);
+  margin: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  color: var(--buddy-ink, var(--muted, #b9a5c8));
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.buddy[hidden] { display: none; }
+.buddy-probe { position: absolute; width: var(--buddy-size); height: 0; visibility: hidden; }
+.buddy-walker {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--px) * ${FRAME.w}px);
+  height: calc(var(--px) * ${FRAME.h}px);
+  pointer-events: auto;
+  will-change: transform;
+}
+.buddy-walker.is-over-cat { cursor: pointer; }
+.buddy-pop, .buddy-turn, .buddy-rig, .buddy-fx { position: absolute; inset: 0; }
+.buddy-pop, .buddy-turn, .buddy-rig {
+  transform-origin: 50% ${(((GROUND + FRAME.oy + 1) / FRAME.h) * 100).toFixed(1)}%;
+}
+.buddy-px, .buddy-head, .buddy-antenna { position: absolute; }
+.buddy-px { image-rendering: pixelated; }
+.buddy-turn, .buddy-rig, .buddy-body, .buddy-tail, .buddy-tip,
+.buddy-head, .buddy-whisker, .buddy-antenna { will-change: transform; }
+
+/* Day is energy-saving mode: the bulbs stay dark and wink now and then at
+   random. Night switches them fully on, with a steady soft sage neon glow. */
+.buddy-bulb-lit, .buddy-glow { opacity: 0; transition: opacity 0.6s ease; }
+.buddy[data-night] .buddy-bulb-lit, .buddy[data-night] .buddy-glow { opacity: 1; }
+.buddy-glow {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 255, 238, 0.95) 0 22%, rgba(185, 236, 163, 0.6) 48%, rgba(185, 236, 163, 0) 72%);
+  box-shadow:
+    0 0 calc(var(--px) * 2.5px) calc(var(--px) * 1px) rgba(185, 236, 163, 0.7),
+    0 0 calc(var(--px) * 8px) calc(var(--px) * 3px) rgba(143, 200, 128, 0.34);
+  will-change: opacity;
+}
+
+/* The "z" of a sleeping cat, and the sparkles of an entrance. */
+.buddy-z, .buddy-spark {
+  position: absolute;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.buddy-spark { width: calc(var(--px) * 5px); height: calc(var(--px) * 5px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .buddy-bulb-lit, .buddy-glow { transition: none; }
+}
+`;
+
+  /* Once per document or shadow root, ahead of everything else in it. */
+  function adoptStyles(rootNode) {
+    const container = rootNode instanceof ShadowRoot ? rootNode : document.head || document.documentElement;
+    if (container.querySelector(":scope > style[data-firefly-buddy]")) return;
+    const style = document.createElement("style");
+    style.dataset.fireflyBuddy = "";
+    style.textContent = BUDDY_CSS;
+    container.prepend(style);
+  }
+
+  /* ------------------------------------------------------------------ */
   /* The engine                                                          */
   /* ------------------------------------------------------------------ */
 
@@ -1088,6 +1232,7 @@ const FireflyBuddy = (() => {
    * happens in here.
    */
   function create(host, { onPurrChange = null } = {}) {
+    adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     const purr = createPurr();
@@ -1228,10 +1373,12 @@ const FireflyBuddy = (() => {
       return { probe, walker, pop, turn, rig, shadow, tail, far, body, near, tip, head, face, whiskers, antennae, fx, box };
     }
 
+    // putImageData replaces every pixel, transparent ones too: clearing and
+    // painting in one go.
     function paint(canvas, image) {
       const ctx = canvas.getContext("2d");
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image) ctx.drawImage(image, 0, 0);
+      if (image) ctx.putImageData(image, 0, 0);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     /* Write a transform only when it changed. */
@@ -1356,18 +1503,13 @@ const FireflyBuddy = (() => {
     }
 
     function stepWalk(now, dt) {
+      if (!st.laneW) return 0;
       const travel = Math.max(0, st.laneW - stageWidth());
       if (st.x === null) st.x = travel / 2;
       st.x = clamp(st.x, 0, travel);
 
       let speed = 0;
-      if (st.turn) {
-        const p = (now - st.turn.start) / st.turn.ms;
-        if (p >= 1) {
-          st.dir = st.turn.to;
-          st.turn = null;
-        }
-      } else if (now >= st.pauseUntil && travel > 0) {
+      if (!st.turn && now >= st.pauseUntil && travel > 0) {
         // art pixels a second: an amble in the panel, a brisker trot across a
         // whole screen, and always the gait's own pace so paws never slide
         speed = clamp(travel / st.px / 24, 4.5, 16);
@@ -1377,13 +1519,6 @@ const FireflyBuddy = (() => {
           st.pauseUntil = now + rand(500, 1300);
           st.turn = { start: st.pauseUntil, ms: 280, to: -st.dir, kicked: false };
         }
-      }
-
-      if (st.turn && now >= st.turn.start && !st.turn.kicked) {
-        st.turn.kicked = true;
-        st.ant[0].v += rand(3, 6) * st.dir;
-        st.ant[1].v += rand(3, 6) * st.dir;
-        st.tail.v -= 2.4 * st.dir;
       }
 
       const v = speed * st.dir;
@@ -1398,6 +1533,23 @@ const FireflyBuddy = (() => {
         setLegs("stand");
       }
       return accel;
+    }
+
+    /* A turn plays out in any pose: wait for its start, swing, done. */
+    function stepTurn(now) {
+      const turn = st.turn;
+      if (!turn || now < turn.start) return;
+      if (!turn.kicked) {
+        turn.kicked = true;
+        st.ant[0].v += rand(3, 6) * st.dir;
+        st.ant[1].v += rand(3, 6) * st.dir;
+        st.tail.v -= 2.4 * st.dir;
+        st.tip.v -= 1.5 * st.dir;
+      }
+      if (now >= turn.start + turn.ms) {
+        st.dir = turn.to;
+        st.turn = null;
+      }
     }
 
     function turnScale(now) {
@@ -1658,6 +1810,7 @@ const FireflyBuddy = (() => {
         else startTransition(targetPose(now), now);
       }
       if (st.trans) stepTransition(now);
+      stepTurn(now);
 
       // walking — the walker keeps its place while the cat sits
       let walkerAccel = 0;
@@ -1665,15 +1818,13 @@ const FireflyBuddy = (() => {
       else {
         st.walkerV = 0;
         st.speed = 0;
-        // Stopped mid-turn: finish turning now, or it would sit down edge-on.
-        if (st.turn) {
-          if (now >= st.turn.start + st.turn.ms / 2) st.dir = st.turn.to;
-          st.turn = null;
-        }
         st.pauseUntil = 0;
-        const travel = Math.max(0, st.laneW - stageWidth());
-        if (st.x === null || st.reduced) st.x = travel / 2;
-        st.x = clamp(st.x, 0, travel);
+        // A hidden lane measures zero wide; do not take that as where to sit.
+        if (st.laneW > 0) {
+          const travel = Math.max(0, st.laneW - stageWidth());
+          if (st.x === null || st.reduced) st.x = travel / 2;
+          st.x = clamp(st.x, 0, travel);
+        }
       }
 
       // breathing, or the purr's own breaths while it purrs
@@ -1843,9 +1994,10 @@ const FireflyBuddy = (() => {
     }
     document.addEventListener("visibilitychange", onVisibility);
 
-    reduceQuery?.addEventListener?.("change", () => {
+    const onReduce = () => {
       st.reduced = reduceQuery.matches;
-    });
+    };
+    reduceQuery?.addEventListener?.("change", onReduce);
 
     // Moving the window to a screen with another pixel density re-rounds the scale.
     let dprQuery = null;
@@ -1916,8 +2068,35 @@ const FireflyBuddy = (() => {
       return { pose: st.pose, x: st.x, dir: st.dir, eyes: st.eyes, px: st.px, trans: Boolean(st.trans) };
     }
 
+    /* Everything off: the loop, the purr, the watchers. */
+    function destroy() {
+      purr.stop();
+      st.enabled = false;
+      if (st.raf) cancelAnimationFrame(st.raf);
+      st.raf = 0;
+      resizeObserver.disconnect();
+      viewObserver.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      reduceQuery?.removeEventListener?.("change", onReduce);
+      dprQuery?.removeEventListener?.("change", onDpr);
+    }
+
+    /* Turn to face left (-1) or right (1) — for a cat that does not walk. */
+    function face(dir) {
+      const heading = st.turn ? st.turn.to : st.dir;
+      if (dir === heading) return;
+      if (st.reduced || !st.pose) {
+        st.dir = dir;
+        st.turn = null;
+        return;
+      }
+      st.turn = { start: nowMs(), ms: 280, to: dir, kicked: false };
+    }
+
     return {
       sync,
+      face,
+      destroy,
       setPurring,
       togglePurring: () => setPurring(!purr.on),
       isPurring: () => purr.on,

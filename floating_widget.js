@@ -8,181 +8,182 @@
   const previous = window.__POMODORO_FLOATING_WIDGET__;
   if (typeof previous?.teardown === "function") previous.teardown();
 
-  const POSITION_KEY = "pomodoroFloatingPosition";
+  /*
+   * Two things float over the page, each dragged and remembered on its own:
+   *
+   * - the timer — a small card with the ring, the time and Start/Pause. It
+   *   keeps the storage key the old one-piece widget used, so its position
+   *   carries over;
+   * - the cat — the study buddy from buddy.js standing on a little toolbar,
+   *   with the open tasks in a card underneath.
+   *
+   * Both live in one shadow root, so no page style reaches them.
+   */
+  const TIMER_POSITION_KEY = "pomodoroFloatingPosition";
+  const BUDDY_POSITION_KEY = "pomodoroBuddyPosition";
   const HOST_ID = "ai-pomodoro-floating-widget-host";
+  const MAX_TASKS = 4;
 
   const i18n = {
     uk: {
-      title: "Pomodoro",
-      open: "Налаштування",
-      drag: "Перетягни",
-      close: "Закрити",
+      close: "Сховати",
       closeTitle: "Сховати на цій сторінці (з'явиться знову після перезавантаження)",
-      collapse: "Згорнути",
-      collapseTitle: "Згорнути до таймера — сховати задачі",
-      expand: "Розгорнути",
-      expandTitle: "Розгорнути — показати задачі",
+      collapseTitle: "Сховати задачі",
+      expandTitle: "Показати задачі",
       start: "Старт",
       pause: "Пауза",
       focus: "Робота",
       shortBreak: "Перерва",
       longBreak: "Довга перерва",
       tasks: "Задачі",
-      noTasks: "Задач ще немає",
+      noTasks: "Задач ще немає — додай першу",
+      more: "і ще {n}",
       taskPlaceholder: "Нова задача…",
       addTaskAria: "Додати задачу",
       addDeadlineTitle: "Додати дедлайн",
       deadlineTitle: "Дедлайн задачі",
-      openHint: "Клік по віджету відкриває повну панель"
+      purr: "Мурчання котика",
+      catToolbar: "Котик і задачі",
+      openHint: "Відкрити повну панель"
     },
     en: {
-      title: "Pomodoro",
-      open: "Settings",
-      drag: "Drag",
-      close: "Close",
+      close: "Hide",
       closeTitle: "Hide on this page (comes back after reload)",
-      collapse: "Collapse",
-      collapseTitle: "Collapse to the timer — hide tasks",
-      expand: "Expand",
-      expandTitle: "Expand — show tasks",
+      collapseTitle: "Hide tasks",
+      expandTitle: "Show tasks",
       start: "Start",
       pause: "Pause",
       focus: "Focus",
       shortBreak: "Break",
       longBreak: "Long break",
       tasks: "Tasks",
-      noTasks: "No tasks yet",
+      noTasks: "No tasks yet — add the first one",
+      more: "and {n} more",
       taskPlaceholder: "New task…",
       addTaskAria: "Add task",
       addDeadlineTitle: "Add deadline",
       deadlineTitle: "Task deadline",
-      openHint: "Click the widget to open the full panel"
+      purr: "Cat purring",
+      catToolbar: "Cat and tasks",
+      openHint: "Open the full panel"
     },
     de: {
-      title: "Pomodoro",
-      open: "Einstellungen",
-      drag: "Ziehen",
-      close: "Schließen",
+      close: "Ausblenden",
       closeTitle: "Auf dieser Seite ausblenden (erscheint nach dem Neuladen wieder)",
-      collapse: "Einklappen",
-      collapseTitle: "Auf den Timer einklappen — Aufgaben ausblenden",
-      expand: "Ausklappen",
-      expandTitle: "Ausklappen — Aufgaben anzeigen",
+      collapseTitle: "Aufgaben ausblenden",
+      expandTitle: "Aufgaben anzeigen",
       start: "Start",
       pause: "Pause",
       focus: "Fokus",
       shortBreak: "Pause",
       longBreak: "Lange Pause",
       tasks: "Aufgaben",
-      noTasks: "Noch keine Aufgaben",
+      noTasks: "Noch keine Aufgaben — füge die erste hinzu",
+      more: "und {n} weitere",
       taskPlaceholder: "Neue Aufgabe…",
       addTaskAria: "Aufgabe hinzufügen",
       addDeadlineTitle: "Frist hinzufügen",
       deadlineTitle: "Frist der Aufgabe",
-      openHint: "Klicke das Widget an, um das volle Panel zu öffnen"
+      purr: "Schnurren",
+      catToolbar: "Katze und Aufgaben",
+      openHint: "Das volle Panel öffnen"
     },
     es: {
-      title: "Pomodoro",
-      open: "Ajustes",
-      drag: "Arrastrar",
-      close: "Cerrar",
+      close: "Ocultar",
       closeTitle: "Ocultar en esta página (vuelve al recargar)",
-      collapse: "Contraer",
-      collapseTitle: "Contraer al temporizador — ocultar tareas",
-      expand: "Expandir",
-      expandTitle: "Expandir — mostrar tareas",
+      collapseTitle: "Ocultar tareas",
+      expandTitle: "Mostrar tareas",
       start: "Iniciar",
       pause: "Pausa",
       focus: "Enfoque",
       shortBreak: "Descanso",
       longBreak: "Descanso largo",
       tasks: "Tareas",
-      noTasks: "Aún no hay tareas",
+      noTasks: "Aún no hay tareas: añade la primera",
+      more: "y {n} más",
       taskPlaceholder: "Nueva tarea…",
       addTaskAria: "Añadir tarea",
       addDeadlineTitle: "Añadir fecha límite",
       deadlineTitle: "Fecha límite de la tarea",
-      openHint: "Haz clic en el widget para abrir el panel completo"
+      purr: "Ronroneo",
+      catToolbar: "Gato y tareas",
+      openHint: "Abrir el panel completo"
     },
     it: {
-      title: "Pomodoro",
-      open: "Impostazioni",
-      drag: "Trascina",
-      close: "Chiudi",
+      close: "Nascondi",
       closeTitle: "Nascondi in questa pagina (riappare al ricaricamento)",
-      collapse: "Comprimi",
-      collapseTitle: "Comprimi al timer — nascondi le attività",
-      expand: "Espandi",
-      expandTitle: "Espandi — mostra le attività",
+      collapseTitle: "Nascondi le attività",
+      expandTitle: "Mostra le attività",
       start: "Avvia",
       pause: "Pausa",
       focus: "Concentrazione",
       shortBreak: "Pausa",
       longBreak: "Pausa lunga",
       tasks: "Attività",
-      noTasks: "Ancora nessuna attività",
+      noTasks: "Ancora nessuna attività: aggiungi la prima",
+      more: "e altre {n}",
       taskPlaceholder: "Nuova attività…",
       addTaskAria: "Aggiungi attività",
       addDeadlineTitle: "Aggiungi scadenza",
       deadlineTitle: "Scadenza dell'attività",
-      openHint: "Clicca il widget per aprire il pannello completo"
+      purr: "Fusa del gatto",
+      catToolbar: "Gatto e attività",
+      openHint: "Apri il pannello completo"
     },
     sk: {
-      title: "Pomodoro",
-      open: "Nastavenia",
-      drag: "Presuň",
-      close: "Zavrieť",
+      close: "Skryť",
       closeTitle: "Skryť na tejto stránke (znova sa zobrazí po obnovení)",
-      collapse: "Zbaliť",
-      collapseTitle: "Zbaliť na časovač — skryť úlohy",
-      expand: "Rozbaliť",
-      expandTitle: "Rozbaliť — zobraziť úlohy",
+      collapseTitle: "Skryť úlohy",
+      expandTitle: "Zobraziť úlohy",
       start: "Štart",
       pause: "Pauza",
       focus: "Fokus",
       shortBreak: "Prestávka",
       longBreak: "Dlhá prestávka",
       tasks: "Úlohy",
-      noTasks: "Zatiaľ žiadne úlohy",
+      noTasks: "Zatiaľ žiadne úlohy — pridaj prvú",
+      more: "a ďalšie {n}",
       taskPlaceholder: "Nová úloha…",
       addTaskAria: "Pridať úlohu",
       addDeadlineTitle: "Pridať termín",
       deadlineTitle: "Termín úlohy",
-      openHint: "Klikni na widget, aby si otvoril celý panel"
+      purr: "Priadenie mačky",
+      catToolbar: "Mačka a úlohy",
+      openHint: "Otvoriť celý panel"
     },
     cs: {
-      title: "Pomodoro",
-      open: "Nastavení",
-      drag: "Táhni",
-      close: "Zavřít",
+      close: "Skrýt",
       closeTitle: "Skrýt na této stránce (znovu se zobrazí po obnovení)",
-      collapse: "Sbalit",
-      collapseTitle: "Sbalit na časovač — skrýt úkoly",
-      expand: "Rozbalit",
-      expandTitle: "Rozbalit — zobrazit úkoly",
+      collapseTitle: "Skrýt úkoly",
+      expandTitle: "Zobrazit úkoly",
       start: "Start",
       pause: "Pauza",
       focus: "Fokus",
       shortBreak: "Přestávka",
       longBreak: "Dlouhá přestávka",
       tasks: "Úkoly",
-      noTasks: "Zatím žádné úkoly",
+      noTasks: "Zatím žádné úkoly — přidej první",
+      more: "a další {n}",
       taskPlaceholder: "Nový úkol…",
       addTaskAria: "Přidat úkol",
       addDeadlineTitle: "Přidat termín",
       deadlineTitle: "Termín úkolu",
-      openHint: "Klikni na widget pro otevření celého panelu"
+      purr: "Předení kočky",
+      catToolbar: "Kočka a úkoly",
+      openHint: "Otevřít celý panel"
     }
   };
 
   let state = null;
-  let position = null;
   let host;
   let root;
   let nodes = {};
+  // Where each piece sits, and whether × hid it on this page.
+  const positions = { timer: null, buddy: null };
+  const dismissed = { timer: false, buddy: false };
   let drag = null;
   let movedDuringPointer = false;
-  let sessionDismissed = false;
+  let formOpen = false;
   let fireflyRecycleTimer = null;
   let fireflyConfigKey = "";
   // Fingerprint of the rendered task list, so a 500 ms tick does not rebuild
@@ -190,6 +191,10 @@
   let tasksSignature = "";
   let renderTimer = null;
   let tornDown = false;
+  // The cat is made lazily, when the page has a quiet moment: drawing it
+  // takes a few dozen milliseconds that page load should not pay for.
+  let buddy = null;
+  let buddyPending = null;
 
   /*
    * Turning the extension off does not take this script off pages that are
@@ -212,8 +217,11 @@
 
     clearInterval(renderTimer);
     clearInterval(fireflyRecycleTimer);
+    cancelBuddyCreation();
+    buddy?.destroy();
     window.removeEventListener("pointermove", moveDrag);
     window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
     window.removeEventListener("resize", onResize);
     document.removeEventListener("visibilitychange", onVisibilityChange);
     try {
@@ -225,6 +233,7 @@
     host?.remove();
     host = null;
     nodes = {};
+    buddy = null;
 
     if (window.__POMODORO_FLOATING_WIDGET__?.teardown === teardown) {
       window.__POMODORO_FLOATING_WIDGET__ = null;
@@ -332,176 +341,223 @@
       : value * 1000;
   }
 
-  function createWidget() {
-    // A stale host from a copy that could not clean up after itself (an older
-    // version, or another script world after a reload) is dead weight.
-    document.getElementById(HOST_ID)?.remove();
-
-    host = document.createElement("div");
-    host.id = HOST_ID;
-    host.setAttribute("aria-live", "polite");
-
-    root = host.attachShadow({ mode: "open" });
-
-    const style = document.createElement("style");
-    style.textContent = `
+  const STYLES = `
       :host {
         all: initial;
         position: fixed;
+        left: 0;
+        top: 0;
+        width: 0;
+        height: 0;
         z-index: 2147483647;
-        left: 24px;
-        top: 120px;
-        width: 264px;
-        color-scheme: dark;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-        pointer-events: auto;
       }
 
       * {
         box-sizing: border-box;
       }
 
-      .widget {
-        /* Surface tokens — default theme: Midnight (see .widget[data-theme]).
-           Palette "Moon": deep violet ground, moonlit pink ink. */
-        --w-text: #f2e2ec;
-        --w-title: #fdf3f8;
-        --w-muted: #d5b6ca;
-        --w-subtle: #ab8bb6;
-        --w-border: rgba(232, 200, 240, 0.18);
-        --w-border-strong: rgba(232, 200, 240, 0.30);
-        --w-hairline: rgba(232, 200, 240, 0.14);
-        --w-soft: rgba(228, 190, 236, 0.12);
-        --w-soft-2: rgba(228, 190, 236, 0.08);
-        --w-bg:
-          radial-gradient(130% 90% at 0% 0%, var(--accent-bg), transparent 55%),
-          radial-gradient(120% 120% at 100% 4%, rgba(102, 103, 171, 0.20), transparent 52%),
-          linear-gradient(165deg, rgba(66, 13, 75, 0.94), rgba(20, 3, 32, 0.96));
-        --w-ring-track: rgba(200, 170, 215, 0.18);
-        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(58, 11, 69, 0.94), rgba(18, 3, 28, 0.97));
-        --w-tasks-bg: rgba(33, 6, 53, 0.46);
-        --w-task-bg: rgba(228, 190, 236, 0.08);
-        --w-shadow-1: rgba(12, 2, 20, 0.78);
-        --w-shadow-2: rgba(12, 2, 20, 0.62);
-        --w-scroll: rgba(228, 190, 236, 0.30);
-        --on-accent: #2b0630;
-        --text-scale: 1;
-
-        position: relative;
-        width: 264px;
-        overflow: hidden;
-        border-radius: 24px;
-        border: 1px solid var(--w-border);
-        color: var(--w-text);
-        background: var(--w-bg);
-        box-shadow:
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-          0 24px 60px -20px var(--w-shadow-1),
-          0 8px 24px -14px var(--w-shadow-2);
-        opacity: 0.96;
-        -webkit-backdrop-filter: blur(20px) saturate(1.2);
-        backdrop-filter: blur(20px) saturate(1.2);
-        user-select: none;
-        animation: pomodoroWidgetIn .5s cubic-bezier(.2, .7, .2, 1) both;
-        transition: opacity .25s ease, box-shadow .25s ease, border-color .25s ease;
+      [hidden] {
+        display: none !important;
       }
 
-      .widget[data-theme="daylight"] {
+      .fw {
+        /* Surface tokens — default theme: Midnight (see .fw[data-theme]).
+           Palette "Moon": deep violet glass, moonlit pink ink. */
+        --w-text: #f2e2ec;
+        --w-muted: #d5b6ca;
+        --w-subtle: #ab8bb6;
+        --w-border: rgba(232, 200, 240, 0.16);
+        --w-border-strong: rgba(232, 200, 240, 0.30);
+        --w-hairline: rgba(232, 200, 240, 0.12);
+        --w-soft: rgba(228, 190, 236, 0.12);
+        --w-soft-2: rgba(228, 190, 236, 0.07);
+        --w-glass:
+          radial-gradient(130% 120% at 0% 0%, var(--accent-bg), transparent 60%),
+          linear-gradient(165deg, rgba(58, 12, 68, 0.93), rgba(22, 4, 34, 0.95));
+        --w-pill: linear-gradient(180deg, rgba(48, 10, 58, 0.94), rgba(26, 5, 38, 0.96));
+        --w-ring-track: rgba(200, 170, 215, 0.2);
+        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(58, 11, 69, 0.96), rgba(18, 3, 28, 0.98));
+        --w-task-bg: rgba(228, 190, 236, 0.07);
+        --w-shadow-1: rgba(12, 2, 20, 0.7);
+        --w-shadow-2: rgba(12, 2, 20, 0.55);
+        --w-scroll: rgba(228, 190, 236, 0.3);
+        --on-accent: #2b0630;
+        --buddy-ink: var(--w-muted);
+        --text-scale: 1;
+        color: var(--w-text);
+        color-scheme: dark;
+      }
+
+      .fw[data-theme="daylight"] {
         color-scheme: light;
         --w-text: #3a2c46;
-        --w-title: #2b1f36;
         --w-muted: #5f4f70;
         --w-subtle: #77678a;
-        --w-border: rgba(90, 60, 110, 0.15);
+        --w-border: rgba(90, 60, 110, 0.14);
         --w-border-strong: rgba(90, 60, 110, 0.26);
-        --w-hairline: rgba(90, 60, 110, 0.12);
-        --w-soft: rgba(90, 60, 110, 0.06);
+        --w-hairline: rgba(90, 60, 110, 0.11);
+        --w-soft: rgba(90, 60, 110, 0.07);
         --w-soft-2: rgba(90, 60, 110, 0.04);
-        --w-bg:
-          radial-gradient(130% 90% at 0% 0%, var(--accent-bg), transparent 60%),
-          radial-gradient(120% 120% at 100% 4%, rgba(195, 199, 243, 0.30), transparent 55%),
-          linear-gradient(165deg, rgba(250, 240, 252, 0.96), rgba(243, 220, 220, 0.96));
-        /* The widget ring is thin — the track needs a touch more ink than the panel's. */
+        --w-glass:
+          radial-gradient(130% 120% at 0% 0%, var(--accent-bg), transparent 62%),
+          linear-gradient(165deg, rgba(255, 251, 255, 0.95), rgba(246, 230, 238, 0.95));
+        --w-pill: linear-gradient(180deg, rgba(255, 252, 255, 0.96), rgba(244, 232, 244, 0.96));
         --w-ring-track: rgba(90, 60, 110, 0.18);
-        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(255, 253, 255, 0.97), rgba(246, 236, 246, 0.98));
-        --w-tasks-bg: rgba(255, 252, 255, 0.64);
+        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(255, 253, 255, 0.98), rgba(246, 236, 246, 0.98));
         --w-task-bg: rgba(90, 60, 110, 0.05);
         --w-shadow-1: rgba(90, 60, 110, 0.26);
-        --w-shadow-2: rgba(90, 60, 110, 0.18);
+        --w-shadow-2: rgba(90, 60, 110, 0.16);
         --w-scroll: rgba(90, 60, 110, 0.25);
       }
 
-      .widget[data-theme="sage"] {
-        color-scheme: dark;
+      .fw[data-theme="sage"] {
         --w-text: #eef4f0;
-        --w-title: #f0f6f2;
         --w-muted: #c3d3cb;
         --w-subtle: #8fa79c;
-        --w-border: rgba(190, 214, 203, 0.16);
+        --w-border: rgba(190, 214, 203, 0.15);
         --w-border-strong: rgba(190, 214, 203, 0.26);
-        --w-hairline: rgba(190, 214, 203, 0.14);
+        --w-hairline: rgba(190, 214, 203, 0.12);
         --w-soft: rgba(148, 187, 170, 0.12);
-        --w-soft-2: rgba(148, 187, 170, 0.08);
-        --w-bg:
-          radial-gradient(130% 90% at 0% 0%, var(--accent-bg), transparent 55%),
-          radial-gradient(120% 120% at 100% 4%, rgba(148, 187, 170, 0.10), transparent 52%),
-          linear-gradient(165deg, rgba(31, 46, 41, 0.92), rgba(10, 18, 16, 0.95));
-        --w-ring-track: rgba(150, 180, 168, 0.16);
-        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(28, 42, 37, 0.92), rgba(10, 18, 16, 0.96));
-        --w-tasks-bg: rgba(15, 26, 22, 0.42);
-        --w-task-bg: rgba(148, 187, 170, 0.08);
-        --w-shadow-1: rgba(3, 12, 9, 0.70);
-        --w-shadow-2: rgba(3, 12, 9, 0.55);
+        --w-soft-2: rgba(148, 187, 170, 0.07);
+        --w-glass:
+          radial-gradient(130% 120% at 0% 0%, var(--accent-bg), transparent 60%),
+          linear-gradient(165deg, rgba(31, 46, 41, 0.93), rgba(10, 18, 16, 0.95));
+        --w-pill: linear-gradient(180deg, rgba(28, 42, 37, 0.95), rgba(12, 21, 18, 0.96));
+        --w-ring-track: rgba(150, 180, 168, 0.18);
+        --w-ring-inner: radial-gradient(circle at 50% 34%, rgba(28, 42, 37, 0.95), rgba(10, 18, 16, 0.97));
+        --w-task-bg: rgba(148, 187, 170, 0.07);
+        --w-shadow-1: rgba(3, 12, 9, 0.68);
+        --w-shadow-2: rgba(3, 12, 9, 0.5);
       }
 
-      .widget:hover,
-      .widget:focus-within {
-        opacity: 1;
-        border-color: var(--w-border-strong);
-        box-shadow:
-          inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
-          0 30px 70px -20px var(--w-shadow-1),
-          0 10px 28px -14px var(--w-shadow-2);
-      }
-
-      @keyframes pomodoroWidgetIn {
-        from { transform: translateY(10px) scale(.98); }
-        to { transform: none; }
-      }
-
-      .widget[data-mode="work"] {
+      .fw[data-mode="work"] {
         --accent: #d45fce;
         --accent-soft: #f3c7f0;
-        --accent-bg: rgba(212, 95, 206, 0.22);
-        --accent-text: #2e0630;
+        --accent-bg: rgba(212, 95, 206, 0.2);
       }
 
-      .widget[data-mode="shortBreak"] {
+      .fw[data-mode="shortBreak"] {
         --accent: #4fc9e0;
         --accent-soft: #bfedf5;
-        --accent-bg: rgba(79, 201, 224, 0.22);
-        --accent-text: #04252c;
+        --accent-bg: rgba(79, 201, 224, 0.2);
         --on-accent: #04252c;
       }
 
-      .widget[data-mode="longBreak"] {
+      .fw[data-mode="longBreak"] {
         --accent: #9a8cf2;
         --accent-soft: #dcd6fd;
-        --accent-bg: rgba(154, 140, 242, 0.22);
-        --accent-text: #1a1650;
+        --accent-bg: rgba(154, 140, 242, 0.2);
         --on-accent: #1a1650;
       }
 
       /* Per-theme accent palettes */
-      .widget[data-theme="daylight"] { --on-accent: #ffffff; }
-      .widget[data-theme="daylight"][data-mode="work"] { --accent: #b84a5c; --accent-bg: rgba(184, 74, 92, 0.16); }
-      .widget[data-theme="daylight"][data-mode="shortBreak"] { --accent: #3c63c8; --accent-bg: rgba(60, 99, 200, 0.16); }
-      .widget[data-theme="daylight"][data-mode="longBreak"] { --accent: #9333a5; --accent-bg: rgba(147, 51, 165, 0.16); }
-      .widget[data-theme="sage"][data-mode="work"] { --accent: #f59e0b; --accent-bg: rgba(245, 158, 11, 0.20); }
-      .widget[data-theme="sage"][data-mode="shortBreak"] { --accent: #34d399; --accent-bg: rgba(52, 211, 153, 0.20); }
-      .widget[data-theme="sage"][data-mode="longBreak"] { --accent: #a78bfa; --accent-bg: rgba(167, 139, 250, 0.20); }
+      .fw[data-theme="daylight"] { --on-accent: #ffffff; }
+      .fw[data-theme="daylight"][data-mode="work"] { --accent: #b84a5c; --accent-bg: rgba(184, 74, 92, 0.14); }
+      .fw[data-theme="daylight"][data-mode="shortBreak"] { --accent: #3c63c8; --accent-bg: rgba(60, 99, 200, 0.14); }
+      .fw[data-theme="daylight"][data-mode="longBreak"] { --accent: #9333a5; --accent-bg: rgba(147, 51, 165, 0.14); }
+      .fw[data-theme="sage"][data-mode="work"] { --accent: #f59e0b; --accent-bg: rgba(245, 158, 11, 0.18); }
+      .fw[data-theme="sage"][data-mode="shortBreak"] { --accent: #34d399; --accent-bg: rgba(52, 211, 153, 0.18); }
+      .fw[data-theme="sage"][data-mode="longBreak"] { --accent: #a78bfa; --accent-bg: rgba(167, 139, 250, 0.18); }
 
-      /* ---------- Fireflies ---------- */
+      /* ---------- Two pieces, each floating on its own ---------- */
+      .piece {
+        position: fixed;
+        left: 0;
+        top: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        animation: pieceIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+
+      @keyframes pieceIn {
+        from { opacity: 0; transform: translateY(10px) scale(0.98); }
+        to { opacity: 1; transform: none; }
+      }
+
+      .piece.is-dragging {
+        cursor: grabbing;
+      }
+
+      /* The glass shared by the timer, the toolbar and the task card. */
+      .glass {
+        border: 1px solid var(--w-border);
+        background: var(--w-glass);
+        box-shadow:
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+          0 22px 50px -22px var(--w-shadow-1),
+          0 8px 20px -12px var(--w-shadow-2);
+        -webkit-backdrop-filter: blur(18px) saturate(1.2);
+        backdrop-filter: blur(18px) saturate(1.2);
+      }
+
+      button {
+        appearance: none;
+        margin: 0;
+        border: 0;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        transition: transform 0.15s ease, background 0.2s ease, color 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* × — hides a piece on this page only; shows itself on hover. */
+      .hide {
+        position: absolute;
+        top: -7px;
+        right: -7px;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border-radius: 999px;
+        border: 1px solid var(--w-border);
+        background: var(--w-pill);
+        color: var(--w-subtle);
+        font-size: 14px;
+        line-height: 1;
+        opacity: 0;
+        box-shadow: 0 4px 12px -4px var(--w-shadow-2);
+      }
+
+      .piece:hover .hide,
+      .piece:focus-within .hide {
+        opacity: 1;
+      }
+
+      .hide:hover {
+        color: #fff;
+        background: #c0304a;
+        border-color: #c0304a;
+      }
+
+      /* ---------- The timer ---------- */
+      .timer {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        width: calc(230px + 20px * (var(--text-scale) - 1));
+        padding: 9px 10px 9px 9px;
+        border-radius: 24px;
+        color: var(--w-text);
+        cursor: grab;
+      }
+
       .firefly-layer {
         position: absolute;
         inset: 0;
@@ -553,302 +609,235 @@
         85% { opacity: .45; }
       }
 
-      /* ---------- Header ---------- */
-      .drag {
-        position: relative;
-        z-index: 1;
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        min-height: 40px;
-        padding: 12px 14px 8px;
-        cursor: grab;
-        touch-action: none;
-      }
-
-      .drag:active {
-        cursor: grabbing;
-      }
-
-      .dot {
-        width: 9px;
-        height: 9px;
-        flex: 0 0 auto;
-        border-radius: 999px;
-        background: var(--accent);
-        box-shadow:
-          0 0 10px var(--accent),
-          0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
-        animation: pomodoroDotPulse 2.6s ease-in-out infinite;
-      }
-
-      @keyframes pomodoroDotPulse {
-        0%, 100% { box-shadow: 0 0 8px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-        50% { box-shadow: 0 0 15px var(--accent), 0 0 0 7px color-mix(in srgb, var(--accent) 5%, transparent); }
-      }
-
-      .title {
-        min-width: 0;
-        flex: 1;
-        color: var(--w-title);
-        font-size: calc(13px * var(--text-scale, 1));
-        font-weight: 800;
-        letter-spacing: -0.03em;
-      }
-
-      .drag-label {
-        color: var(--w-subtle);
-        font-size: calc(9px * var(--text-scale, 1));
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: var(--w-soft);
-        border: 1px solid var(--w-hairline);
-      }
-
-      .close,
-      .collapse {
-        flex: 0 0 auto;
-        display: grid;
-        place-items: center;
-        width: 22px;
-        height: 22px;
-        min-height: 22px;
-        padding: 0;
-        border-radius: 999px;
-        border: 1px solid var(--w-hairline);
-        background: var(--w-soft);
-        color: var(--w-subtle);
-        font-size: calc(15px * var(--text-scale, 1));
-        line-height: 1;
-        cursor: pointer;
-        transition: background .15s ease, color .15s ease, border-color .15s ease, transform .15s ease;
-      }
-
-      .close:hover {
-        color: #fff;
-        background: #c0304a;
-        border-color: #c0304a;
-        transform: none;
-      }
-
-      .collapse:hover {
-        color: var(--w-text);
-        border-color: var(--w-border-strong);
-        transform: none;
-      }
-
-      /* Points up while expanded ("shrink me"), flips down once collapsed. */
-      .collapse svg {
-        transition: transform .2s ease;
-      }
-
-      /* ---------- Collapsed: timer + Start/Pause only ---------- */
-      .widget[data-compact="true"] .tasks-block,
-      .widget[data-compact="true"] .hint,
-      .widget[data-compact="true"] .drag-label {
-        display: none;
-      }
-
-      .widget[data-compact="true"] .collapse svg {
-        transform: rotate(180deg);
-      }
-
-      .widget[data-compact="true"] .main {
-        padding-bottom: 13px;
-      }
-
-      .widget[data-compact="true"] .controls {
-        margin-top: 11px;
-      }
-
-      /* ---------- Main ---------- */
-      .main {
-        position: relative;
-        z-index: 1;
-        padding: 2px 14px 14px;
-        cursor: pointer;
-      }
-
-      .timer-row {
-        display: grid;
-        grid-template-columns: 84px minmax(0, 1fr);
-        gap: 14px;
-        align-items: center;
-      }
-
       .ring {
         --progress: 0deg;
         position: relative;
-        width: 84px;
-        aspect-ratio: 1;
+        z-index: 1;
         display: grid;
         place-items: center;
+        width: 46px;
+        height: 46px;
+        padding: 0;
         border-radius: 50%;
         background: conic-gradient(var(--accent) var(--progress), var(--w-ring-track) 0);
-        box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-          0 0 20px -4px color-mix(in srgb, var(--accent) 45%, transparent);
-        transition: background .4s linear;
+        box-shadow: 0 0 18px -4px color-mix(in srgb, var(--accent) 50%, transparent);
       }
 
       .ring-inner {
-        width: 76%;
-        aspect-ratio: 1;
+        width: 74%;
+        height: 74%;
         display: grid;
         place-items: center;
         border-radius: 50%;
         background: var(--w-ring-inner);
-        box-shadow: inset 0 0 14px var(--w-shadow-2);
       }
 
-      /* Type below mirrors the side panel's treatment (weights and em-relative
-         tracking) so the widget and the panel read as one design. */
-      .mini-time {
-        color: var(--w-text);
-        font-size: calc(12px * var(--text-scale, 1));
-        font-weight: 950;
-        letter-spacing: -0.03em;
-        font-variant-numeric: tabular-nums;
+      /* While it runs, a firefly glows in the middle of the ring. */
+      .ring-inner::after {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        opacity: 0.35;
+        transition: opacity 0.3s ease;
+      }
+
+      .fw[data-running="true"] .ring-inner::after {
+        opacity: 1;
+        animation: ringPulse 2.4s ease-in-out infinite;
+      }
+
+      @keyframes ringPulse {
+        50% { box-shadow: 0 0 14px var(--accent); transform: scale(0.8); }
+      }
+
+      .readout {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+        padding: 0;
+        text-align: left;
+        background: none;
       }
 
       .time {
+        display: block;
         color: var(--w-text);
-        font-size: 38px;
+        font-size: 28px;
         font-weight: 950;
-        letter-spacing: -0.06em;
-        line-height: 0.92;
+        line-height: 0.95;
+        letter-spacing: -0.05em;
         font-variant-numeric: tabular-nums;
-        text-shadow: 0 6px 20px var(--w-shadow-2);
       }
 
       .mode {
-        margin-top: 6px;
+        display: block;
+        margin-top: 4px;
+        overflow: hidden;
         color: var(--accent);
-        font-size: calc(11px * var(--text-scale, 1));
+        font-size: calc(10.5px * var(--text-scale, 1));
         font-weight: 900;
+        letter-spacing: 0.04em;
+        text-overflow: ellipsis;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        white-space: nowrap;
       }
 
-      /* ---------- Controls ---------- */
-      .controls {
+      .actions {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        gap: 6px;
+      }
+
+      .round {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 9px;
-        margin-top: 14px;
-      }
-
-      button {
-        appearance: none;
-        border: 0;
-        min-height: 36px;
-        padding: 8px 10px;
-        border-radius: 12px;
-        font: inherit;
-        font-size: calc(12px * var(--text-scale, 1));
-        font-weight: 900;
-        cursor: pointer;
-        transition: transform .15s ease, background .2s ease, box-shadow .2s ease, opacity .2s ease;
-      }
-
-      button:active:not(:disabled) {
-        transform: scale(.98);
-      }
-
-      button.primary {
-        color: var(--on-accent);
-        background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white 12%), var(--accent));
-        box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent);
-      }
-
-      button.primary:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 24px -8px color-mix(in srgb, var(--accent) 78%, transparent);
-      }
-
-      button.secondary {
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 999px;
         color: var(--w-text);
         background: var(--w-soft);
         border: 1px solid var(--w-hairline);
       }
 
-      button.secondary:hover:not(:disabled) {
+      .round.primary {
+        color: var(--on-accent);
+        border-color: transparent;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, white 14%), var(--accent));
+        box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+      }
+
+      .round:hover:not(:disabled) {
         transform: translateY(-1px);
-        background: var(--w-soft);
-        border-color: var(--w-border-strong);
       }
 
-      button:disabled {
-        opacity: .42;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
+      /* ---------- The cat, its toolbar and the tasks ---------- */
+      .companion {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: calc(268px + 36px * (var(--text-scale) - 1));
       }
 
-      /* ---------- Tasks ---------- */
-      .tasks-block {
-        margin-top: 14px;
-        padding: 11px;
-        border: 1px solid var(--w-hairline);
-        border-radius: 16px;
-        background: var(--w-tasks-bg);
+      .stage {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        min-width: 120px;
+        cursor: grab;
       }
 
-      .tasks-head {
+      /* The lane is exactly as wide as the cat, so it never walks off: it
+         stands while the timer runs, sits when it stops, and dozes off. */
+      .stage .buddy {
+        --buddy-size: 140px;
+        width: calc(var(--px) * 68px);
+        /* paws on the toolbar's top edge, the ground shadow across it */
+        margin-bottom: calc(var(--px) * -2px);
+      }
+
+      .pill {
+        position: relative;
+        z-index: 1;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 2px;
+        padding: 4px;
+        border-radius: 999px;
+        border: 1px solid var(--w-border);
+        background: var(--w-pill);
+        box-shadow:
+          inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+          0 14px 30px -16px var(--w-shadow-1);
       }
 
-      .tasks-title {
-        color: var(--w-muted);
-        font-size: calc(10px * var(--text-scale, 1));
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-
-      .open {
+      .pill-btn {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 32px;
+        padding: 0;
+        border-radius: 999px;
         color: var(--w-muted);
         background: transparent;
-        border: 1px solid var(--w-border);
-        min-height: 24px;
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: calc(10px * var(--text-scale, 1));
-        font-weight: 700;
       }
 
-      .open:hover {
+      .pill-btn:hover:not(:disabled) {
+        color: var(--w-text);
         background: var(--w-soft);
-        transform: none;
       }
 
-      /* Adding a task without opening the panel. Kept compact — the widget is
-         a glance surface, not a form. */
+      .pill-btn[aria-pressed="true"] {
+        color: var(--accent);
+        background: var(--w-soft);
+      }
+
+      .pill-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .pill-sep {
+        width: 1px;
+        height: 18px;
+        background: var(--w-border);
+      }
+
+      .fold svg {
+        transition: transform 0.2s ease;
+      }
+
+      .companion[data-folded="true"] .fold svg {
+        transform: rotate(180deg);
+      }
+
+      /* the purr button hums along while the cat purrs */
+      .purr[aria-pressed="true"] .waves {
+        animation: hum 0.16s steps(2) infinite;
+      }
+
+      @keyframes hum {
+        50% { transform: translateX(0.7px); }
+      }
+
+      .task-card {
+        width: 100%;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 20px;
+        color: var(--w-text);
+        cursor: grab;
+      }
+
+      .companion[data-folded="true"] .task-card {
+        display: none;
+      }
+
       .task-form {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 28px;
+        grid-template-columns: minmax(0, 1fr) 30px;
         gap: 6px;
         margin-bottom: 8px;
       }
 
       .task-input {
         width: 100%;
-        min-height: 28px;
-        padding: 0 9px;
+        min-height: 30px;
+        padding: 0 10px;
         border: 1px solid var(--w-border);
-        border-radius: 10px;
+        border-radius: 11px;
         outline: none;
         color: var(--w-text);
         background: var(--w-task-bg);
         font: inherit;
-        font-size: calc(11.5px * var(--text-scale, 1));
+        font-size: calc(12px * var(--text-scale, 1));
+        user-select: text;
+        -webkit-user-select: text;
       }
 
       .task-input::placeholder {
@@ -860,25 +849,20 @@
       }
 
       .task-add {
-        min-height: 28px;
+        min-height: 30px;
         padding: 0;
-        border: 0;
-        border-radius: 10px;
+        border-radius: 11px;
         color: var(--on-accent);
         background: var(--accent);
-        font-size: calc(14px * var(--text-scale, 1));
+        font-size: calc(15px * var(--text-scale, 1));
         font-weight: 800;
         line-height: 1;
-      }
-
-      .task-add:hover {
-        transform: translateY(-1px);
       }
 
       .tasks {
         display: grid;
         gap: 6px;
-        max-height: 104px;
+        max-height: 228px;
         margin: 0;
         padding: 0;
         overflow: auto;
@@ -887,26 +871,17 @@
         scrollbar-color: var(--w-scroll) transparent;
       }
 
-      .tasks::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      .tasks::-webkit-scrollbar-thumb {
-        background: var(--w-scroll);
-        border-radius: 999px;
-      }
-
       .task {
         display: grid;
-        grid-template-columns: 18px minmax(0, 1fr);
-        align-items: center;
-        gap: 8px;
-        min-height: 30px;
-        padding: 6px 8px;
-        border-radius: 11px;
+        grid-template-columns: 20px minmax(0, 1fr);
+        align-items: start;
+        gap: 9px;
+        padding: 8px 9px;
+        border-radius: 14px;
         background: var(--w-task-bg);
         border: 1px solid var(--w-soft-2);
-        transition: background .2s ease;
+        transition: background 0.2s ease;
+        cursor: default;
       }
 
       .task:hover {
@@ -921,20 +896,70 @@
         box-shadow: inset 3px 0 0 0 #c0304a;
       }
 
+      /* A round tick, like a notification's check mark. */
       .task input[type="checkbox"] {
-        width: 15px;
-        height: 15px;
-        margin: 0;
-        accent-color: var(--accent);
+        appearance: none;
+        -webkit-appearance: none;
+        display: grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        margin: 1px 0 0;
+        border: 2px solid var(--w-subtle);
+        border-radius: 50%;
         cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
       }
 
+      .task input[type="checkbox"]:hover {
+        border-color: var(--accent);
+      }
+
+      .task input[type="checkbox"]:checked {
+        border-color: var(--accent);
+        background: var(--accent);
+      }
+
+      .task input[type="checkbox"]:checked::after {
+        content: "";
+        width: 5px;
+        height: 9px;
+        margin-top: -2px;
+        border: solid var(--on-accent);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+
+      /* With a deadline the date reads as the row's second line, like a
+         notification's subtitle; without one, a small calendar sits at the
+         end of the title and only shows up properly on hover. */
       .task-body {
         min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
+      }
+
+      .task:not(.has-deadline) .task-body {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task:not(.has-deadline) .task-text {
+        flex: 1;
+      }
+
+      .task-text {
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--w-text);
+        font-size: calc(12.5px * var(--text-scale, 1));
+        font-weight: 750;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       /*
@@ -946,7 +971,7 @@
         width: auto;
         min-width: 112px;
         max-width: 100%;
-        min-height: 22px;
+        min-height: 21px;
         padding: 1px 8px;
         border: 1px solid var(--w-border);
         border-radius: 999px;
@@ -956,13 +981,26 @@
         font-size: calc(10px * var(--text-scale, 1));
         font-weight: 700;
         cursor: pointer;
-        transition: opacity .15s ease, border-color .15s ease;
+        transition: opacity 0.15s ease, border-color 0.15s ease;
       }
 
       .task-deadline.is-empty {
+        flex: 0 0 auto;
         min-width: 0;
-        padding: 1px 5px;
-        opacity: 0.5;
+        padding: 1px 4px;
+        border-color: transparent;
+        background: none;
+        opacity: 0;
+      }
+
+      /* only the calendar icon, not an empty dd.mm.yyyy */
+      .task-deadline.is-empty::-webkit-datetime-edit {
+        display: none;
+      }
+
+      .task:hover .task-deadline.is-empty,
+      .task-deadline.is-empty:focus {
+        opacity: 0.7;
       }
 
       .task-deadline.is-empty:hover {
@@ -981,50 +1019,30 @@
         opacity: 1;
       }
 
-      /* Native pickers follow color-scheme, so tell them which world they are in. */
-      .widget { color-scheme: dark; }
-      .widget[data-theme="daylight"] { color-scheme: light; }
-
-      .task span {
-        min-width: 0;
-        color: var(--w-text);
-        font-size: calc(12px * var(--text-scale, 1));
-        line-height: 1.35;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .task.done span {
-        color: var(--w-subtle);
-        text-decoration: line-through;
-      }
-
       .empty {
+        width: 100%;
+        padding: 6px 4px;
+        border-radius: 10px;
         color: var(--w-subtle);
-        font-size: calc(11.5px * var(--text-scale, 1));
+        background: none;
+        font-size: calc(12px * var(--text-scale, 1));
         line-height: 1.4;
-        padding: 4px 2px;
+        text-align: left;
       }
 
-      .hint {
-        margin-top: 10px;
+      .empty:hover {
+        color: var(--w-text);
+      }
+
+      .more {
+        margin: 7px 2px 0;
         color: var(--w-subtle);
-        font-size: calc(9.5px * var(--text-scale, 1));
-        line-height: 1.3;
-        text-align: center;
+        font-size: calc(11px * var(--text-scale, 1));
       }
 
-      /* The task form made the widget taller. On a short window give the space
-         back: the hint is the one purely decorative line, and the list can
-         start scrolling a little sooner. */
-      @media (max-height: 520px) {
-        .hint {
-          display: none;
-        }
-
+      @media (max-height: 560px) {
         .tasks {
-          max-height: 76px;
+          max-height: 108px;
         }
       }
 
@@ -1033,114 +1051,168 @@
           display: none;
         }
 
-        .widget,
-        .dot {
+        .piece,
+        .fw[data-running="true"] .ring-inner::after,
+        .purr[aria-pressed="true"] .waves {
           animation: none;
         }
       }
+  `;
 
-      @media (max-width: 520px) {
-        :host {
-          width: 240px;
-        }
+  const ICONS = {
+    play: '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.2-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.4"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.4"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19.2 8.8a2.3 2.3 0 0 0-3.2-3.2L4.8 16.8 4 20z"/><path d="M14 7.6l3.2 3.2"/></svg>',
+    purr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><g class="waves"><path d="M4 10v4M8 7v10M12 4.5v15M16 7v10M20 10v4"/></g></svg>',
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>'
+  };
 
-        .widget {
-          width: 240px;
-        }
+  function createWidget() {
+    // A stale host from a copy that could not clean up after itself (an older
+    // version, or another script world after a reload) is dead weight.
+    document.getElementById(HOST_ID)?.remove();
 
-        .time {
-          font-size: 33px;
-        }
+    host = document.createElement("div");
+    host.id = HOST_ID;
 
-        .timer-row {
-          grid-template-columns: 74px minmax(0, 1fr);
-        }
+    root = host.attachShadow({ mode: "open" });
 
-        .ring {
-          width: 74px;
-        }
-      }
-    `;
+    const style = document.createElement("style");
+    style.textContent = STYLES;
 
-    const wrapper = document.createElement("section");
-    wrapper.className = "widget";
-    wrapper.innerHTML = `
-      <div class="firefly-layer" aria-hidden="true"></div>
-      <div class="drag" part="drag">
-        <span class="dot"></span>
-        <span class="title"></span>
-        <span class="drag-label"></span>
-        <button class="collapse" type="button" aria-expanded="true">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+    const fw = document.createElement("div");
+    fw.className = "fw";
+    fw.innerHTML = `
+      <section class="piece timer glass">
+        <div class="firefly-layer" aria-hidden="true"></div>
+        <button class="ring open-panel" type="button"><span class="ring-inner"></span></button>
+        <button class="readout open-panel" type="button">
+          <span class="time"></span>
+          <span class="mode"></span>
         </button>
-        <button class="close" type="button">×</button>
-      </div>
-      <div class="main">
-        <div class="timer-row">
-          <div class="ring">
-            <div class="ring-inner"><span class="mini-time"></span></div>
-          </div>
-          <div>
-            <div class="time"></div>
-            <div class="mode"></div>
-          </div>
+        <div class="actions">
+          <button class="round primary start" type="button">${ICONS.play}</button>
+          <button class="round pause" type="button">${ICONS.pause}</button>
         </div>
-        <div class="controls">
-          <button class="primary start" type="button"></button>
-          <button class="secondary pause" type="button"></button>
+        <button class="hide hide-timer" type="button">×</button>
+      </section>
+
+      <section class="piece companion" data-folded="false">
+        <div class="stage">
+          <div class="buddy" hidden></div>
+          <button class="hide hide-buddy" type="button">×</button>
         </div>
-        <div class="tasks-block">
-          <div class="tasks-head">
-            <span class="tasks-title"></span>
-            <button class="open" type="button"></button>
-          </div>
-          <form class="task-form">
+        <div class="pill" role="toolbar">
+          <button class="pill-btn add" type="button" aria-pressed="false">${ICONS.pencil}</button>
+          <span class="pill-sep" aria-hidden="true"></span>
+          <button class="pill-btn purr" type="button" aria-pressed="false">${ICONS.purr}</button>
+          <span class="pill-sep" aria-hidden="true"></span>
+          <button class="pill-btn fold" type="button" aria-expanded="true">${ICONS.chevron}</button>
+        </div>
+        <div class="task-card glass">
+          <form class="task-form" hidden>
             <input class="task-input" type="text" maxlength="90" />
             <button class="task-add" type="submit">+</button>
           </form>
           <ul class="tasks"></ul>
+          <div class="more" hidden></div>
         </div>
-        <div class="hint"></div>
-      </div>
+      </section>
     `;
 
-    root.append(style, wrapper);
+    root.append(style, fw);
     document.documentElement.appendChild(host);
 
+    const q = (selector) => fw.querySelector(selector);
     nodes = {
-      widget: wrapper,
-      fireflyLayer: wrapper.querySelector(".firefly-layer"),
-      drag: wrapper.querySelector(".drag"),
-      title: wrapper.querySelector(".title"),
-      dragLabel: wrapper.querySelector(".drag-label"),
-      collapseBtn: wrapper.querySelector(".collapse"),
-      closeBtn: wrapper.querySelector(".close"),
-      time: wrapper.querySelector(".time"),
-      miniTime: wrapper.querySelector(".mini-time"),
-      mode: wrapper.querySelector(".mode"),
-      ring: wrapper.querySelector(".ring"),
-      startBtn: wrapper.querySelector(".start"),
-      pauseBtn: wrapper.querySelector(".pause"),
-      openBtn: wrapper.querySelector(".open"),
-      tasksTitle: wrapper.querySelector(".tasks-title"),
-      taskForm: wrapper.querySelector(".task-form"),
-      taskInput: wrapper.querySelector(".task-input"),
-      taskAddBtn: wrapper.querySelector(".task-add"),
-      tasksList: wrapper.querySelector(".tasks"),
-      hint: wrapper.querySelector(".hint"),
-      main: wrapper.querySelector(".main")
+      fw,
+      timer: q(".timer"),
+      fireflyLayer: q(".firefly-layer"),
+      ring: q(".ring"),
+      readout: q(".readout"),
+      time: q(".time"),
+      mode: q(".mode"),
+      startBtn: q(".start"),
+      pauseBtn: q(".pause"),
+      hideTimer: q(".hide-timer"),
+      companion: q(".companion"),
+      stage: q(".stage"),
+      buddyHost: q(".buddy"),
+      hideBuddy: q(".hide-buddy"),
+      pill: q(".pill"),
+      addBtn: q(".add"),
+      purrBtn: q(".purr"),
+      foldBtn: q(".fold"),
+      taskCard: q(".task-card"),
+      taskForm: q(".task-form"),
+      taskInput: q(".task-input"),
+      taskAddBtn: q(".task-add"),
+      tasksList: q(".tasks"),
+      more: q(".more")
     };
 
     bindEvents();
   }
 
+  /* ---------- The cat ---------- */
+
+  function cancelBuddyCreation() {
+    if (buddyPending === null) return;
+    (window.cancelIdleCallback || clearTimeout)(buddyPending);
+    buddyPending = null;
+  }
+
+  /*
+   * The cat is the expensive part — a few dozen milliseconds to draw. It is
+   * made in the page's first quiet moment rather than during its load, and
+   * only if it is wanted at all.
+   */
+  function syncBuddy(wanted) {
+    const night = (state?.settings?.theme || "midnight") !== "daylight";
+    const running = Boolean(state?.running);
+
+    if (buddy) {
+      buddy.sync({ enabled: wanted, running, night });
+      return;
+    }
+    if (!wanted || buddyPending !== null || typeof FireflyBuddy === "undefined") return;
+
+    const make = () => {
+      buddyPending = null;
+      if (tornDown || buddy) return;
+      buddy = FireflyBuddy.create(nodes.buddyHost, { onPurrChange: () => render() });
+      faceTheMiddle();
+      render();
+    };
+    buddyPending = window.requestIdleCallback
+      ? window.requestIdleCallback(make, { timeout: 2500 })
+      : setTimeout(make, 400);
+  }
+
+  /* The cat looks toward the middle of the screen, whichever side it is on. */
+  function faceTheMiddle() {
+    if (!buddy || !nodes.companion) return;
+    const rect = nodes.companion.getBoundingClientRect();
+    buddy.face(rect.left + rect.width / 2 > window.innerWidth / 2 ? -1 : 1);
+  }
+
+  /* ---------- Events ---------- */
+
   function bindEvents() {
-    nodes.drag.addEventListener("pointerdown", startDrag);
+    for (const piece of [nodes.timer, nodes.companion]) {
+      piece.addEventListener("pointerdown", startDrag);
+      // A drag that ends over a button or the cat must not also click it.
+      piece.addEventListener("click", (event) => {
+        if (!movedDuringPointer) return;
+        event.stopPropagation();
+        event.preventDefault();
+      }, true);
+    }
     window.addEventListener("pointermove", moveDrag, { passive: false });
     window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
 
-    nodes.startBtn.addEventListener("click", async (event) => {
-      event.stopPropagation();
+    nodes.startBtn.addEventListener("click", async () => {
       const response = await safeSend("START");
       if (response.ok) {
         state = response.state;
@@ -1148,8 +1220,7 @@
       }
     });
 
-    nodes.pauseBtn.addEventListener("click", async (event) => {
-      event.stopPropagation();
+    nodes.pauseBtn.addEventListener("click", async () => {
       const response = await safeSend("PAUSE");
       if (response.ok) {
         state = response.state;
@@ -1157,27 +1228,47 @@
       }
     });
 
-    nodes.openBtn.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      await safeSend("OPEN_SIDE_PANEL");
+    // The ring and the time open the full panel.
+    for (const opener of [nodes.ring, nodes.readout]) {
+      opener.addEventListener("click", () => safeSend("OPEN_SIDE_PANEL"));
+    }
+
+    // × hides one piece on this page only — non-destructive: it returns on
+    // reload and on other tabs; the settings toggle is the permanent switch.
+    nodes.hideTimer.addEventListener("click", () => {
+      dismissed.timer = true;
+      render();
     });
 
-    // Setting a deadline straight from the widget.
-    nodes.tasksList.addEventListener("change", async (event) => {
-      if (!event.target.matches("input[type='date']")) return;
-      event.stopPropagation();
+    nodes.hideBuddy.addEventListener("click", () => {
+      dismissed.buddy = true;
+      buddy?.setPurring(false);
+      render();
+    });
 
-      const li = event.target.closest(".task");
-      if (!li?.dataset?.id) return;
+    nodes.addBtn.addEventListener("click", () => {
+      setFormOpen(!formOpen || state?.settings?.floatingWidgetCompact === true);
+    });
 
-      const response = await safeSend("SET_TASK_DEADLINE", {
-        id: li.dataset.id,
-        deadline: event.target.value || null
-      });
-      if (response.ok) {
-        state = response.state;
-        render();
-      }
+    nodes.purrBtn.addEventListener("click", () => {
+      buddy?.togglePurring();
+      render();
+    });
+
+    nodes.foldBtn.addEventListener("click", async () => {
+      if (!state) return;
+
+      const next = state.settings?.floatingWidgetCompact !== true;
+
+      // Redraw straight away; storage.onChanged confirms it afterwards.
+      state = {
+        ...state,
+        settings: { ...state.settings, floatingWidgetCompact: next }
+      };
+      if (next) setFormOpen(false);
+      render();
+
+      await safeSend("SAVE_SETTINGS", { settings: state.settings });
     });
 
     // Adding a task from the widget itself, so capturing a thought does not
@@ -1205,47 +1296,40 @@
      * Stopping propagation is what keeps a typed "/" from opening their search.
      */
     for (const type of ["keydown", "keyup", "keypress"]) {
-      nodes.taskInput.addEventListener(type, (event) => event.stopPropagation());
+      nodes.taskInput.addEventListener(type, (event) => {
+        event.stopPropagation();
+        if (type === "keydown" && event.key === "Escape") setFormOpen(false);
+      });
       // Deadline chips are rebuilt on every change, so guard them by delegation.
       nodes.tasksList.addEventListener(type, (event) => {
         if (event.target.matches("input")) event.stopPropagation();
       });
     }
 
-    nodes.collapseBtn.addEventListener("click", async (event) => {
+    // Setting a deadline straight from the widget.
+    nodes.tasksList.addEventListener("change", async (event) => {
+      if (!event.target.matches("input[type='date']")) return;
       event.stopPropagation();
-      if (!state) return;
 
-      const next = state.settings?.floatingWidgetCompact !== true;
+      const li = event.target.closest(".task");
+      if (!li?.dataset?.id) return;
 
-      // Redraw straight away; storage.onChanged confirms it afterwards.
-      state = {
-        ...state,
-        settings: { ...state.settings, floatingWidgetCompact: next }
-      };
-      render();
-
-      await safeSend("SAVE_SETTINGS", { settings: state.settings });
-    });
-
-    nodes.closeBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      // Non-destructive: hide the widget only on this page for this session.
-      // It returns on reload and appears on other tabs; the settings toggle
-      // ("Floating widget on websites") remains the permanent on/off.
-      sessionDismissed = true;
-      render();
-    });
-
-    nodes.main.addEventListener("click", async (event) => {
-      if (movedDuringPointer) return;
-      // The form counts too: its gap is thin, and a stray click on it should
-      // not yank the user out to the side panel mid-typing.
-      if (event.target.closest("button, input, form")) return;
-      await safeSend("OPEN_SIDE_PANEL");
+      const response = await safeSend("SET_TASK_DEADLINE", {
+        id: li.dataset.id,
+        deadline: event.target.value || null
+      });
+      if (response.ok) {
+        state = response.state;
+        render();
+      }
     });
 
     nodes.tasksList.addEventListener("click", async (event) => {
+      if (event.target.closest(".empty")) {
+        setFormOpen(true);
+        return;
+      }
+
       const checkbox = event.target.closest("input[type='checkbox']");
       if (!checkbox) return;
 
@@ -1263,10 +1347,23 @@
     document.addEventListener("visibilitychange", onVisibilityChange);
   }
 
+  function setFormOpen(open) {
+    formOpen = open;
+    if (open && state?.settings?.floatingWidgetCompact === true) {
+      // Asked to add a task while the list is folded away: unfold it first.
+      state = { ...state, settings: { ...state.settings, floatingWidgetCompact: false } };
+      safeSend("SAVE_SETTINGS", { settings: state.settings });
+    }
+    render();
+    if (open) nodes.taskInput?.focus();
+  }
+
   // Named, so teardown() can unhook them.
   function onResize() {
-    clampAndApplyPosition();
-    savePosition();
+    clampAndApply("timer");
+    clampAndApply("buddy");
+    faceTheMiddle();
+    savePositions();
   }
 
   function onVisibilityChange() {
@@ -1274,37 +1371,47 @@
   }
 
   function onStorageChanged(changes, areaName) {
-    if (areaName === "local" && changes.pomodoro?.newValue) {
+    if (areaName !== "local") return;
+
+    if (changes.pomodoro?.newValue) {
       state = changes.pomodoro.newValue;
       render();
     }
 
-    if (areaName === "local" && changes[POSITION_KEY]?.newValue) {
-      position = changes[POSITION_KEY].newValue;
-      clampAndApplyPosition();
+    // Moved in another tab — follow it here too.
+    for (const [piece, key] of [["timer", TIMER_POSITION_KEY], ["buddy", BUDDY_POSITION_KEY]]) {
+      if (changes[key]?.newValue && drag?.piece !== piece) {
+        positions[piece] = changes[key].newValue;
+        clampAndApply(piece);
+      }
     }
   }
 
-  function startDrag(event) {
-    if (!host) return;
+  /* ---------- Dragging ---------- */
 
-    // Don't start a drag when pressing a control inside the header (e.g. close).
-    if (event.target.closest("button")) return;
+  function pieceNode(piece) {
+    return piece === "timer" ? nodes.timer : nodes.companion;
+  }
+
+  function startDrag(event) {
+    if (event.button !== 0) return;
+    // Controls keep their own clicks; the cat itself is fair game — a tap
+    // pets it, a drag moves it.
+    if (event.target.closest("input, form, .hide, .pill-btn, .round, .task-deadline")) return;
+
+    const piece = event.currentTarget === nodes.timer ? "timer" : "buddy";
+    const rect = pieceNode(piece).getBoundingClientRect();
 
     movedDuringPointer = false;
-
-    const rect = host.getBoundingClientRect();
-
     drag = {
+      piece,
       pointerId: event.pointerId,
       offsetX: event.clientX - rect.left,
       offsetY: event.clientY - rect.top,
       startX: event.clientX,
-      startY: event.clientY
+      startY: event.clientY,
+      captured: false
     };
-
-    nodes.drag.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
   }
 
   function moveDrag(event) {
@@ -1312,69 +1419,105 @@
 
     const dx = Math.abs(event.clientX - drag.startX);
     const dy = Math.abs(event.clientY - drag.startY);
-    if (dx > 3 || dy > 3) movedDuringPointer = true;
+    if (!movedDuringPointer && dx <= 3 && dy <= 3) return;
 
-    position = {
+    // Only capture once it really is a drag: capturing on press would steal
+    // the click from the cat (petting) and from the open-panel buttons.
+    if (!drag.captured) {
+      drag.captured = true;
+      movedDuringPointer = true;
+      const node = pieceNode(drag.piece);
+      node.classList.add("is-dragging");
+      try {
+        node.setPointerCapture(event.pointerId);
+      } catch (error) {
+        // The pointer is already gone; the window listeners still follow it.
+      }
+    }
+
+    positions[drag.piece] = {
       x: event.clientX - drag.offsetX,
       y: event.clientY - drag.offsetY
     };
 
-    clampAndApplyPosition();
+    clampAndApply(drag.piece);
     event.preventDefault();
   }
 
   async function endDrag(event) {
     if (!drag || event.pointerId !== drag.pointerId) return;
 
-    nodes.drag.releasePointerCapture?.(event.pointerId);
+    const { piece, captured } = drag;
+    const node = pieceNode(piece);
+    if (captured) {
+      node.classList.remove("is-dragging");
+      try {
+        node.releasePointerCapture(event.pointerId);
+      } catch (error) {
+        // Nothing was captured.
+      }
+    }
     drag = null;
-    await savePosition();
 
+    if (captured) {
+      if (piece === "buddy") faceTheMiddle();
+      await savePositions();
+    }
+
+    // The click that ends a drag arrives right after pointerup.
     setTimeout(() => {
       movedDuringPointer = false;
     }, 80);
   }
 
-  function clampAndApplyPosition() {
-    if (!host) return;
+  /* Keep a piece on screen; place it the first time it shows. */
+  function clampAndApply(piece) {
+    const node = pieceNode(piece);
+    if (!node || node.hidden) return;
 
-    const rect = host.getBoundingClientRect();
-    const width = rect.width || 264;
-    const height = rect.height || 300;
-    const padding = 10;
+    const rect = node.getBoundingClientRect();
+    const width = rect.width || (piece === "timer" ? 230 : 268);
+    const height = rect.height || (piece === "timer" ? 66 : 260);
+    const pad = 10;
 
-    if (!position) {
-      position = {
-        x: Math.max(padding, window.innerWidth - width - 24),
-        y: Math.min(Math.max(96, padding), Math.max(padding, window.innerHeight - height - padding))
-      };
+    if (!positions[piece]) {
+      // The timer up in the top-right corner, the cat in the bottom-right.
+      positions[piece] = piece === "timer"
+        ? { x: window.innerWidth - width - 24, y: 96 }
+        : { x: window.innerWidth - width - 24, y: window.innerHeight - height - 24 };
     }
 
-    position.x = Math.min(Math.max(padding, position.x), Math.max(padding, window.innerWidth - width - padding));
-    position.y = Math.min(Math.max(padding, position.y), Math.max(padding, window.innerHeight - height - padding));
+    const position = positions[piece];
+    position.x = Math.min(Math.max(pad, position.x), Math.max(pad, window.innerWidth - width - pad));
+    position.y = Math.min(Math.max(pad, position.y), Math.max(pad, window.innerHeight - height - pad));
 
-    host.style.left = `${Math.round(position.x)}px`;
-    host.style.top = `${Math.round(position.y)}px`;
+    node.style.left = `${Math.round(position.x)}px`;
+    node.style.top = `${Math.round(position.y)}px`;
   }
 
-  async function savePosition() {
-    if (!position) return;
-
+  async function savePositions() {
     try {
-      await chrome.storage.local.set({ [POSITION_KEY]: position });
+      const data = {};
+      if (positions.timer) data[TIMER_POSITION_KEY] = positions.timer;
+      if (positions.buddy) data[BUDDY_POSITION_KEY] = positions.buddy;
+      await chrome.storage.local.set(data);
     } catch (error) {
       // Ignore storage errors in restricted contexts.
     }
   }
 
-  async function loadPosition() {
+  async function loadPositions() {
     try {
-      const data = await chrome.storage.local.get(POSITION_KEY);
-      position = data[POSITION_KEY] || null;
+      const data = await chrome.storage.local.get([TIMER_POSITION_KEY, BUDDY_POSITION_KEY]);
+      positions.timer = data[TIMER_POSITION_KEY] || null;
+      positions.buddy = data[BUDDY_POSITION_KEY] || null;
     } catch (error) {
-      position = null;
+      positions.timer = null;
+      positions.buddy = null;
     }
   }
+
+  /* ---------- Fireflies inside the timer card ---------- */
 
   const FIREFLY_PALETTE = {
     midnight: {
@@ -1405,11 +1548,11 @@
 
   function applyFireflyParams(firefly) {
     const rnd = (min, max) => min + Math.random() * (max - min);
-    const waypoint = () => `${rnd(-34, 34).toFixed(1)}px`;
+    const waypoint = () => `${rnd(-26, 26).toFixed(1)}px`;
 
     firefly.style.setProperty("--fx", `${rnd(6, 94).toFixed(2)}%`);
-    firefly.style.setProperty("--fy", `${rnd(8, 92).toFixed(2)}%`);
-    firefly.style.setProperty("--size", `${rnd(3, 6).toFixed(1)}px`);
+    firefly.style.setProperty("--fy", `${rnd(10, 90).toFixed(2)}%`);
+    firefly.style.setProperty("--size", `${rnd(3, 5.5).toFixed(1)}px`);
 
     firefly.style.setProperty("--x1", waypoint());
     firefly.style.setProperty("--y1", waypoint());
@@ -1428,7 +1571,7 @@
 
   function getFireflyCount() {
     // A denser swarm while focusing, a calmer ambient glow otherwise.
-    return state?.running ? 16 : 11;
+    return state?.running ? 9 : 6;
   }
 
   function startFireflies() {
@@ -1482,7 +1625,7 @@
 
     const enabled =
       state?.settings?.floatingWidgetEnabled !== false &&
-      !sessionDismissed &&
+      !dismissed.timer &&
       state?.settings?.fireflyAnimationEnabled !== false &&
       !document.hidden &&
       !prefersReducedMotion();
@@ -1511,61 +1654,16 @@
     }, Math.max(1500, intervalMs));
   }
 
-  function render() {
-    if (!state || !nodes.widget) return;
+  /* ---------- Render ---------- */
 
-    if (state.settings?.floatingWidgetEnabled === false || sessionDismissed) {
-      host.style.display = "none";
-      syncFireflyTimer();
-      return;
-    }
+  function label(node, text) {
+    node.title = text;
+    node.setAttribute("aria-label", text);
+  }
 
-    host.style.display = "block";
-    nodes.widget.dataset.theme = state.settings?.theme || "midnight";
-    nodes.widget.style.setProperty("--text-scale", String(getTextScale()));
-
-    const compact = state.settings?.floatingWidgetCompact === true;
-    nodes.widget.dataset.compact = String(compact);
-
-    const dictionary = t();
-    const duration = getDurationMs(state.mode, state.settings);
-    const remaining = getRemainingMs();
-    const progress = Math.min(100, Math.max(0, 100 - (remaining / duration) * 100));
-    const time = formatTime(remaining);
-    const activeTasks = (state.tasks || []).filter((task) => !task.done).slice(0, 3);
-
-    nodes.widget.dataset.mode = state.mode;
-    nodes.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
-
-    nodes.title.textContent = dictionary.title;
-    nodes.dragLabel.textContent = dictionary.drag;
-    nodes.closeBtn.title = dictionary.closeTitle;
-    nodes.closeBtn.setAttribute("aria-label", dictionary.close);
-    nodes.collapseBtn.title = compact ? dictionary.expandTitle : dictionary.collapseTitle;
-    nodes.collapseBtn.setAttribute("aria-label", compact ? dictionary.expand : dictionary.collapse);
-    nodes.collapseBtn.setAttribute("aria-expanded", String(!compact));
-    nodes.startBtn.textContent = dictionary.start;
-    nodes.pauseBtn.textContent = dictionary.pause;
-    nodes.openBtn.textContent = dictionary.open;
-    nodes.tasksTitle.textContent = dictionary.tasks;
-    nodes.taskInput.placeholder = dictionary.taskPlaceholder;
-    nodes.taskAddBtn.title = dictionary.addTaskAria;
-    nodes.taskAddBtn.setAttribute("aria-label", dictionary.addTaskAria);
-    nodes.hint.textContent = dictionary.openHint;
-
-    nodes.time.textContent = time;
-    nodes.miniTime.textContent = time;
-    nodes.mode.textContent = getModeLabel(state.mode);
-
-    nodes.startBtn.disabled = state.running;
-    nodes.pauseBtn.disabled = !state.running;
-
-    // The list is hidden when collapsed — no point rebuilding it every tick.
-    if (compact) {
-      clampAndApplyPosition();
-      syncFireflyTimer();
-      return;
-    }
+  function renderTasks(dictionary) {
+    const open = (state.tasks || []).filter((task) => !task.done);
+    const shown = open.slice(0, MAX_TASKS);
 
     /*
      * Rebuild only when a task actually changed. The widget re-renders twice a
@@ -1575,54 +1673,120 @@
     const signature = [
       getLanguage(),
       new Date().toDateString(),
-      activeTasks
+      open.length,
+      shown
         .map((task) => `${task.id}~${task.text}~${task.done ? 1 : 0}~${task.deadline || ""}`)
         .join("|")
     ].join("##");
 
-    if (signature !== tasksSignature) {
-      tasksSignature = signature;
-      nodes.tasksList.innerHTML = "";
+    if (signature === tasksSignature) return;
+    tasksSignature = signature;
+    nodes.tasksList.replaceChildren();
 
-      if (!activeTasks.length) {
-        const empty = document.createElement("li");
-        empty.className = "empty";
-        empty.textContent = dictionary.noTasks;
-        nodes.tasksList.appendChild(empty);
-      } else {
-        for (const task of activeTasks) {
-          const li = document.createElement("li");
-          li.className = `task ${task.done ? "done" : ""}`;
-          const urgency = deadlineUrgency(task.deadline, task.done);
-          if (urgency) li.classList.add(urgency);
-          li.dataset.id = task.id;
-
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.checked = task.done;
-
-          const text = document.createElement("span");
-          text.textContent = task.text;
-
-          const deadline = document.createElement("input");
-          deadline.type = "date";
-          deadline.className = "task-deadline";
-          deadline.value = task.deadline || "";
-          deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
-          if (urgency) deadline.classList.add(urgency);
-          if (!task.deadline) deadline.classList.add("is-empty");
-
-          const body = document.createElement("div");
-          body.className = "task-body";
-          body.append(text, deadline);
-
-          li.append(checkbox, body);
-          nodes.tasksList.appendChild(li);
-        }
-      }
+    if (!shown.length) {
+      const empty = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "empty";
+      button.textContent = dictionary.noTasks;
+      empty.appendChild(button);
+      nodes.tasksList.appendChild(empty);
     }
 
-    clampAndApplyPosition();
+    for (const task of shown) {
+      const li = document.createElement("li");
+      li.className = "task";
+      const urgency = deadlineUrgency(task.deadline, task.done);
+      if (urgency) li.classList.add(urgency);
+      if (task.deadline) li.classList.add("has-deadline");
+      li.dataset.id = task.id;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = task.done;
+      checkbox.setAttribute("aria-label", task.text);
+
+      const text = document.createElement("span");
+      text.className = "task-text";
+      text.textContent = task.text;
+      text.title = task.text;
+
+      const deadline = document.createElement("input");
+      deadline.type = "date";
+      deadline.className = "task-deadline";
+      deadline.value = task.deadline || "";
+      deadline.title = task.deadline ? dictionary.deadlineTitle : dictionary.addDeadlineTitle;
+      if (urgency) deadline.classList.add(urgency);
+      if (!task.deadline) deadline.classList.add("is-empty");
+
+      const body = document.createElement("div");
+      body.className = "task-body";
+      body.append(text, deadline);
+
+      li.append(checkbox, body);
+      nodes.tasksList.appendChild(li);
+    }
+
+    const rest = open.length - shown.length;
+    nodes.more.hidden = rest <= 0;
+    nodes.more.textContent = rest > 0 ? dictionary.more.replace("{n}", rest) : "";
+  }
+
+  function render() {
+    if (!state || !nodes.fw) return;
+
+    const settings = state.settings || {};
+    const dictionary = t();
+    const enabled = settings.floatingWidgetEnabled !== false;
+    const showTimer = enabled && !dismissed.timer;
+    const showCompanion = enabled && !dismissed.buddy;
+
+    host.style.display = showTimer || showCompanion ? "block" : "none";
+    nodes.timer.hidden = !showTimer;
+    nodes.companion.hidden = !showCompanion;
+
+    nodes.fw.dataset.theme = settings.theme || "midnight";
+    nodes.fw.dataset.mode = state.mode;
+    nodes.fw.dataset.running = String(Boolean(state.running));
+    nodes.fw.style.setProperty("--text-scale", String(getTextScale()));
+
+    // ---- the timer
+    const duration = getDurationMs(state.mode, settings);
+    const remaining = getRemainingMs();
+    const progress = Math.min(100, Math.max(0, 100 - (remaining / duration) * 100));
+    nodes.ring.style.setProperty("--progress", `${progress * 3.6}deg`);
+    nodes.time.textContent = formatTime(remaining);
+    nodes.mode.textContent = getModeLabel(state.mode);
+    label(nodes.ring, dictionary.openHint);
+    nodes.readout.title = dictionary.openHint;
+    label(nodes.startBtn, dictionary.start);
+    label(nodes.pauseBtn, dictionary.pause);
+    nodes.startBtn.disabled = state.running;
+    nodes.pauseBtn.disabled = !state.running;
+    label(nodes.hideTimer, dictionary.closeTitle);
+
+    // ---- the cat, its toolbar and the tasks
+    const folded = settings.floatingWidgetCompact === true;
+    const catOn = showCompanion && settings.studyBuddyEnabled !== false;
+    syncBuddy(catOn);
+    nodes.companion.dataset.folded = String(folded);
+    nodes.pill.setAttribute("aria-label", dictionary.catToolbar);
+    label(nodes.addBtn, dictionary.addTaskAria);
+    nodes.addBtn.setAttribute("aria-pressed", String(formOpen && !folded));
+    label(nodes.purrBtn, dictionary.purr);
+    nodes.purrBtn.disabled = !catOn || !buddy;
+    nodes.purrBtn.setAttribute("aria-pressed", String(Boolean(buddy?.isPurring())));
+    label(nodes.foldBtn, folded ? dictionary.expandTitle : dictionary.collapseTitle);
+    nodes.foldBtn.setAttribute("aria-expanded", String(!folded));
+    label(nodes.hideBuddy, dictionary.closeTitle);
+    nodes.taskCard.setAttribute("aria-label", dictionary.tasks);
+    nodes.taskForm.hidden = !formOpen;
+    nodes.taskInput.placeholder = dictionary.taskPlaceholder;
+    label(nodes.taskAddBtn, dictionary.addTaskAria);
+    if (!folded) renderTasks(dictionary);
+
+    clampAndApply("timer");
+    clampAndApply("buddy");
     syncFireflyTimer();
   }
 
@@ -1647,7 +1811,7 @@
     if (!extensionAlive()) return;
 
     createWidget();
-    await loadPosition();
+    await loadPositions();
     await loadState();
     if (tornDown) return;
 

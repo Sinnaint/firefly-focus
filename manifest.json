@@ -39,6 +39,7 @@
         "https://*/*"
       ],
       "js": [
+        "buddy.js",
         "floating_widget.js"
       ],
       "run_at": "document_idle"
