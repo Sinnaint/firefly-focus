@@ -1401,10 +1401,15 @@ const FireflyBuddy = (() => {
       const dpr = window.devicePixelRatio || 1;
       let k = Math.max(1, Math.round((target * dpr) / NOMINAL_W));
       if (k > 1 && (k * NOMINAL_W) / dpr > target * 1.15) k -= 1;
+      const px = k / dpr;
+      const laneW = host.clientWidth;
+      // Nothing to redo — and rewriting --px with the same value would still
+      // cost a style pass.
+      if (px === st.px && laneW === st.laneW && dpr === st.dpr && host.style.getPropertyValue("--px")) return;
       st.dpr = dpr;
-      st.px = k / dpr;
-      st.laneW = host.clientWidth;
-      host.style.setProperty("--px", String(st.px));
+      st.px = px;
+      st.laneW = laneW;
+      host.style.setProperty("--px", String(px));
       st.written.clear();
     }
 
@@ -1974,8 +1979,20 @@ const FireflyBuddy = (() => {
 
     // The probe too: switching the panel to compact changes --buddy-size
     // without necessarily changing the lane's width.
+    // Measuring writes --px, and --px sets the lane's height: done inside the
+    // observer's own callback, that resize is one the observer cannot deliver
+    // in the same frame, and Chrome logs "ResizeObserver loop completed with
+    // undelivered notifications" against the extension. So measure on the
+    // next frame, outside the loop; the follow-up resize then finds nothing
+    // left to change.
+    let measureQueued = false;
     const resizeObserver = new ResizeObserver(() => {
-      if (!host.hidden) measure();
+      if (measureQueued) return;
+      measureQueued = true;
+      requestAnimationFrame(() => {
+        measureQueued = false;
+        if (!host.hidden) measure();
+      });
     });
     resizeObserver.observe(host);
     resizeObserver.observe(dom.probe);
