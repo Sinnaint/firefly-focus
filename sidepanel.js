@@ -52,10 +52,16 @@ const els = {
   soundEnabled: $("soundEnabled"),
   floatingWidgetEnabled: $("floatingWidgetEnabled"),
   studyBuddy: $("studyBuddy"),
+  dayNightBtn: $("dayNightBtn"),
+  buddyToggleBtn: $("buddyToggleBtn"),
+  purrBtn: $("purrBtn"),
   fireflyAnimationEnabled: $("fireflyAnimationEnabled"),
   saveBtn: $("saveBtn"),
   resetStatsBtn: $("resetStatsBtn")
 };
+
+// The cat runs itself (buddy.js); render() only tells it what is going on.
+const buddy = FireflyBuddy.create(els.studyBuddy, { onPurrChange: () => renderDock() });
 
 function getLanguage() {
   const lang = state?.settings?.language;
@@ -274,10 +280,11 @@ function render() {
   document.body.dataset.face = state.settings.timerFace || "ring";
   document.body.dataset.running = String(Boolean(state.running));
 
-  // The buddy markup lives in shared.js; build it once, then just show/hide.
-  const buddyOn = state.settings.studyBuddyEnabled !== false;
-  if (buddyOn) renderBuddyInto(els.studyBuddy);
-  els.studyBuddy.hidden = !buddyOn;
+  buddy.sync({
+    enabled: state.settings.studyBuddyEnabled !== false,
+    running: Boolean(state.running),
+    night: isNightTheme(state.settings.theme || "midnight")
+  });
   // While the size field has focus it owns the preview; re-applying the stored
   // value here would undo a typed-but-not-yet-committed size twice a second.
   if (document.activeElement !== els.textScale) {
@@ -314,7 +321,21 @@ function render() {
   els.goalText.textContent = `${state.stats.sessionsToday}/${state.settings.dailyGoalSessions}`;
 
   renderTasks();
+  renderDock();
   syncFireflyTimer();
+}
+
+function renderDock() {
+  if (!state) return;
+  syncBuddyDock(
+    { dayNight: els.dayNightBtn, buddy: els.buddyToggleBtn, purr: els.purrBtn },
+    {
+      theme: state.settings.theme || "midnight",
+      buddyOn: state.settings.studyBuddyEnabled !== false,
+      purring: buddy.isPurring()
+    },
+    t()
+  );
 }
 
 document.addEventListener("visibilitychange", () => syncFireflyTimer(true));
@@ -436,6 +457,34 @@ els.themeSelect.addEventListener("change", async () => {
   await saveSettingsPatch({ theme: els.themeSelect.value });
 });
 
+/* The dock: day/night and the cat save at once, like the theme select does. */
+els.dayNightBtn.addEventListener("click", async () => {
+  if (!state) return;
+
+  const theme = dayNightTarget(state.settings.theme || "midnight");
+  state = { ...state, settings: { ...state.settings, theme } };
+
+  render();
+  await saveSettingsPatch({ theme });
+});
+
+els.buddyToggleBtn.addEventListener("click", async () => {
+  if (!state) return;
+
+  const studyBuddyEnabled = state.settings.studyBuddyEnabled === false;
+  state = { ...state, settings: { ...state.settings, studyBuddyEnabled } };
+
+  render();
+  await saveSettingsPatch({ studyBuddyEnabled });
+});
+
+// Purring belongs to this page only — it is not a setting, and it stops
+// with the panel.
+els.purrBtn.addEventListener("click", () => {
+  buddy.togglePurring();
+  renderDock();
+});
+
 els.viewToggleBtn.addEventListener("click", async () => {
   if (!state) return;
 
@@ -456,7 +505,8 @@ els.viewToggleBtn.addEventListener("click", async () => {
 els.app.addEventListener("click", async (event) => {
   if (!state || state.settings.widgetMode !== "compact") return;
 
-  const interactive = event.target.closest("button, input, select, textarea, a, label");
+  // Petting the cat makes it purr; it should not also unfold the panel.
+  const interactive = event.target.closest("button, input, select, textarea, a, label, .buddy");
   if (interactive) return;
 
   state = {

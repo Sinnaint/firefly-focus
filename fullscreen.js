@@ -34,6 +34,9 @@ const els = {
   settingsMount: $("settingsMount"),
   openPanelBtn: $("openPanelBtn"),
   studyBuddy: $("studyBuddy"),
+  dayNightBtn: $("dayNightBtn"),
+  buddyToggleBtn: $("buddyToggleBtn"),
+  purrBtn: $("purrBtn"),
   taskCard: $("taskCard"),
   taskCardDrag: $("taskCardDrag"),
   taskCardTitle: $("taskCardTitle"),
@@ -50,6 +53,9 @@ let cardSignature = null;
 let sheetSignature = null;
 let cardPosition = null;
 let drag = null;
+
+// The cat runs itself (buddy.js); render() only tells it what is going on.
+const buddy = FireflyBuddy.create(els.studyBuddy, { onPurrChange: () => renderDock() });
 
 function getLanguage() {
   const lang = state?.settings?.language;
@@ -333,7 +339,8 @@ function clampCardPosition() {
   const maxX = Math.max(pad, window.innerWidth - rect.width - pad);
   const maxY = Math.max(pad, window.innerHeight - rect.height - pad);
 
-  if (!cardPosition) cardPosition = { x: maxX, y: pad };
+  // First time out it goes under the corner buttons, not on top of them.
+  if (!cardPosition) cardPosition = { x: maxX, y: 70 };
 
   cardPosition.x = Math.min(Math.max(pad, cardPosition.x), maxX);
   cardPosition.y = Math.min(Math.max(pad, cardPosition.y), maxY);
@@ -483,9 +490,12 @@ function render() {
   els.settingsClose.setAttribute("aria-label", dictionary.close);
   els.openPanelBtn.textContent = dictionary.openPanel;
 
-  const buddyOn = state.settings.studyBuddyEnabled !== false;
-  if (buddyOn) renderBuddyInto(els.studyBuddy);
-  els.studyBuddy.hidden = !buddyOn;
+  buddy.sync({
+    enabled: state.settings.studyBuddyEnabled !== false,
+    running: Boolean(state.running),
+    night: isNightTheme(state.settings.theme || "midnight")
+  });
+  renderDock();
 
   els.taskCard.hidden = state.settings.fullscreenTasksEnabled === false;
   els.taskCardTitle.textContent = dictionary.tasksTitle;
@@ -498,7 +508,51 @@ function render() {
   syncFireflyTimer();
 }
 
+function renderDock() {
+  if (!state) return;
+  syncBuddyDock(
+    { dayNight: els.dayNightBtn, buddy: els.buddyToggleBtn, purr: els.purrBtn },
+    {
+      theme: state.settings.theme || "midnight",
+      buddyOn: state.settings.studyBuddyEnabled !== false,
+      purring: buddy.isPurring()
+    },
+    t()
+  );
+}
+
+/*
+ * Saves one change straight away, the way the sheet's theme select does.
+ * The rest comes from the sheet if it has been opened (unsaved edits there
+ * ride along, exactly as with the select) or from the stored state if not.
+ */
+async function saveSettingsPatch(patch) {
+  const settings = { ...collectSettingsFrom(els.settingsMount, state?.settings || {}), ...patch };
+  state = { ...state, settings };
+  render();
+  const response = await send("SAVE_SETTINGS", { settings });
+  if (response?.ok) state = response.state;
+  if (settingsReady) applySettingsTo(els.settingsMount, state.settings);
+  render();
+}
+
 /* ---------- Events ---------- */
+els.dayNightBtn.addEventListener("click", () => {
+  if (!state) return;
+  saveSettingsPatch({ theme: dayNightTarget(state.settings.theme || "midnight") });
+});
+
+els.buddyToggleBtn.addEventListener("click", () => {
+  if (!state) return;
+  saveSettingsPatch({ studyBuddyEnabled: state.settings.studyBuddyEnabled === false });
+});
+
+// Purring belongs to this page only — not a setting, gone with the tab.
+els.purrBtn.addEventListener("click", () => {
+  buddy.togglePurring();
+  renderDock();
+});
+
 els.startBtn.addEventListener("click", async () => {
   const response = await send("START");
   if (response?.ok) state = response.state;

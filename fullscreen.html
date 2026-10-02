@@ -38,6 +38,30 @@
   <div id="studyBuddy" class="buddy fs-buddy" hidden></div>
 
   <div class="fs-corner">
+    <!-- Day/night, the cat on or off, and the purr — the panel's dock. -->
+    <button id="dayNightBtn" class="daynight fs-daynight" type="button" role="switch" aria-checked="true">
+      <svg class="dn-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4 7 7M17 17l1.6 1.6M5.4 18.6 7 17M17 7l1.6-1.6"/>
+      </svg>
+      <svg class="dn-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 14.6A8.2 8.2 0 0 1 9.4 4a8.2 8.2 0 1 0 10.6 10.6z"/>
+      </svg>
+    </button>
+    <button id="buddyToggleBtn" class="fs-icon" type="button" aria-pressed="true">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4.9 11.2 4.4 4.4l4.4 3a8.2 8.2 0 0 1 6.4 0l4.4-3-.5 6.8A7.4 7.4 0 0 1 12 19.4a7.4 7.4 0 0 1-7.1-8.2z"/>
+        <path d="M9.3 12.3h.01M14.7 12.3h.01" stroke-width="2.8"/>
+        <path d="M10.3 15.4l.85.7.85-.7.85.7.85-.7"/>
+      </svg>
+    </button>
+    <button id="purrBtn" class="fs-icon" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 17.2s-4.6-2.9-4.6-6.2A2.5 2.5 0 0 1 12 9.7a2.5 2.5 0 0 1 4.6 1.3c0 3.3-4.6 6.2-4.6 6.2z"/>
+        <g class="purr-waves"><path d="M4.4 9.3a5.2 5.2 0 0 0 0 5.6M2.3 7.7a8.4 8.4 0 0 0 0 8.8M19.6 9.3a5.2 5.2 0 0 1 0 5.6M21.7 7.7a8.4 8.4 0 0 1 0 8.8"/></g>
+      </svg>
+    </button>
+    <span class="fs-corner-gap" aria-hidden="true"></span>
     <button id="settingsBtn" class="fs-icon" type="button" aria-label="Settings">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3.2"/>
@@ -90,6 +114,7 @@
   </div>
 
   <script src="shared.js"></script>
+  <script src="buddy.js"></script>
   <script src="fullscreen.js"></script>
 </body>
 </html>

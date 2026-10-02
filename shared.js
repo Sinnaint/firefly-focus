@@ -95,6 +95,9 @@ const i18n = {
     faceDigits: "Тільки цифри",
     faceBreathe: "Дихальне коло",
     studyBuddyLabel: "Котик-компаньйон з обручем світлячка",
+    nightThemeLabel: "Нічна тема",
+    buddyToggleLabel: "Показувати котика",
+    purrLabel: "Мурчання котика",
     tasksDrag: "Перетягни"
   },
   en: {
@@ -187,6 +190,9 @@ const i18n = {
     faceDigits: "Digits only",
     faceBreathe: "Breathing circle",
     studyBuddyLabel: "Cat study buddy in a firefly headband",
+    nightThemeLabel: "Night theme",
+    buddyToggleLabel: "Show the cat",
+    purrLabel: "Cat purring",
     tasksDrag: "Drag"
   },
   de: {
@@ -275,6 +281,9 @@ const i18n = {
     faceDigits: "Nur Ziffern",
     faceBreathe: "Atmender Kreis",
     studyBuddyLabel: "Katzen-Lernbegleiter mit Glühwürmchen-Haarreif",
+    nightThemeLabel: "Nachtdesign",
+    buddyToggleLabel: "Katze zeigen",
+    purrLabel: "Schnurren",
     tasksDrag: "Ziehen"
   },
   es: {
@@ -363,6 +372,9 @@ const i18n = {
     faceDigits: "Solo dígitos",
     faceBreathe: "Círculo que respira",
     studyBuddyLabel: "Gato compañero con diadema de luciérnaga",
+    nightThemeLabel: "Tema nocturno",
+    buddyToggleLabel: "Mostrar el gato",
+    purrLabel: "Ronroneo",
     tasksDrag: "Arrastrar"
   },
   it: {
@@ -451,6 +463,9 @@ const i18n = {
     faceDigits: "Solo cifre",
     faceBreathe: "Cerchio che respira",
     studyBuddyLabel: "Gatto compagno con cerchietto da lucciola",
+    nightThemeLabel: "Tema notte",
+    buddyToggleLabel: "Mostra il gatto",
+    purrLabel: "Fusa del gatto",
     tasksDrag: "Trascina"
   },
   sk: {
@@ -539,6 +554,9 @@ const i18n = {
     faceDigits: "Iba číslice",
     faceBreathe: "Dýchajúci kruh",
     studyBuddyLabel: "Mačací spoločník s čelenkou svetlušky",
+    nightThemeLabel: "Nočná téma",
+    buddyToggleLabel: "Zobraziť mačku",
+    purrLabel: "Priadenie mačky",
     tasksDrag: "Presuň"
   },
   cs: {
@@ -627,6 +645,9 @@ const i18n = {
     faceDigits: "Jen číslice",
     faceBreathe: "Dýchající kruh",
     studyBuddyLabel: "Kočičí společník s čelenkou světlušky",
+    nightThemeLabel: "Noční téma",
+    buddyToggleLabel: "Zobrazit kočku",
+    purrLabel: "Předení kočky",
     tasksDrag: "Táhni"
   }
 };
@@ -977,427 +998,56 @@ function bindPresetPicker(root) {
 }
 
 /*
- * Study buddy — a pixel-art ginger Maine Coon in a firefly headband. It paces
- * along the bottom of the timer, sits down when the timer stops, and if the
- * timer stays stopped curls up and falls asleep.
- *
- * The sprite is built from character grids: one cell = one viewBox unit, drawn
- * with shape-rendering="crispEdges" so the pixels stay hard-edged at any size.
- * Letters name CSS classes rather than colours, so the palette stays in
- * sidepanel.css with everything else — the headband follows --accent while the
- * coat stays ginger in every theme, because this is a character, not chrome.
- * Inline SVG, no assets: the extension ships nothing it has to fetch.
- *
- * The grids are rasterised from shapes by the tool in tools/buddy-sprite/
- * rather than typed by hand, which is why every part carries a proper dark rim
- * and the curves are even. Every row of every grid must stay the same width
- * (50).
- *
- * Three poses share one head, so it stays the same cat whatever the body is
- * doing. Which one shows is decided entirely in CSS from body[data-running];
- * see the study-buddy block in sidepanel.css.
+ * The cat itself lives in buddy.js. What is left here is the little dock of
+ * buttons beside it — day/night, show or hide the cat, purr — which both
+ * pages wire to their own way of saving settings.
  */
-const BUDDY_CLASSES = {
-  o: "px-outline",    // dark rim, lynx ear tufts, the line under the band
-  d: "px-fur-dark",   // tabby stripes, shade, far legs
-  f: "px-fur",        // ginger coat
-  l: "px-fur-light",  // sunlit back and crown
-  c: "px-cream",      // ruff, muzzle, paws
-  p: "px-pink",       // nose and inner ear
-  e: "px-eye",        // green iris
-  n: "px-ink",        // pupil, shut eye, mouth
-  w: "px-whisker",
-  a: "px-glow",       // headband and antennae — follow --accent
-  g: "px-glow-hot",   // the bright core of each bulb
-  h: "px-halo",       // the glow round each bulb; it pulses like a firefly
-};
-
-/* Standing, facing right — CSS mirrors it when it turns at the end of a lap. */
-const BUDDY_STAND = [
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  ".........................................o........",
-  ".........................................o........",
-  "...............................o..................",
-  "...............................o.........o........",
-  "...............................o.........o........",
-  "...............................o........ofo.......",
-  "...............................oo.......opo.......",
-  "...............................oo......ofpo.......",
-  "...............................odo.....oppfo......",
-  "..............................oddo.aaaaaappo......",
-  "..............................olllaooooooalo......",
-  "..............................olllollllllollo.....",
-  "..............................ollllllldldlllo.....",
-  "..............................ollllllldldlllfo....",
-  "..............................ollllllllllllffo....",
-  ".............................offflllllllenefffo...",
-  ".............................offffffffffenefffo...",
-  ".............................offffdddfffffffffo...",
-  ".............................offdddfffffffcccpp...",
-  "............................olllfffffffffcccccowww",
-  "...........oooooo...oooooo..olllllffffffccccnno...",
-  ".........oodlllldoooldlllloolllllllffcccccccccoww.",
-  "........offddlllddlllddlllddllllllccccccccccco...w",
-  "........offddfllddlllddlllddllllfccccccccccco.....",
-  ".......offffdffffdffffdffffdffffcccccccccooo......",
-  ".......offffddfffddfffddfffddffccccccccco.........",
-  ".......offffddfffddfffddfffddffccccccccco.........",
-  ".......offfffdffffdffffdffffdffccccccccco.........",
-  ".......offfffddfffddfffddfffddfccccccccco.........",
-  ".......offfffddfffddfffddfffddfcccccccco..........",
-  ".......offffffdffffdffffdffffdfcccccccco..........",
-  ".......offfffffffffffffffffffffcccccccco..........",
-  "........offffffffffffffffffffffccccccco...........",
-  "........offfffffffffffffffffffffccccco............",
-  ".........ooffffffoofffffffoffoooooooo.............",
-  "...........oooooo..ooooooo.oo.....................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-];
-
-/* Raised and gently curled. Its own layer, so it can sway while she walks. */
-const BUDDY_TAIL = [
-  ".....oo...........................................",
-  "....odfo..........................................",
-  "...odddo..........................................",
-  "..oddddo..........................................",
-  "..odddfo..........................................",
-  ".ofdddo...........................................",
-  ".ofddfo...........................................",
-  ".ofddfo...........................................",
-  "offddfo...........................................",
-  "offddfo...........................................",
-  "offddffo..........................................",
-  "offdddfo..........................................",
-  "offdddfo..........................................",
-  "offdddfo..........................................",
-  ".ofdddffo.........................................",
-  ".ofdddffo.........................................",
-  "..ofddfflo........................................",
-  "..ofddffllo.......................................",
-  "...oddffllo.......................................",
-  "....odfffffo......................................",
-  ".....offffffo.....................................",
-  "......offfffo.....................................",
-  ".......ooffo......................................",
-  ".........oo.......................................",
-];
+function isNightTheme(theme) {
+  return theme !== "daylight";
+}
 
 /*
- * Sitting, traced from a photo of a cat in profile: one tall body leaning
- * forward with a rounded back, the haunch as its lower bulge, long front legs
- * straight down from the chest, the hind paw flat on the ground between, and
- * the tail out behind along the floor with its tip curled up.
+ * Day ↔ night. Night returns to whichever dark theme was last in use, so a
+ * Sage user who checks the daylight look comes back to Sage, not Midnight.
+ * Kept in localStorage: a convenience for this one switch, not a setting.
  */
-const BUDDY_SIT = [
-  ".......................................o..........",
-  ".............................o....................",
-  ".............................o.........o..........",
-  ".............................o.........o..........",
-  ".............................o........ofo.........",
-  ".............................oo.......opo.........",
-  ".............................oo......ofpo.........",
-  ".............................odo.....oppfo........",
-  "............................oddo.aaaaaappo........",
-  "............................olllaooooooalo........",
-  "............................olllollllllollo.......",
-  "............................ollllllldldlllo.......",
-  "............................ollllllldldlllfo......",
-  "............................ollllllllllllffo......",
-  "...........................offflllllllenefffo.....",
-  "...........................offffffffffenefffo.....",
-  "...........................offffdddfffffffffo.....",
-  "...........................offdddfffffffcccpp.....",
-  "..........................offffffffffffcccccowww..",
-  "..........................offfffffffffccccnno.....",
-  "..........................offffffffcccccccccoww...",
-  ".........................ollffffccccccccccco...w..",
-  "........................ollllffccccccccccco.......",
-  ".......................olllllffcccccccccoo........",
-  ".....................oolllllllffccccccco..........",
-  "...................oofldlllllfffccccccco..........",
-  "..................odffldlllllfffccccccffo.........",
-  "..................ofdffldlllffffccccccffo.........",
-  ".................offddffddffffffcccccfffo.........",
-  ".................offfdfffdffffffcccccfffo.........",
-  ".................offffdfffdffffffcccfffffo........",
-  ".................olllldlffdffffffffffffffo........",
-  ".................ollllldlffdfffffffffffffo........",
-  "................ollllllddlfddffffffffffffo........",
-  "...............olllllllldfffdffffffffffffo........",
-  "..............ollddllddlfddffffffffffffffdo.......",
-  "..............offddffddffddfffffffffffffddo.......",
-  "..............offddffddffddffffffffffffdddo.......",
-  ".ooo..........offdfffdfffdfffffffffoffodddo.......",
-  ".odo..........ofddffddffddfffffffffoffodddo.......",
-  ".oddo.........ofddffddffddfffffffffoffodddo.......",
-  ".oddo.........ofddffddffddfffffffffoffodddo.......",
-  "..oddoo...ooooffdfffdfffdffffffffffoffoddo........",
-  "..oddddooofffffddffddffddffffffffffoffoddo........",
-  "...odddfddfffffddffddffddfffffffffffofoddo........",
-  "...ooddfddffffoooooddffddffffffcccfocccoocoo......",
-  ".....ooooooooo.....ooooooooffffccoooocccocco......",
-  "...........................oooooo....oooooo.......",
-];
+const NIGHT_THEME_KEY = "fireflyNightTheme";
 
-/* Curled up asleep: chin on the paws, eyes shut, tail wrapped round the front. */
-const BUDDY_LIE = [
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  "..................................................",
-  ".........................................o........",
-  ".........................................o........",
-  "............................o.....................",
-  "............................o...........o.........",
-  ".......................................oo.........",
-  "............................o..........ofo........",
-  "............................oo........ofpo........",
-  "............................odo......ofppo........",
-  "............................oddo.....opppo........",
-  "............................oddo.aaaaaappo........",
-  "............................olllaooooooalo........",
-  "............................olllollllllollo.......",
-  "............................ollllllldldlllo.......",
-  "............................ollllllldldlllfo......",
-  "...........ooooooooooooooooolllllllllllllffo......",
-  ".........oodlllldlllldlllldllllllllllnlfffffo.....",
-  "........ollddlllddlllddlllddllllffffffnnnfffo.....",
-  ".......offfddlllddlllddlllddffffdddfffffffffo.....",
-  "......offfffdffffdffffdffffdffdddfffffffcccpp.....",
-  "......offfffddfffddfffddfffddffffffffffcccccowww..",
-  "......ooffffddfffddfffddfffddfffffffffccccnno.....",
-  ".....offoffffddfffddfffddfffddfffffcccccccccoww...",
-  ".....offfooffddfffddfffddfffddffccccccccccco...w..",
-  ".....offddfoooofffddfffddfffddfccccccccccco.......",
-  ".....offddffddfooooooooooooooofcccccccccco........",
-  ".....offddffdddfffddfffffddfffofccccccccccooo.....",
-  "......ofddffdddfffdddffffddfffoffffccccfffccco....",
-  ".......oodffdddfffdddffffddfffoooofffffffccccco...",
-  ".........oooodffffddfffoooooooo...oooooooooooo....",
-  ".............oooooooooo...........................",
-];
-
-/* Two springs off the headband with a glowing bulb on each — the firefly. */
-const BUDDY_ANTENNAE = [
-  "..............................haaah...hagah.......",
-  "..............................hggah...haaah.......",
-  "..............................haaah...hhahh.......",
-  "..............................hhhah.....ah........",
-  ".................................aa....a..........",
-  "..................................a....a..........",
-  "..................................a....a..........",
-  "..................................a....a..........",
-  "..................................aa..a...........",
-  "...................................a..a...........",
-  "...................................a..a...........",
-  "...................................a..a...........",
-];
-
-/*
- * Two leg poses swapped a few times a second: stance, then mid-stride with the
- * near and far legs crossed. Each leg carries its own dark rim, so a near leg
- * still reads as separate when it passes in front of the far one. The body
- * drops a pixel on the stride frame — what a real gait does, and what sells
- * the walk at this size. Only the standing pose uses them.
- */
-const BUDDY_LEGS = [
-  [
-    "..........oooo.oooo........oooo.oooo..............",
-    "..........oddo.offo........oddo.offo..............",
-    "..........oddo.offo........oddo.offo..............",
-    ".........oddddoffffo......oddddoffffo.............",
-    ".........oddddoffffo......oddddoffffo.............",
-    ".........oddddoffffo......oddddoffffo.............",
-    ".........oddddoffffo......oddddoffffo.............",
-    ".........oddddoffffo......oddddoffffo.............",
-    ".........oddddoffffo......oddddoffffo.............",
-    "..........oddo.offo........oddo.offo..............",
-    "..........oddo.offo........oddo.offo..............",
-    "..........occcooccco.......occcooccco.............",
-    "..........occccocccco......occccocccco............",
-    "...........oooo.oooo........oooo.oooo.............",
-  ],
-  [
-    "...........ooooooo..........ooooooo...............",
-    "...........offoddo..........offoddo...............",
-    "...........offoddo..........offoddo...............",
-    "..........offffoddo........offffoddo..............",
-    "..........offffoddo........offffoddo..............",
-    "..........offffoddo........offffoddo..............",
-    "..........offffoddo........offffoddo..............",
-    "..........offffoddo........offffoddo..............",
-    "..........offffoddo........offffoddo..............",
-    "...........offoddo..........offoddo...............",
-    "...........offoddo..........offoddo...............",
-    "...........occcocco.........occcocco..............",
-    "...........occccocco........occccocco.............",
-    "............ooooooo..........ooooooo..............",
-  ],
-];
-
-/* Where each grid sits in the sprite's coordinate system. */
-const BUDDY_OFFSETS = { body: 0, tail: 6, antennae: 0, legs: 34 };
-
-/*
- * The head moves between poses, so the antennae have to move with it — these
- * are deltas on top of BUDDY_OFFSETS.antennae. `eye` is the top-left of the
- * 3×2 open eye, for the blink; the sleeping pose has its eyes shut already.
- * Only the standing pose carries the separate, swaying tail and the walking
- * legs; the other two have theirs drawn into the body.
- */
-const BUDDY_POSES = [
-  { name: "stand", rows: BUDDY_STAND, tail: true, legs: true, antennae: [0, 0], eye: [40, 18] },
-  { name: "sit", rows: BUDDY_SIT, tail: false, legs: false, antennae: [-2, -4], eye: [38, 14] },
-  { name: "lie", rows: BUDDY_LIE, tail: false, legs: false, antennae: [-2, 15], eye: null },
-];
-
-/*
- * Runs of identical cells become one rect, and a run repeated on the next row
- * grows the rect above it instead of stacking a new one — a few hundred nodes
- * instead of a couple of thousand.
- */
-function buddyRects(rows, offsetX, offsetY) {
-  const filled = (x, y) => !!(rows[y] && BUDDY_CLASSES[rows[y][x]]);
-
-  const runs = [];
-
-  rows.forEach((row, y) => {
-    let x = 0;
-    while (x < row.length) {
-      const key = row[x];
-      if (!BUDDY_CLASSES[key]) {
-        x += 1;
-        continue;
-      }
-
-      let w = 1;
-      while (row[x + w] === key) w += 1;
-
-      const above = runs.find(
-        (r) => r.key === key && r.x === x && r.w === w && r.y + r.h === y
-      );
-      if (above) above.h += 1;
-      else runs.push({ key, x, y, w, h: 1 });
-
-      x += w;
+function dayNightTarget(theme) {
+  if (isNightTheme(theme)) {
+    try {
+      localStorage.setItem(NIGHT_THEME_KEY, theme);
+    } catch (error) {
+      // Storage blocked — night will simply mean Midnight.
     }
-  });
-
-  return runs
-    .map((r) => {
-      /*
-       * Grow half a cell into whichever neighbour will paint over the overlap.
-       * Without this the sprite shows hairline seams wherever it lands on a
-       * fractional scale — the edges anti-alias and the backdrop bleeds
-       * through. Growth stops at the silhouette, so the outline stays exact.
-       */
-      let w = r.w, h = r.h;
-      let right = true, down = true;
-      for (let y = r.y; y < r.y + r.h; y += 1) if (!filled(r.x + r.w, y)) right = false;
-      for (let x = r.x; x < r.x + r.w; x += 1) if (!filled(x, r.y + r.h)) down = false;
-      if (right) w += 0.5;
-      if (down) h += 0.5;
-
-      return (
-        `<rect class="${BUDDY_CLASSES[r.key]}" x="${r.x + offsetX}" y="${r.y + offsetY}"` +
-        ` width="${w}" height="${h}"/>`
-      );
-    })
-    .join("");
-}
-
-/* A pixel "z": top bar, a diagonal down to the left, bottom bar. */
-function buddyZ(x, y, size, cls) {
-  const parts = [`<rect x="${x}" y="${y}" width="${size}" height="1"/>`];
-  for (let i = 1; i < size - 1; i += 1) {
-    parts.push(`<rect x="${x + size - 1 - i}" y="${y + i}" width="1" height="1"/>`);
+    return "daylight";
   }
-  parts.push(`<rect x="${x}" y="${y + size - 1}" width="${size}" height="1"/>`);
-  return `<g class="buddy-z ${cls}">${parts.join("")}</g>`;
+  let night = "midnight";
+  try {
+    night = localStorage.getItem(NIGHT_THEME_KEY) || "midnight";
+  } catch (error) {
+    // Same as above.
+  }
+  return night === "sage" ? "sage" : "midnight";
 }
 
-function buddyPose(pose) {
-  // The tail and legs go first, so the body hides where they join it.
-  const tail = pose.tail
-    ? `<g class="buddy-tail">${buddyRects(BUDDY_TAIL, 0, BUDDY_OFFSETS.tail)}</g>`
-    : "";
-
-  const legs = pose.legs
-    ? BUDDY_LEGS.map(
-        (frame, i) =>
-          `<g class="buddy-legs buddy-legs-${i === 0 ? "a" : "b"}">` +
-          `${buddyRects(frame, 0, BUDDY_OFFSETS.legs)}</g>`
-      ).join("")
-    : "";
-
-  // A shut eye laid over the open one: the lid in the crown's colour, then the
-  // lash line. CSS shows it for a moment every few seconds.
-  const blink = pose.eye
-    ? `<g class="buddy-blink">` +
-      `<rect class="px-fur-light" x="${pose.eye[0]}" y="${pose.eye[1]}" width="3" height="1.5"/>` +
-      `<rect class="px-ink" x="${pose.eye[0]}" y="${pose.eye[1] + 1}" width="3" height="1"/></g>`
-    : "";
-
-  return (
-    `<g class="buddy-pose buddy-pose-${pose.name}">` +
-    tail +
-    legs +
-    buddyRects(pose.rows, 0, BUDDY_OFFSETS.body) +
-    blink +
-    `<g class="buddy-antennae">` +
-    `${buddyRects(BUDDY_ANTENNAE, pose.antennae[0], BUDDY_OFFSETS.antennae + pose.antennae[1])}</g>` +
-    `</g>`
-  );
-}
-
-function buildBuddySvg() {
-  return `
-<svg class="buddy-art" viewBox="-2 -5 53 55" xmlns="http://www.w3.org/2000/svg"
-     shape-rendering="crispEdges" aria-hidden="true" focusable="false">
-  <g class="buddy-sleep">
-    ${buddyZ(42, 23, 4, "buddy-z1")}
-    ${buddyZ(46, 16, 5, "buddy-z2")}
-  </g>
-  <g class="buddy-body">
-    ${BUDDY_POSES.map(buddyPose).join("")}
-  </g>
-</svg>`;
-}
-
-let buddySvgCache = null;
-
-/*
- * The .buddy-walk wrapper is the thing that travels: it spans the whole host
- * and slides the sprite from one edge to the other, so neither page needs any
- * markup beyond the empty #studyBuddy container.
- */
-function renderBuddyInto(host) {
-  if (!host || host.dataset.ready === "1") return;
-  if (!buddySvgCache) buddySvgCache = buildBuddySvg();
-  host.innerHTML = `<div class="buddy-walk">${buddySvgCache}</div>`;
-  host.dataset.ready = "1";
+/* Labels and pressed states of the dock; any of the three buttons may be absent. */
+function syncBuddyDock({ dayNight, buddy, purr }, { theme, buddyOn, purring }, dictionary) {
+  const label = (node, text) => {
+    node.title = text;
+    node.setAttribute("aria-label", text);
+  };
+  if (dayNight) {
+    dayNight.setAttribute("aria-checked", String(isNightTheme(theme)));
+    label(dayNight, dictionary.nightThemeLabel);
+  }
+  if (buddy) {
+    buddy.setAttribute("aria-pressed", String(buddyOn));
+    label(buddy, dictionary.buddyToggleLabel);
+  }
+  if (purr) {
+    purr.setAttribute("aria-pressed", String(buddyOn && purring));
+    purr.disabled = !buddyOn;
+    label(purr, dictionary.purrLabel);
+  }
 }

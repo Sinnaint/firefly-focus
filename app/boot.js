@@ -7,9 +7,9 @@
  * extension's own scripts against the adapter in app/shim.js.
  *
  * Load order matters and is the reason this is a script rather than a few
- * <script> tags: shared.js must come before the page script, and the engine
- * (service_worker.js) must be tagged before the audio code so messages
- * addressed to "offscreen" can be told apart.
+ * <script> tags: shared.js and buddy.js must come before the page script, and
+ * the engine (service_worker.js) must be tagged before the audio code so
+ * messages addressed to "offscreen" can be told apart.
  */
 async function bootFireflyApp({ page, script }) {
   const markup = await (await fetch(page)).text();
@@ -35,6 +35,7 @@ async function bootFireflyApp({ page, script }) {
     });
 
   await load("shared.js");
+  await load("buddy.js");
 
   window.__fireflyShim.setContext("engine");
   await load("service_worker.js");

@@ -1224,38 +1224,41 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 /* ==========================================================================
-   Study buddy — pixel-art ginger Maine Coon in a firefly headband.
-   Markup is generated in shared.js, so these rules serve both the side panel
-   and the fullscreen page. The coat is deliberately theme-neutral ginger;
-   only the headband and its glowing bulbs follow --accent.
+   Study buddy — pixel-art ginger Maine Coon in a sage firefly headband.
+   buddy.js builds the markup and moves everything; these rules only size and
+   stack it, for the side panel and the fullscreen page alike.
 
-   .buddy is a full-width track and .buddy-walk spans it, sliding the sprite
-   from one edge to the other. Everything moves by transform, so pacing back
-   and forth never triggers layout. Sizes are in vw, not %, because
-   --buddy-size is used for both width and height and a percentage would
-   resolve against the wrong axis in the second one.
+   The cat is a pile of small canvases at one canvas pixel per art pixel,
+   scaled up here with image-rendering: pixelated. --px is how many CSS
+   pixels one art pixel takes: buddy.js rounds --buddy-size to a whole number
+   of device pixels per art pixel and writes the result on .buddy. Everything
+   that moves has will-change: transform and only ever moves by transform.
    ========================================================================== */
 .buddy {
-  --buddy-size: clamp(76px, 25vw, 104px);
-  --buddy-walk: 26s;
-  /* How long the timer has to stay stopped before the cat lies down. */
-  --buddy-doze-at: 14s;
+  /* Roughly how wide the sprite should be — the real size is rounded. */
+  --buddy-size: clamp(112px, 36vw, 128px);
+  --px: 2;
 
   position: relative;
   display: block;
   width: 100%;
+  /* 62 of the frame's 66 rows: the top ones are headroom the antennae swing
+     into, and they may poke above the lane rather than pad it. */
+  height: calc(var(--px) * 62px);
+  margin: 0 0 6px;
   /*
-   * .buddy-walk is as wide as the whole track and slides sideways, so its box
-   * ends up far past the right edge and the page grows a horizontal scroll
-   * range. Clip it away — but only on this axis, so the drifting "z" can still
-   * bleed above the track. `clip` rather than `hidden`: mixing hidden with
-   * visible would force both axes to auto and make this a scroll container.
+   * The walker slides along the whole lane, and its box would give the page
+   * a horizontal scroll range. `clip`, not `hidden`: mixing hidden with
+   * visible turns both axes into auto, and vertically the antennae and the
+   * sleepy "z" have to be free to rise above the lane.
    */
   overflow-x: clip;
   overflow-y: visible;
-  /* The sprite's viewBox is 53x55, so the track is a touch taller than wide. */
-  height: calc(var(--buddy-size) * 1.04);
-  margin: 0 0 8px;
+  color: var(--muted); /* the "z" of a sleeping cat */
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .buddy[hidden] {
@@ -1263,269 +1266,230 @@ body[data-face="breathe"][data-running="false"] .ring::after {
 }
 
 body[data-view="compact"] .buddy {
-  --buddy-size: clamp(58px, 19vw, 80px);
-  margin-bottom: 4px;
+  --buddy-size: clamp(64px, 22vw, 96px);
+  margin-bottom: 2px;
 }
 
-.buddy-walk {
+.buddy-probe {
+  position: absolute;
+  width: var(--buddy-size);
+  height: 0;
+  visibility: hidden;
+}
+
+.buddy-walker {
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 100%;
-  /* Where it parks when the animation is off (reduced motion): mid-track. */
-  transform: translateX(calc(50% - var(--buddy-size) / 2));
-  animation: buddyWalk var(--buddy-walk) linear infinite alternate;
+  width: calc(var(--px) * 68px);
+  height: calc(var(--px) * 66px);
+  pointer-events: auto;
+  will-change: transform;
 }
 
-.buddy-art {
+/* Petting the cat makes it purr — buddy.js only lights this over the cat. */
+.buddy-walker.is-over-cat {
+  cursor: pointer;
+}
+
+.buddy-pop,
+.buddy-turn,
+.buddy-rig,
+.buddy-fx {
+  position: absolute;
+  inset: 0;
+}
+
+/* Squashes, turns and entrances all pivot on the ground under the cat. */
+.buddy-pop,
+.buddy-turn,
+.buddy-rig {
+  transform-origin: 50% 95.5%;
+}
+
+.buddy-px,
+.buddy-head,
+.buddy-antenna {
+  position: absolute;
+}
+
+.buddy-px {
+  image-rendering: pixelated;
+}
+
+.buddy-turn,
+.buddy-rig,
+.buddy-body,
+.buddy-tail,
+.buddy-tip,
+.buddy-head,
+.buddy-whisker,
+.buddy-antenna {
+  will-change: transform;
+}
+
+/* ---------- Firefly bulbs ----------
+   Day is energy-saving mode: the bulbs stay dark, and buddy.js makes them
+   wink now and then at random. Night switches them fully on, with a steady
+   soft sage neon glow. */
+.buddy-bulb-lit,
+.buddy-glow {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.buddy[data-night] .buddy-bulb-lit,
+.buddy[data-night] .buddy-glow {
+  opacity: 1;
+}
+
+.buddy-glow {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 255, 238, 0.95) 0 22%, rgba(185, 236, 163, 0.6) 48%, rgba(185, 236, 163, 0) 72%);
+  box-shadow:
+    0 0 calc(var(--px) * 2.5px) calc(var(--px) * 1px) rgba(185, 236, 163, 0.7),
+    0 0 calc(var(--px) * 8px) calc(var(--px) * 3px) rgba(143, 200, 128, 0.34);
+  will-change: opacity;
+}
+
+/* ---------- The "z" of a sleeping cat, and sparkles when it appears ---------- */
+.buddy-z,
+.buddy-spark {
+  position: absolute;
   display: block;
-  width: var(--buddy-size);
-  height: auto;
   overflow: visible;
-  /*
-   * One turn per round trip. The walk alternates, so it runs right for one
-   * duration and back for the next; this flip is twice as long and switches at
-   * the halfway mark, which is exactly when the walk turns around.
-   */
-  animation: buddyFace calc(var(--buddy-walk) * 2) linear infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
-@keyframes buddyWalk {
-  from { transform: translateX(0); }
-  to { transform: translateX(calc(100% - var(--buddy-size))); }
+.buddy-spark {
+  width: calc(var(--px) * 5px);
+  height: calc(var(--px) * 5px);
 }
-
-@keyframes buddyFace {
-  0%, 49.99% { transform: scaleX(1); }
-  50%, 100% { transform: scaleX(-1); }
-}
-
-/* ---------- Ginger Maine Coon ---------- */
-.px-outline { fill: #4e2210; }
-.px-fur-dark { fill: #b5531c; }
-.px-fur { fill: #e07a2c; }
-.px-fur-light { fill: #f4a65a; }
-.px-cream { fill: #fbe3c0; }
-.px-pink { fill: #ef8f8f; }
-.px-eye { fill: #8cc43c; }
-.px-ink { fill: #22140c; }
-.px-whisker { fill: #fff6e8; fill-opacity: 0.85; }
-
-/* ---------- Firefly headband ---------- */
-.px-glow { fill: var(--accent); }
-.px-glow-hot { fill: color-mix(in srgb, var(--accent) 32%, #ffffff); }
-.px-halo { fill: var(--accent); fill-opacity: 0.28; }
 
 /* ==========================================================================
-   Poses. Walking, sitting and lying are three separate sprites stacked in the
-   same SVG; which one shows is decided here, entirely from body[data-running].
-
-   Stopping the timer plays a chain: the cat crouches, sits back on its haunches,
-   and — if the timer stays stopped for --buddy-doze-at — lies down,
-   curls up and starts snoozing. Each step is a one-shot animation with a delay and
-   `forwards`, so the chain needs no JS timer and rewinds by itself the moment
-   the timer starts again. Order matters: where two animations on one element
-   are both filling, the last one listed wins.
-
-   The squash origin is the ground line of the sprite (y = 47 of the -5..50
-   viewBox), so poses compress downwards instead of around their middle.
+   Buddy dock — day/night, show or hide the cat, and the purr. Under the
+   lane in the panel; the fullscreen page puts the same buttons in its corner.
    ========================================================================== */
-.buddy-pose {
-  transform-origin: 50% 94.5%;
+.buddy-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 12px;
 }
 
-.buddy-pose-sit,
-.buddy-pose-lie {
-  opacity: 0;
+.dock-btn {
+  display: inline-grid;
+  place-items: center;
+  width: calc(34px * var(--text-scale, 1));
+  height: calc(34px * var(--text-scale, 1));
+  padding: 0;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
-body[data-running="false"] .buddy-pose-stand {
-  animation: buddyCrouch 0.36s ease-in forwards;
+.dock-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--stroke-strong);
+  transform: translateY(-1px);
 }
 
-body[data-running="false"] .buddy-pose-sit {
-  animation: buddySitDown 0.42s ease-out 0.36s forwards,
-             buddySlump 0.36s ease-in var(--buddy-doze-at) forwards;
+.dock-btn[aria-pressed="true"] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-color: transparent;
 }
 
-body[data-running="false"] .buddy-pose-lie {
-  animation: buddyLieDown 0.6s ease-out calc(var(--buddy-doze-at) + 0.36s) forwards;
+.dock-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
-@keyframes buddyCrouch {
-  0% { transform: scaleY(1); opacity: 1; }
-  75% { transform: scaleY(0.88); opacity: 1; }
-  99% { transform: scaleY(0.9); opacity: 1; }
-  100% { transform: scaleY(0.9); opacity: 0; }
+/* The purr button hums along while the cat purrs. */
+.dock-btn[aria-pressed="true"] .purr-waves {
+  animation: dockPurr 0.16s steps(2) infinite;
 }
 
-@keyframes buddySitDown {
-  /* Starts at full opacity: the delay alone keeps it hidden until the
-     crouch has finished, so the swap is a clean cut with no ghosting. */
-  0% { opacity: 1; transform: scaleY(1.07); }
-  55% { transform: scaleY(0.97); }
-  100% { opacity: 1; transform: scaleY(1); }
+@keyframes dockPurr {
+  50% { transform: translateX(0.7px); }
 }
 
-@keyframes buddySlump {
-  0% { transform: scaleY(1); opacity: 1; }
-  85%, 99% { transform: scaleY(0.9); opacity: 1; }
-  100% { transform: scaleY(0.9); opacity: 0; }
+/* Day/night: a little switch, the sun at one end and the moon at the other. */
+.daynight {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: calc(66px * var(--text-scale, 1));
+  height: calc(34px * var(--text-scale, 1));
+  padding: 0 4px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  color: var(--subtle);
+  background: var(--surface-soft);
+  transition: border-color 0.15s ease;
 }
 
-@keyframes buddyLieDown {
-  0% { opacity: 1; transform: scaleY(1.1); }
-  60% { transform: scaleY(0.98); }
-  100% { opacity: 1; transform: scaleY(1); }
+.daynight:hover {
+  border-color: var(--stroke-strong);
 }
 
-/* ---------- Motion ---------- */
-/* Two leg frames on alternate half-beats; the negative delay puts B on the
-   off-beat, and the body dips on the same half-beat B is showing. */
-.buddy-legs-a { animation: buddyStep 0.62s linear infinite; }
-.buddy-legs-b { animation: buddyStep 0.62s linear -0.31s infinite; }
-.buddy-body { animation: buddyStride 0.62s linear infinite; }
-
-/*
- * Both pivot on their own boxes (fill-box), so the origin follows them from
- * pose to pose instead of being pinned to one set of coordinates: the
- * antennae rock on the band, the tail swings from where it leaves the rump.
- */
-.buddy-antennae {
-  animation: buddySway 2.6s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
+.daynight::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: 0 2px 6px var(--btn-shadow);
+  transition: transform 0.28s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
 
-.buddy-tail {
-  animation: buddyTail 2.2s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 100% 100%;
+.daynight[aria-checked="true"]::before {
+  transform: translateX(100%);
 }
 
-/* The bulbs glow and dim like real fireflies. */
-.px-halo {
-  animation: buddyGlow 2.4s ease-in-out infinite;
+.daynight svg {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 16px;
+  height: 16px;
+  transition: color 0.2s ease;
 }
 
-/* A slow blink every few seconds — the shut eye is laid over the open one. */
-.buddy-blink {
-  opacity: 0;
-  animation: buddyBlink 5.6s linear infinite;
+.daynight[aria-checked="false"] .dn-sun,
+.daynight[aria-checked="true"] .dn-moon {
+  color: var(--accent-text);
 }
 
-@keyframes buddyStep {
-  0%, 49.99% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+.dock-btn:focus-visible,
+.daynight:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* The crossed-leg frame puts the belly a pixel closer to the ground. */
-@keyframes buddyStride {
-  0%, 49.99% { transform: translateY(0); }
-  50%, 100% { transform: translateY(1px); }
-}
-
-@keyframes buddySway {
-  0%, 100% { transform: rotate(-4deg); }
-  50% { transform: rotate(4deg); }
-}
-
-@keyframes buddyTail {
-  0%, 100% { transform: rotate(-5deg); }
-  50% { transform: rotate(6deg); }
-}
-
-@keyframes buddyGlow {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 1; }
-}
-
-@keyframes buddyBlink {
-  0%, 95.99% { opacity: 0; }
-  96%, 100% { opacity: 1; }
-}
-
-/* ---------- Stopped ---------- */
-/* It halts where it stands rather than snapping back to the start. */
-body[data-running="false"] .buddy-walk,
-body[data-running="false"] .buddy-art {
-  animation-play-state: paused;
-}
-
-body[data-running="false"] .buddy-legs-a { animation: none; opacity: 1; }
-body[data-running="false"] .buddy-legs-b { animation: none; opacity: 0; }
-body[data-running="false"] .buddy-antennae { animation-duration: 6s; }
-body[data-running="false"] .px-halo { animation-duration: 5s; }
-
-body[data-running="false"] .buddy-body {
-  animation: buddyBreathe 6.5s ease-in-out infinite;
-}
-
-@keyframes buddyBreathe {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(1px); }
-}
-
-/* The "z" waits for the cat to actually be lying down before it starts drifting. */
-.buddy-sleep {
-  display: none;
-}
-
-body[data-running="false"] .buddy-sleep {
-  display: block;
-}
-
-.buddy-z {
-  fill: var(--muted);
-  opacity: 0;
-}
-
-.buddy-z1 {
-  animation: buddyZ 4.6s ease-in-out calc(var(--buddy-doze-at) + 1s) infinite;
-}
-
-.buddy-z2 {
-  animation: buddyZ 4.6s ease-in-out calc(var(--buddy-doze-at) + 2.6s) infinite;
-}
-
-@keyframes buddyZ {
-  0% { opacity: 0; transform: translate(0, 2px); }
-  30% { opacity: 0.8; }
-  100% { opacity: 0; transform: translate(4px, -8px); }
+body[data-view="compact"] .buddy-dock {
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .buddy-walk,
-  .buddy-art,
-  .buddy-legs-a,
-  .buddy-legs-b,
-  .buddy-body,
-  .buddy-tail,
-  .buddy-antennae,
-  .buddy-blink,
-  .px-halo,
-  .buddy-z1,
-  .buddy-z2,
-  body[data-running="false"] .buddy-body {
-    animation: none;
+  .daynight::before,
+  .buddy-bulb-lit,
+  .buddy-glow {
+    transition: none;
   }
 
-  /* No chain, no squash: it is simply curled up asleep while the timer is stopped. */
-  body[data-running="false"] .buddy-pose-stand {
+  .dock-btn[aria-pressed="true"] .purr-waves {
     animation: none;
-    opacity: 0;
   }
-
-  body[data-running="false"] .buddy-pose-sit {
-    animation: none;
-    opacity: 0;
-  }
-
-  body[data-running="false"] .buddy-pose-lie {
-    animation: none;
-    opacity: 1;
-  }
-
-  .buddy-legs-b { opacity: 0; }
-  .buddy-z { opacity: 0.6; }
 }

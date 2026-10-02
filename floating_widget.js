@@ -1,6 +1,12 @@
 (() => {
-  if (window.__POMODORO_FLOATING_WIDGET__) return;
-  window.__POMODORO_FLOATING_WIDGET__ = true;
+  /*
+   * A copy already here can only be one left behind by an extension that was
+   * disabled, removed or reloaded — Chrome injects this script once per page.
+   * That copy can no longer reach the extension, so take over from it instead
+   * of bowing out to a dead widget.
+   */
+  const previous = window.__POMODORO_FLOATING_WIDGET__;
+  if (typeof previous?.teardown === "function") previous.teardown();
 
   const POSITION_KEY = "pomodoroFloatingPosition";
   const HOST_ID = "ai-pomodoro-floating-widget-host";
@@ -182,18 +188,64 @@
   // Fingerprint of the rendered task list, so a 500 ms tick does not rebuild
   // it under an open date picker.
   let tasksSignature = "";
+  let renderTimer = null;
+  let tornDown = false;
+
+  /*
+   * Turning the extension off does not take this script off pages that are
+   * already open: Chrome leaves it running, cut off from the extension, and
+   * the widget would sit there ticking down a timer nobody can start or stop.
+   * chrome.runtime.id is gone from that moment, which is how it can tell.
+   */
+  function extensionAlive() {
+    try {
+      return Boolean(chrome.runtime?.id);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /* Take the widget off the page and stop everything it was running. */
+  function teardown() {
+    if (tornDown) return;
+    tornDown = true;
+
+    clearInterval(renderTimer);
+    clearInterval(fireflyRecycleTimer);
+    window.removeEventListener("pointermove", moveDrag);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("resize", onResize);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    try {
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+    } catch (error) {
+      // The connection is already gone — nothing left to unhook.
+    }
+
+    host?.remove();
+    host = null;
+    nodes = {};
+
+    if (window.__POMODORO_FLOATING_WIDGET__?.teardown === teardown) {
+      window.__POMODORO_FLOATING_WIDGET__ = null;
+    }
+  }
+
+  window.__POMODORO_FLOATING_WIDGET__ = { teardown };
 
   function safeSend(type, payload = {}) {
     return new Promise((resolve) => {
       try {
         chrome.runtime.sendMessage({ type, ...payload }, (response) => {
           if (chrome.runtime.lastError) {
+            if (!extensionAlive()) teardown();
             resolve({ ok: false, error: chrome.runtime.lastError.message });
             return;
           }
           resolve(response || { ok: false });
         });
       } catch (error) {
+        if (!extensionAlive()) teardown();
         resolve({ ok: false, error: error.message });
       }
     });
@@ -281,7 +333,9 @@
   }
 
   function createWidget() {
-    if (document.getElementById(HOST_ID)) return;
+    // A stale host from a copy that could not clean up after itself (an older
+    // version, or another script world after a reload) is dead weight.
+    document.getElementById(HOST_ID)?.remove();
 
     host = document.createElement("div");
     host.id = HOST_ID;
@@ -1205,14 +1259,30 @@
       }
     });
 
-    window.addEventListener("resize", () => {
-      clampAndApplyPosition();
-      savePosition();
-    });
+    window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+  }
 
-    document.addEventListener("visibilitychange", () => {
-      syncFireflyTimer(true);
-    });
+  // Named, so teardown() can unhook them.
+  function onResize() {
+    clampAndApplyPosition();
+    savePosition();
+  }
+
+  function onVisibilityChange() {
+    syncFireflyTimer(true);
+  }
+
+  function onStorageChanged(changes, areaName) {
+    if (areaName === "local" && changes.pomodoro?.newValue) {
+      state = changes.pomodoro.newValue;
+      render();
+    }
+
+    if (areaName === "local" && changes[POSITION_KEY]?.newValue) {
+      position = changes[POSITION_KEY].newValue;
+      clampAndApplyPosition();
+    }
   }
 
   function startDrag(event) {
@@ -1564,30 +1634,30 @@
     }
   }
 
+  /* Every tick first checks the extension is still there — see extensionAlive(). */
+  function tick() {
+    if (!extensionAlive()) {
+      teardown();
+      return;
+    }
+    render();
+  }
+
   async function init() {
-    if (!chrome?.runtime?.id) return;
+    if (!extensionAlive()) return;
 
     createWidget();
     await loadPosition();
     await loadState();
+    if (tornDown) return;
 
     try {
-      chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === "local" && changes.pomodoro?.newValue) {
-          state = changes.pomodoro.newValue;
-          render();
-        }
-
-        if (areaName === "local" && changes[POSITION_KEY]?.newValue) {
-          position = changes[POSITION_KEY].newValue;
-          clampAndApplyPosition();
-        }
-      });
+      chrome.storage.onChanged.addListener(onStorageChanged);
     } catch (error) {
       // Extension context may be invalidated during reload.
     }
 
-    setInterval(render, 500);
+    renderTimer = setInterval(tick, 500);
   }
 
   init();

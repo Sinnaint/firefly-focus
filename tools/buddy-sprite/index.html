@@ -1,171 +1,79 @@
 <!doctype html>
-<html><head><meta charset="UTF-8"><title>buddy generator</title>
-<style>body{background:#2a0a35;margin:0;padding:16px;font:12px system-ui}canvas{image-rendering:pixelated}</style>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Buddy sprite sheet</title>
+<style>
+  body { margin: 0; padding: 16px; background: #1c1222; color: #e8dcef; font: 12px system-ui, sans-serif; }
+  h2 { margin: 18px 0 6px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #bba7c8; }
+  canvas { image-rendering: pixelated; display: block; }
+</style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<script src="shapes.js"></script>
+<h2>Every frame, zoomed — midnight · daylight · sage backgrounds</h2>
+<canvas id="sheet"></canvas>
+<script src="../../buddy.js"></script>
 <script>
-const W = 56, H = 59;
-const COLORS = {
-  o: "#4e2210",  // silhouette outline, ear tufts, band underline
-  d: "#b5531c",  // tabby stripes, shadow, far legs
-  f: "#e07a2c",  // ginger coat
-  l: "#f4a65a",  // sunlit back
-  c: "#fbe3c0",  // cream ruff, muzzle, paws
-  p: "#ef8f8f",  // nose, inner ear
-  e: "#8cc43c",  // green iris
-  n: "#22140c",  // pupil, closed eye, mouth
-  w: "#fff6e8",  // whiskers
-  a: "#d45fce",  // headband — follows --accent
-  g: "#f1cbef",  // bulb core
-  h: "#6e2d70",  // bulb halo (translucent accent on the real page)
-};
+/*
+ * Sprite sheet for the study buddy. buddy.js rasterises the art from shapes
+ * at load; this page lays every part of every pose out zoomed, on the three
+ * theme backgrounds, so a change can be judged before opening the panel.
+ *
+ * window.save(name) posts the sheet to a local server that accepts
+ * POST /__save?path=… (handy for diffing); otherwise right-click → save.
+ */
+const B = FireflyBuddy;
+const BACKS = ["#2a0b36", "#f4e7fb", "#122019"];
 
-function blank(w, h) { return Array.from({ length: h }, () => new Array(w).fill(".")); }
+const rows = [
+  ["walk", ["stand", 0, 1, 2, 3, 4, 5, 6, 7].map((frame) => ({ frame }))],
+  ["sit", [{ eyes: "open" }, { eyes: "look" }, { eyes: "half" }, { eyes: "shut" }, { eyes: "happy" }, { lit: false, day: true }]],
+  ["lie", [{}, { lit: false, day: true }]],
+];
 
-function blob(grid, cx, cy, rx, ry, key, n, ang) {
-  n = n || 2; ang = (ang || 0) * Math.PI / 180;
-  const ca = Math.cos(ang), sa = Math.sin(ang);
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      const px = x + 0.5 - cx, py = y + 0.5 - cy;
-      const dx = (px * ca + py * sa) / rx, dy = (-px * sa + py * ca) / ry;
-      if (Math.pow(Math.abs(dx), n) + Math.pow(Math.abs(dy), n) <= 1) grid[y][x] = key;
-    }
-  }
-}
+const Z = 4;
+const cellW = B.FRAME.w * Z + 8;
+const cellH = B.FRAME.h * Z + 8;
+const sheet = document.getElementById("sheet");
+sheet.width = 9 * cellW;
+sheet.height = rows.length * BACKS.length * cellH;
+const ctx = sheet.getContext("2d");
+ctx.imageSmoothingEnabled = false;
 
-function blobShade(grid, cx, cy, rx, ry, key, n, ang) {
-  const probe = blank(grid[0].length, grid.length);
-  blob(probe, cx, cy, rx, ry, "#", n, ang);
-  for (let y = 0; y < grid.length; y += 1)
-    for (let x = 0; x < grid[0].length; x += 1)
-      if (grid[y][x] !== "." && probe[y][x] === "#") grid[y][x] = key;
-}
-
-function stamp(grid, src, ox, oy) {
-  src.forEach((row, y) => { for (let x = 0; x < row.length; x += 1) {
-    if (row[x] !== "." && grid[y + oy] && grid[y + oy][x + ox] !== undefined) grid[y + oy][x + ox] = row[x];
-  } });
-}
-
-function ellipse(grid, cx, cy, rx, ry, key) {
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
-      if (dx * dx + dy * dy <= 1) grid[y][x] = key;
-    }
-  }
-}
-
-// Same as ellipse but only paints where something is already filled.
-function shade(grid, cx, cy, rx, ry, key) {
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      if (grid[y][x] === ".") continue;
-      const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry;
-      if (dx * dx + dy * dy <= 1) grid[y][x] = key;
-    }
-  }
-}
-
-/* Filled triangle — ears. */
-function tri(grid, ax, ay, bx, by, cx, cy, key) {
-  const s = (px, py, qx, qy, rx, ry) => (px - rx) * (qy - ry) - (qx - rx) * (py - ry);
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      const px = x + 0.5, py = y + 0.5;
-      const d1 = s(px, py, ax, ay, bx, by), d2 = s(px, py, bx, by, cx, cy), d3 = s(px, py, cx, cy, ax, ay);
-      const neg = d1 < 0 || d2 < 0 || d3 < 0, pos = d1 > 0 || d2 > 0 || d3 > 0;
-      if (!(neg && pos)) grid[y][x] = key;
-    }
-  }
-}
-
-/* A thick stroke along a quadratic curve, radius varying from start to end —
-   the bushy tail. radius(t) gets t in 0..1. */
-function tube(grid, p0, p1, p2, radius, key) {
-  for (let t = 0; t <= 1.0001; t += 0.02) {
-    const x = (1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0];
-    const y = (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1];
-    const r = radius(t);
-    blob(grid, x, y, r, r, key, 2);
-  }
-}
-
-/* Paint cells that are already filled and satisfy test(x, y). */
-function paintIf(grid, key, test) {
-  for (let y = 0; y < grid.length; y += 1)
-    for (let x = 0; x < grid[0].length; x += 1)
-      if (grid[y][x] !== "." && test(x, y, grid[y][x])) grid[y][x] = key;
-}
-
-function rect(grid, x0, y0, w, h, key) {
-  for (let y = y0; y < y0 + h; y += 1)
-    for (let x = x0; x < x0 + w; x += 1)
-      if (grid[y] && grid[y][x] !== undefined) grid[y][x] = key;
-}
-
-/* Fill any empty cell the outside cannot reach. Overlapping parts leave little
-   enclosed pockets, and the outline pass would ring each one into a pinhole. */
-function fillHoles(grid, key) {
-  const H = grid.length, W = grid[0].length, outside = new Set(), stack = [];
-  for (let x = 0; x < W; x += 1) stack.push([x, 0], [x, H - 1]);
-  for (let y = 0; y < H; y += 1) stack.push([0, y], [W - 1, y]);
-  while (stack.length) {
-    const [x, y] = stack.pop();
-    if (x < 0 || y < 0 || x >= W || y >= H) continue;
-    const k = y * W + x;
-    if (outside.has(k) || grid[y][x] !== ".") continue;
-    outside.add(k);
-    stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-  }
-  for (let y = 0; y < H; y += 1)
-    for (let x = 0; x < W; x += 1)
-      if (grid[y][x] === "." && !outside.has(y * W + x)) grid[y][x] = key;
-}
-
-/* Every filled cell touching empty space becomes the dark rim the reference has. */
-function outline(grid, key) {
-  const out = grid.map((r) => r.slice());
-  for (let y = 0; y < grid.length; y += 1) {
-    for (let x = 0; x < grid[0].length; x += 1) {
-      if (grid[y][x] === ".") continue;
-      const n = [[0,-1],[0,1],[-1,0],[1,0]];
-      if (n.some(([dx, dy]) => (grid[y+dy] || [])[x+dx] === undefined || (grid[y+dy] || [])[x+dx] === "."))
-        out[y][x] = key;
-    }
-  }
-  return out;
-}
-
-function toStrings(grid) { return grid.map((r) => r.join("")); }
-
-function draw(sets, scale) {
-  const c = document.getElementById("c");
-  const cols = sets.length;
-  c.width = cols * (W + 2) * scale; c.height = (H + 2) * scale;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "#3a1145"; ctx.fillRect(0, 0, c.width, c.height);
-  sets.forEach((rows, i) => {
-    rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x += 1) {
-        const k = row[x];
-        if (k === "." || !COLORS[k]) continue;
-        ctx.fillStyle = COLORS[k];
-        ctx.fillRect((i * (W + 2) + x + 1) * scale, (y + 1) * scale, scale, scale);
-      }
+let y = 0;
+for (const back of BACKS) {
+  for (const [pose, variants] of rows) {
+    variants.forEach((opts, i) => {
+      const day = back === BACKS[1];
+      const g = B.compose(pose, { lit: !day, day, ...opts });
+      ctx.fillStyle = back;
+      ctx.fillRect(i * cellW, y, cellW - 4, cellH - 4);
+      ctx.drawImage(B.gridToCanvas(g), i * cellW + 4, y + 4, B.FRAME.w * Z, B.FRAME.h * Z);
     });
-  });
+    y += cellH;
+  }
 }
 
-window.dump = (rows) => rows.map((r) => '  "' + r + '",').join("\n");
-window.save = async (name) => { // needs a local server with the POST hook; otherwise right-click the canvas
-  const blob = await new Promise((r) => document.getElementById("c").toBlob(r, "image/png"));
+window.save = async (name = "sheet.png") => {
+  const blob = await new Promise((r) => sheet.toBlob(r, "image/png"));
   const resp = await fetch("/__save?path=" + encodeURIComponent("_preview/" + name), { method: "POST", body: blob });
   return resp.ok;
 };
-build();
+
+/* A closer look at a single head, for the face. */
+window.saveHead = async (eyes = "open", name = "head.png") => {
+  const g = B.buildGrids().heads[eyes];
+  const c = document.createElement("canvas");
+  const z = 16;
+  c.width = g.w * z; c.height = g.h * z;
+  const x = c.getContext("2d");
+  x.imageSmoothingEnabled = false;
+  x.fillStyle = "#2a0b36"; x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(B.gridToCanvas(g), 0, 0, c.width, c.height);
+  const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+  const resp = await fetch("/__save?path=" + encodeURIComponent("_preview/" + name), { method: "POST", body: blob });
+  return resp.ok;
+};
 </script>
-</body></html>
+</body>
+</html>

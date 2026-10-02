@@ -1,70 +1,48 @@
-# Buddy sprite generator
+# Buddy sprite sheet
 
-Authoring tool for the study buddy — a ginger Maine Coon in a firefly
+A viewer for the study buddy — a ginger Maine Coon in a sage firefly
 headband. **Not part of the extension** — exclude this folder from the Chrome
 Web Store zip.
 
-The sprite in `shared.js` (`BUDDY_STAND`, `BUDDY_TAIL`, `BUDDY_SIT`,
-`BUDDY_LIE`, `BUDDY_ANTENNAE`, `BUDDY_LEGS`) is a set of character grids.
-Typing them by hand gives lumpy curves and no consistent dark rim, so they are
-rasterised from shapes instead: `shapes.js` describes each pose with
-superellipses, triangles (ears) and tubes along curves (the tail), and
-`index.html` paints them onto a 56×52 grid, adds the silhouette outline, and
-draws the result zoomed so it can be judged.
-
-The three poses share `catHead()`, `catHeadShade()` and `catFace()`, so the
-head stays the same cat whatever the body is doing. Change one of those and
-all three poses follow.
-
-Two opposite rules for things that overlap the body:
-
-- A **tail** lying across the body goes through `part()`, which outlines it on
-  its own first — otherwise it melts into the flank.
-- **Legs must grow out of the body.** Paint the far legs, the hind paw and the
-  sleeping cat's forelegs as plain fur *before* the body, so the body covers
-  their roots. The one leg in front of the body uses `partFrom(paint, row)`:
-  its own rim only starts below `row`, so it melts into the chest above.
-  Outlined all round and stamped on top, a leg gets a dark cap and reads as a
-  stick propped under the cat.
-
-Finish every pose with `fillHoles()` before the outline pass — overlapping
-parts leave tiny enclosed pockets that the outline would ring into pinholes.
+There is nothing to export any more. `buddy.js` (in the repository root)
+describes every part of the cat with shapes — superellipses, triangles, thick
+curves for the tail and legs, one-pixel curves for the whiskers and antenna
+stalks — plus a few hand-placed pixels for the eyes, nose and mouth, and
+rasterises them into canvases when the page opens. This page loads the same
+`buddy.js` and lays every frame out zoomed, on the Midnight, Daylight and
+Sage backgrounds, so a change can be judged before opening the panel.
 
 ## Editing the art
 
 1. Serve the repository root (any static server) and open
-   `tools/buddy-sprite/index.html`. A plain `file://` also works for looking.
-2. Change the shapes in `shapes.js` and reload — the canvas shows the two walk
-   frames, the sitting pose and the sleeping pose side by side, on a padded
-   top so the antennae of a raised head stay in view.
-3. Keep every pose on the ground line (row 47) and everything right of grid
-   column 4, which the trim cuts off. The sitting pose is traced from a photo
-   of a cat in profile: one tall body leaning forward with a rounded back,
-   long front legs, the hind paw flat on the ground, and the tail out behind
-   along the floor with the tip curled up. Keep it that way.
-4. When it looks right, run this in the console to get the grid strings:
+   `tools/buddy-sprite/index.html`. A plain `file://` works for looking too.
+2. Change the shapes in `buddy.js` and reload. The sheet shows the standing
+   frame and all eight walking frames, the sitting cat with every eye (open,
+   looking, half-shut, blinking, purring) and with the bulbs off, and the
+   sleeping cat.
+3. Open the side panel, or `index.html` served from the root, to see it move.
 
-```js
-(() => {
-  const SHIFT = 4, WIDTH = 50;
-  const trim = (rows, y0, y1) => rows.slice(y0, y1 + 1)
-    .map((r) => r.slice(SHIFT, SHIFT + WIDTH).padEnd(WIDTH, "."));
-  const fmt = (rows) => rows.map((r) => '  "' + r + '",').join("\n");
-  return Object.entries({
-    stand: trim(OUT.stand, 0, 47), sit: trim(OUT.sit, 0, 47), lie: trim(OUT.lie, 0, 47),
-    tail: trim(OUT.tail, 6, 29), ant: trim(OUT.ant, 0, 11),
-    legsA: trim(OUT.legsA, 0, 13), legsB: trim(OUT.legsB, 0, 13)
-  }).map(([k, v]) => "### " + k + "\n" + fmt(v)).join("\n\n");
-})()
-```
+Things that are easy to break:
 
-5. Paste each block into the matching constant in `shared.js`. Every row must
-   keep the same width, and `BUDDY_OFFSETS` must match the trim ranges above
-   (tail from row 6, legs at row 34).
-6. If a head moved, update that pose's `antennae` delta in `BUDDY_POSES`
-   (`OUT.POSE` prints them) and its `eye` — the top-left of the 3×2 open eye,
-   in trimmed coordinates — or the headband floats off and the blink lands
-   beside the eye.
+- **One head for every pose.** `drawHead()` is shared, so the face cannot
+  drift between poses. It faces the viewer and stays symmetric, because the
+  cat is mirrored when it turns round.
+- **Legs grow out of the body.** Far legs are drawn whole behind the body;
+  near legs sit in front, and their rim only starts below the belly
+  (`outline(..., { from })`). Outlined all round, a leg gets a dark cap and
+  reads as a stick propped under the cat.
+- **`fillHoles()` before every outline.** Overlapping parts leave little
+  enclosed pockets that the outline would otherwise ring into pinholes.
+- **Every pose stands on the ground row (57).** A tail lying on the floor
+  slips below it easily, and then the cat floats above its own tail.
+- **Moving parts are separate layers.** The tail, the tip of a sitting cat's
+  tail, the whiskers and each antenna rotate about a pivot set in `buddy.js`
+  (`WALK.tailBase`, `SIT.tipBase`, `LIE.tipBase`, `HEAD.whiskerRoots`,
+  `HEAD.antennaBases`). Move a part and move its pivot with it.
 
-Letters are CSS class names, not colours — the palette lives in
-`sidepanel.css`, so the headband keeps following `--accent`.
+Letters in the grids are colours, listed in `PALETTE` in `buddy.js`. The coat
+and the sage headband stay the same in every theme.
+
+`window.save(name)` and `window.saveHead(eyes, name)` post a PNG to a local
+server that accepts `POST /__save?path=…`, handy for comparing versions;
+otherwise right-click the canvas and save it.
