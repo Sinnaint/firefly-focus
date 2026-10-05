@@ -1126,18 +1126,24 @@
         50% { transform: translateX(0.7px); }
       }
 
-      /* Out strolling, the cat walks along the bottom of the tab. Only the cat
-         itself takes clicks; the rest of the strip lets them through. */
+      /* Out wandering, the whole tab is the cat's floor. Only the cat itself
+         takes clicks; everywhere else lets them through to the page. It walks
+         under the two pieces — and over them while it is being carried. */
       .floor {
         position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0;
         pointer-events: none;
+      }
+
+      .floor:has(.buddy[data-carried]) {
+        z-index: 1;
       }
 
       .floor .buddy {
         --buddy-size: 112px;
+        position: absolute;
+        inset: 0;
+        height: auto;
       }
 
       @media (max-height: 560px) {
@@ -1272,12 +1278,18 @@
     buddyPending = null;
   }
 
-  /* On its shelf to play, or down on the floor of the tab to stroll. */
+  /* On its shelf to play, or out on the tab itself to wander. */
   function placeBuddyHost() {
     const target = buddyMode === "roam" ? nodes.floor : nodes.stage;
     if (nodes.buddyHost.parentNode === target) return false;
     target.prepend(nodes.buddyHost);
     return true;
+  }
+
+  /* Just above the pill, where the shelf is: a roaming cat sets off from there. */
+  function shelfSpot() {
+    const rect = nodes.pill.getBoundingClientRect();
+    return { centerX: rect.left + rect.width / 2, bottom: rect.top + 4 };
   }
 
   /*
@@ -1301,7 +1313,8 @@
       if (tornDown || buddy) return;
       buddy = FireflyBuddy.create(nodes.buddyHost, {
         onPurrChange: () => render(),
-        activity: buddyMode
+        activity: buddyMode,
+        from: buddyMode === "roam" ? shelfSpot() : null
       });
       render();
     };
@@ -1316,14 +1329,17 @@
     // The cat leaving its shelf (or coming back) changes how tall this piece
     // is; keep the shelf itself where it was rather than let it jump.
     const before = nodes.buddyPiece.getBoundingClientRect().height;
+    // Off to wander, the cat steps down from the shelf right where it sat.
+    const from = buddy && !nodes.buddyHost.hidden ? buddy.whereabouts() : shelfSpot();
     buddyMode = mode;
     // The floor has to be showing before the cat lands on it, or the cat
-    // measures a lane of nothing and starts off in the corner.
+    // measures a floor of nothing and starts off in the corner.
     nodes.floor.hidden = mode !== "roam" || nodes.buddyPiece.hidden;
     const moved = placeBuddyHost();
     if (buddy) {
-      buddy.setActivity(mode);
-      if (moved) buddy.appear();
+      buddy.setActivity(mode, { from });
+      // Back on the shelf from wherever it had got to, it pops in there.
+      if (moved && mode === "play") buddy.appear();
     }
     const after = nodes.buddyPiece.getBoundingClientRect().height;
     if (positions.buddy && before && after) {

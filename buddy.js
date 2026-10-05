@@ -886,9 +886,19 @@ const FireflyBuddy = (() => {
     const A = buildGrids();
     const cv = (g) => gridToImage(g);
     const masks = {};
+    const hits = {};
     for (const pose of Object.keys(POSES)) {
       const flat = compose(pose, { costume: false });
-      masks[pose] = Uint8Array.from(flat.c, (k) => (k !== "." && k !== "z" ? 1 : 0));
+      const mask = Uint8Array.from(flat.c, (k) => (k !== "." && k !== "z" ? 1 : 0));
+      masks[pose] = mask;
+      let [x0, y0, x1, y1] = [FRAME.w, FRAME.h, 0, 0];
+      mask.forEach((on, i) => {
+        if (!on) return;
+        const x = i % FRAME.w;
+        const y = Math.floor(i / FRAME.w);
+        [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)];
+      });
+      hits[pose] = [x0, y0, x1 - x0 + 1, y1 - y0 + 1];
     }
     artCache = {
       heads: Object.fromEntries(Object.entries(A.heads).map(([k, g]) => [k, cv(g)])),
@@ -903,6 +913,7 @@ const FireflyBuddy = (() => {
       sit: { body: cv(A.sit.body), near: cv(A.sit.near), tip: cv(A.sit.tip), shadow: cv(A.sit.shadow) },
       lie: { body: cv(A.lie.body), tip: cv(A.lie.tip), shadow: cv(A.lie.shadow) },
       masks,
+      hits,
     };
     return artCache;
   }
@@ -950,6 +961,8 @@ const FireflyBuddy = (() => {
   const EASE_INHALE = cubicBezier(0.4, 0, 0.2, 1);
   const EASE_EXHALE = cubicBezier(0.45, 0, 0.55, 1);
   const INHALE_SHARE = 0.42;
+  // A purring cat breathes deeper than a quiet one — enough to see it.
+  const PURR_DEPTH = 1.45;
 
   /* 0 = breathed out (body lowest), 1 = breathed in. */
   function breathAt(seconds, period) {
@@ -973,72 +986,157 @@ const FireflyBuddy = (() => {
   /* ------------------------------------------------------------------ */
 
   /*
-   * A purr is a train of soft thumps that runs through the whole breath:
-   * louder and a touch slower breathing out, softer and quicker breathing in,
-   * with a hitch between. Three slightly different breaths are synthesised
-   * once into a buffer and looped, so the loop does not tick audibly. The
-   * breath timings are kept, so the cat's chest can move with what you hear.
+   * Modelled on a recording of a real cat. A purr is the larynx snapping open
+   * and shut about 25 times a second, all the way through the breath: a
+   * steady 25 a second breathing out, a little slower and rougher breathing
+   * in (23), with a short hitch at each turn where it dips by 6–9 dB. Each
+   * snap is a smooth glottal pulse — no click — whose sound is mostly
+   * 100–600 Hz and gone by 1 kHz, with a breath of air riding on it some
+   * 25 dB down. Matched against the recording band by band, to within a few
+   * dB.
    *
-   * PURR_SLOWDOWN stretches all of it in time: a real cat thrums about 25
-   * times a second, which proved too busy to sit beside — at 2 it is half
-   * that, a slow, drowsy rumble. Only the timing stretches, not the pitch:
-   * the thumps keep their sound, they just come further apart and breathe
-   * slower.
+   * Where it parts from the recording is the breathing itself. The cat in the
+   * recording breathes every 1.8 seconds; this one takes about 3.2 — a cat half
+   * asleep — so the slow rise and fall of its chest is easy to follow, and
+   * the chest moves with what you hear. Four slightly different breaths are
+   * synthesised once into a buffer and looped; the pulse train is stretched
+   * to close exactly on the loop, so the seam is not heard.
    */
-  const PURR_SLOWDOWN = 2;
-  // The purr is all below 1 kHz, so it does not need a full-rate buffer;
+  // The purr is all below 3 kHz, so it does not need a full-rate buffer;
   // the audio graph resamples it.
-  const PURR_SAMPLE_RATE = 22050;
+  const PURR_SAMPLE_RATE = 16000;
+  const PURR = {
+    rate: { out: 25.2, in: 23.3 }, // pulses a second
+    jitter: { out: 0.012, in: 0.035 }, // how unevenly they come
+    shimmer: { out: 0.14, in: 0.24 }, // how unevenly loud they are
+    inLevel: 0.86,
+    turn: 0.09, // the hitch between breathing out and breathing in, s
+    floor: 0.38, // how much purr is left in the hitch
+    rise: 0.07,
+    fall: 0.09,
+    open: 0.46, // a pulse opens over this share of its period…
+    close: 0.13, // …and snaps shut over this one
+    air: 0.04, // the breath of air on each pulse, louder breathing in
+    airIn: 1.7,
+    breaths: [
+      { out: 1.72, in: 1.38, level: 1 },
+      { out: 1.6, in: 1.46, level: 0.93 },
+      { out: 1.82, in: 1.32, level: 0.97 },
+      { out: 1.66, in: 1.42, level: 0.9 },
+    ],
+  };
 
   function synthPurr(sampleRate = PURR_SAMPLE_RATE) {
-    const k = PURR_SLOWDOWN;
-    const breaths = [
-      { out: 1.3, gapOut: 0.07, in: 1.0, gapIn: 0.1, level: 1 },
-      { out: 1.16, gapOut: 0.06, in: 1.08, gapIn: 0.12, level: 0.9 },
-      { out: 1.42, gapOut: 0.08, in: 0.92, gapIn: 0.09, level: 0.96 },
-    ];
     const phases = [];
-    let t = 0.03;
-    for (const b of breaths) {
-      phases.push({ from: t, to: t + b.out * k, kind: "out", level: b.level });
-      t += (b.out + b.gapOut) * k;
-      phases.push({ from: t, to: t + b.in * k, kind: "in", level: b.level * 0.62 });
-      t += (b.in + b.gapIn) * k;
+    let t = PURR.turn / 2;
+    for (const b of PURR.breaths) {
+      phases.push({ from: t, to: t + b.out, kind: "out", level: b.level });
+      t += b.out + PURR.turn;
+      phases.push({ from: t, to: t + b.in, kind: "in", level: b.level * PURR.inLevel });
+      t += b.in + PURR.turn;
     }
-    const duration = t;
+    // Half a hitch at either end: the loop's seam falls in the middle of one.
+    const duration = t - PURR.turn / 2;
     const length = Math.round(duration * sampleRate);
-    const data = new Float32Array(length);
+    const voiced = new Float32Array(length);
+    const air = new Float32Array(length);
 
     // Seeded, so the purr sounds the same every time.
-    let seed = 20231;
-    const noise = () => {
+    let seed = 7919;
+    const uniform = () => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed / 0x7fffffff;
     };
-    // Each thump: a quick swell, then a decay, stretched along with the rest.
-    const attack = Math.max(1, Math.round(0.0025 * k * sampleRate));
-    const decay = 0.0085 * k * sampleRate;
-    const span = Math.round(0.034 * k * sampleRate);
-    // Smoothing that turns white noise into a soft rumble (~1.5 kHz), the
-    // same whatever the sample rate.
-    const smooth = 1 - Math.exp((-2 * Math.PI * 1500) / sampleRate);
+    const gauss = () => (uniform() + uniform() + uniform() + uniform() - 2) * 1.732;
+    const smooth = (u) => {
+      const v = clamp(u, 0, 1);
+      return v * v * (3 - 2 * v);
+    };
 
-    for (const phase of phases) {
-      const rate = (phase.kind === "out" ? 24 : 27.5) / k;
-      let tp = phase.from;
-      while (tp < phase.to) {
-        const u = (tp - phase.from) / (phase.to - phase.from);
-        const env = Math.sin((Math.min(1, u / 0.18) * Math.min(1, (1 - u) / 0.28) * Math.PI) / 2) ** 1.4;
-        const amp = phase.level * env * (0.82 + noise() * 0.36);
-        const start = Math.round(tp * sampleRate);
-        const body = 70 + noise() * 30;
-        let brown = 0;
-        for (let i = 0; i < span && start + i < length; i += 1) {
-          const e = i < attack ? i / attack : Math.exp(-(i - attack) / decay);
-          brown += (noise() * 2 - 1 - brown) * smooth;
-          data[start + i] += amp * e * (brown * 1.6 + 0.55 * Math.sin((2 * Math.PI * body * i) / sampleRate));
+    // How loud the purr is at a moment, and which way the breath is going —
+    // a hitch goes the way of the breath after it.
+    function at(time) {
+      for (const phase of phases) {
+        if (time < phase.from) return { kind: phase.kind, level: PURR.floor };
+        if (time <= phase.to) {
+          const edge = Math.min(smooth((time - phase.from) / PURR.rise), smooth((phase.to - time) / PURR.fall));
+          return { kind: phase.kind, level: PURR.floor + (phase.level - PURR.floor) * edge };
         }
-        tp += (1 / rate) * (1 + (noise() - 0.5) * 0.1);
+      }
+      return { kind: phases[0].kind, level: PURR.floor };
+    }
+
+    // When each pulse starts — then all of them stretched a hair, so the last
+    // one ends exactly where the loop begins again.
+    const starts = [];
+    let tp = 0;
+    while (tp < duration) {
+      starts.push(tp);
+      const kind = at(tp).kind;
+      tp += (1 / PURR.rate[kind]) * (1 + gauss() * PURR.jitter[kind]);
+    }
+    const stretch = duration / tp;
+
+    // The air is white noise held to roughly 0.9–2.8 kHz.
+    const airHigh = 1 - Math.exp((-2 * Math.PI * 2800) / sampleRate);
+    const airLow = 1 - Math.exp((-2 * Math.PI * 900) / sampleRate);
+    let hissHigh = 0;
+    let hissLow = 0;
+
+    starts.forEach((start, n) => {
+      const period = ((n + 1 < starts.length ? starts[n + 1] : tp) - start) * stretch;
+      const here = at(start * stretch);
+      const amp = Math.max(0, here.level * (1 + gauss() * PURR.shimmer[here.kind]));
+      const opening = period * PURR.open * (1 + gauss() * 0.05);
+      const closing = period * PURR.close * (1 + gauss() * 0.08);
+      const airAmp = PURR.air * here.level * (here.kind === "in" ? PURR.airIn : 1) * 6;
+      const s0 = Math.round(start * stretch * sampleRate);
+      const span = Math.round(period * sampleRate);
+      for (let i = 0; i < span; i += 1) {
+        const tt = i / sampleRate;
+        // Rosenberg's glottal pulse: the flow through it, and its sound —
+        // which is how fast that flow changes.
+        let flow = 0;
+        let sound = 0;
+        if (tt < opening) {
+          flow = 0.5 * (1 - Math.cos((Math.PI * tt) / opening));
+          sound = (Math.PI / (2 * opening)) * Math.sin((Math.PI * tt) / opening);
+        } else if (tt < opening + closing) {
+          const u = (tt - opening) / closing;
+          flow = Math.cos((Math.PI * u) / 2);
+          sound = -(Math.PI / (2 * closing)) * Math.sin((Math.PI * u) / 2);
+        }
+        hissHigh += (uniform() * 2 - 1 - hissHigh) * airHigh;
+        hissLow += (hissHigh - hissLow) * airLow;
+        const k = (s0 + i) % length;
+        voiced[k] += amp * sound * period * 0.25;
+        air[k] += airAmp * flow * (hissHigh - hissLow);
+      }
+    });
+
+    // The pulses ring up to about 600 Hz and are gone by 1 kHz; the air is
+    // left as it is. The filter goes round the loop twice, so its memory
+    // wraps across the seam too.
+    const w = (2 * Math.PI * 600) / sampleRate;
+    const alpha = Math.sin(w) / (2 * 0.75);
+    const a0 = 1 + alpha;
+    const b0 = (1 - Math.cos(w)) / 2 / a0;
+    const b1 = (1 - Math.cos(w)) / a0;
+    const a1 = (-2 * Math.cos(w)) / a0;
+    const a2 = (1 - alpha) / a0;
+    const data = new Float32Array(length);
+    let x1 = 0;
+    let x2 = 0;
+    let y1 = 0;
+    let y2 = 0;
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (let i = 0; i < length; i += 1) {
+        const y0 = b0 * voiced[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = voiced[i];
+        y2 = y1;
+        y1 = y0;
+        if (pass === 1) data[i] = y0 + air[i];
       }
     }
 
@@ -1049,7 +1147,9 @@ const FireflyBuddy = (() => {
     return { data, duration, phases };
   }
 
-  const PURR_VOLUME = 0.8;
+  // Ear-weighted, as loud as the earlier purr on a laptop's speakers, with
+  // the peaks still clear of clipping.
+  const PURR_VOLUME = 0.9;
 
   function createPurr() {
     let ctx = null;
@@ -1073,9 +1173,9 @@ const FireflyBuddy = (() => {
       phases = purr.phases;
       duration = purr.duration;
 
-      // No sub-bass a laptop speaker would only rattle on, a warm chest
-      // resonance placed where small speakers can still play it, and
-      // nothing above the rumble.
+      // No sub-bass a laptop speaker would only rattle on, and a warm chest
+      // resonance placed where small speakers can still play it. The top is
+      // already shaped in the buffer; the low-pass only rounds off the hiss.
       const highpass = ctx.createBiquadFilter();
       highpass.type = "highpass";
       highpass.frequency.value = 40;
@@ -1086,8 +1186,8 @@ const FireflyBuddy = (() => {
       chest.gain.value = 5;
       const lowpass = ctx.createBiquadFilter();
       lowpass.type = "lowpass";
-      lowpass.frequency.value = 950;
-      lowpass.Q.value = 0.6;
+      lowpass.frequency.value = 6000;
+      lowpass.Q.value = 0.5;
       gain = ctx.createGain();
       gain.gain.value = 0;
       highpass.connect(chest).connect(lowpass).connect(gain).connect(ctx.destination);
@@ -1127,30 +1227,32 @@ const FireflyBuddy = (() => {
       source = null;
     }
 
-    /* Where the purr is right now: { breath 0..1, level 0..1 }. */
-    function sample() {
-      if (!on || !ctx) return null;
+    /*
+     * How far the purr's breath has got right now: 1 breathed in, 0 breathed
+     * out. A breath out falls and a breath in rises on the same eased curves
+     * as the cat's quiet breathing, and each hitch holds still, so the chest
+     * never jumps.
+     */
+    function breath() {
+      // A context the browser has not let start has no clock to follow.
+      if (!on || !ctx || ctx.state !== "running") return null;
       const t = (((ctx.currentTime - startedAt) % duration) + duration) % duration;
-      let breath = 1;
+      let held = 1; // the loop opens in the hitch after a breath in
       for (const phase of phases) {
-        if (t < phase.from) break;
-        const u = (t - phase.from) / (phase.to - phase.from);
-        if (u <= 1) {
-          const level = phase.level * Math.sin(Math.min(1, u / 0.18, (1 - u) / 0.28) * (Math.PI / 2));
-          return {
-            breath: phase.kind === "out" ? 1 - EASE_EXHALE(u) : EASE_INHALE(u),
-            level: Math.max(0, level),
-          };
+        if (t < phase.from) return held;
+        if (t <= phase.to) {
+          const u = (t - phase.from) / (phase.to - phase.from);
+          return phase.kind === "out" ? 1 - EASE_EXHALE(u) : EASE_INHALE(u);
         }
-        breath = phase.kind === "out" ? 0 : 1;
+        held = phase.kind === "out" ? 0 : 1;
       }
-      return { breath, level: 0 };
+      return held;
     }
 
     return {
       start,
       stop,
-      sample,
+      breath,
       pause: () => ctx?.suspend?.().catch?.(() => {}),
       resume: () => {
         if (on) ctx?.resume?.().catch?.(() => {});
@@ -1238,17 +1340,24 @@ const FireflyBuddy = (() => {
   bottom: 0;
   width: calc(var(--px) * ${FRAME.w}px);
   height: calc(var(--px) * ${FRAME.h}px);
-  pointer-events: auto;
+  pointer-events: none;
   will-change: transform;
 }
-.buddy-walker.is-over-cat { cursor: pointer; }
-.buddy-pop, .buddy-turn, .buddy-rig, .buddy-fx { position: absolute; inset: 0; }
-.buddy-pop, .buddy-turn, .buddy-rig {
+/* Only the cat takes the pointer, not the empty corners of its frame. */
+.buddy-hit { position: absolute; pointer-events: auto; }
+.buddy-walker.is-over-cat .buddy-hit { cursor: pointer; }
+.buddy[data-activity="roam"] .buddy-hit { touch-action: none; }
+.buddy[data-activity="roam"] .buddy-walker.is-over-cat .buddy-hit { cursor: grab; }
+.buddy-walker.is-carried .buddy-hit { cursor: grabbing; }
+.buddy-pop, .buddy-turn, .buddy-rig, .buddy-lift, .buddy-fx { position: absolute; inset: 0; }
+.buddy-pop, .buddy-turn, .buddy-rig, .buddy-shadow {
   transform-origin: 50% ${(((GROUND + FRAME.oy + 1) / FRAME.h) * 100).toFixed(1)}%;
 }
+/* A carried cat hangs from about where a hand would hold it. */
+.buddy-lift { transform-origin: 50% 35%; }
 .buddy-px, .buddy-head, .buddy-antenna { position: absolute; }
 .buddy-px { image-rendering: pixelated; }
-.buddy-turn, .buddy-rig, .buddy-body, .buddy-tail, .buddy-tip,
+.buddy-turn, .buddy-rig, .buddy-lift, .buddy-shadow, .buddy-body, .buddy-tail, .buddy-tip,
 .buddy-head, .buddy-whisker, .buddy-antenna { will-change: transform; }
 
 /* Day is energy-saving mode: the bulbs stay dark and wink now and then at
@@ -1317,10 +1426,14 @@ const FireflyBuddy = (() => {
    * `activity` says what the cat does with itself:
    *   "timer" — the panel's cat: walks while the timer runs, sits when it
    *             stops, falls asleep when it stays stopped;
-   *   "roam"  — strolls about the lane on its own, sits, now and then naps;
+   *   "roam"  — wanders about on its own, sits, now and then naps. Given a
+   *             host taller than a lane, it goes anywhere in it, in straight
+   *             lines and diagonals, and can be picked up and thrown;
    *   "play"  — stays put and plays with a ball.
+   * `from` ({ centerX, bottom }, viewport pixels) is where a roaming cat
+   * starts out — where it was standing before it came here.
    */
-  function create(host, { onPurrChange = null, activity = "timer" } = {}) {
+  function create(host, { onPurrChange = null, activity = "timer", from = null } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -1345,13 +1458,17 @@ const FireflyBuddy = (() => {
       px: 2,
       dpr: 1,
       laneW: 0,
+      laneH: 0,
       // pose
       pose: null,
       stoppedAt: nowMs(),
       trans: null,
       squash: [1, 1],
-      // walking
+      // walking: x along the lane, y up from its floor (only a roaming cat
+      // with room above it ever leaves y = 0)
       x: null,
+      y: null,
+      place: from,
       dir: 1,
       speed: 0,
       pauseUntil: 0,
@@ -1361,10 +1478,8 @@ const FireflyBuddy = (() => {
       // body and head
       bodyY: 0,
       breath: 0.5,
+      depth: 1, // how deep it breathes: deeper while it purrs
       head: { x: 0, v: 0 },
-      jitter: [0, 0],
-      jitterFrame: 0,
-      purrLevel: 0,
       ant: [{ x: 0, v: 0 }, { x: 0, v: 0 }],
       tail: { x: 0, v: 0 },
       tip: { x: 0, v: 0 },
@@ -1384,11 +1499,21 @@ const FireflyBuddy = (() => {
       activity,
       brain: { pose: "sit", until: nowMs() + rand(800, 2200), nextSwat: 0, restless: 0 },
       goalX: null,
+      goalY: null,
       ball: null,
       swat: null,
+      // picked up and thrown (roaming only)
+      grab: null,
+      carry: null,
+      toss: null,
+      lift: 0, // art pixels off the floor
+      swing: { x: 0, v: 0 },
+      moved: { x: 0, vx: 0 }, // where it was a frame ago, and how fast it went
+      droppedAt: -Infinity,
     };
 
     const dom = buildDom();
+    host.dataset.activity = activity;
     if (activity === "play") ensureBall();
 
     /* ---------- DOM ---------- */
@@ -1424,18 +1549,21 @@ const FireflyBuddy = (() => {
       const turn = el("div", "buddy-turn", pop);
       const rig = el("div", "buddy-rig", turn);
 
+      // The shadow stays on the floor; everything else is in `lift`, which
+      // rises off it when the cat is picked up.
       const shadow = canvas("buddy-shadow", rig);
-      const tail = canvas("buddy-tail", rig);
+      const lift = el("div", "buddy-lift", rig);
+      const tail = canvas("buddy-tail", lift);
       tail.style.transformOrigin =
         `${((WALK.tailBase[0] + FRAME.ox) / FRAME.w) * 100}% ${((WALK.tailBase[1] + FRAME.oy) / FRAME.h) * 100}%`;
-      const far = canvas("buddy-far", rig);
-      const body = canvas("buddy-body", rig);
-      const near = canvas("buddy-near", rig);
-      const tip = canvas("buddy-tip", rig);
+      const far = canvas("buddy-far", lift);
+      const body = canvas("buddy-body", lift);
+      const near = canvas("buddy-near", lift);
+      const tip = canvas("buddy-tip", lift);
 
       // The head group sits on the head's logical origin; everything on the
       // head is placed relative to it.
-      const head = el("div", "buddy-head", rig);
+      const head = el("div", "buddy-head", lift);
       const face = el("canvas", "buddy-px buddy-face", head);
       face.width = HEAD_W;
       face.height = HEAD_H + 2;
@@ -1466,8 +1594,11 @@ const FireflyBuddy = (() => {
         return { wrap, glow, lit };
       });
 
+      // What the pointer can catch: the box round this pose's pixels.
+      const hit = el("div", "buddy-hit", lift);
+
       const fx = el("div", "buddy-fx", walker);
-      return { probe, walker, pop, turn, rig, shadow, tail, far, body, near, tip, head, face, whiskers, antennae, fx, box };
+      return { probe, walker, pop, turn, rig, shadow, lift, tail, far, body, near, tip, head, face, whiskers, antennae, hit, fx, box };
     }
 
     function ensureBall() {
@@ -1518,12 +1649,16 @@ const FireflyBuddy = (() => {
       if (k > 1 && (k * NOMINAL_W) / dpr > target * 1.15) k -= 1;
       const px = k / dpr;
       const laneW = host.clientWidth;
+      const laneH = host.clientHeight;
       // Nothing to redo — and rewriting --px with the same value would still
       // cost a style pass.
-      if (px === st.px && laneW === st.laneW && dpr === st.dpr && host.style.getPropertyValue("--px")) return;
+      if (px === st.px && laneW === st.laneW && laneH === st.laneH && dpr === st.dpr && host.style.getPropertyValue("--px")) {
+        return;
+      }
       st.dpr = dpr;
       st.px = px;
       st.laneW = laneW;
+      st.laneH = laneH;
       host.style.setProperty("--px", String(px));
       st.written.clear();
     }
@@ -1532,7 +1667,15 @@ const FireflyBuddy = (() => {
 
     /* ---------- Poses ---------- */
 
+    // How far a full breath lifts the body of a sitting or lying cat, from
+    // the floor up, as a share of its height.
+    function breathRise() {
+      return (st.pose === "lie" ? 0.07 : 0.028) * st.depth;
+    }
+
     function targetPose(now) {
+      // held up, or flying: all four legs hang
+      if (st.carry || st.toss?.air) return "walk";
       if (st.activity !== "timer") {
         // a purring cat settles where it is
         if (purr.on) return st.pose === "lie" ? "lie" : "sit";
@@ -1563,6 +1706,7 @@ const FireflyBuddy = (() => {
 
       const [hx, hy] = headOffset(pose);
       dom.box(dom.head, FRAME.ox + hx, FRAME.oy + hy, HEAD_W, HEAD_H);
+      dom.box(dom.hit, ...art.hits[pose]);
       // Breathing scales the body from the floor, so the paws stay planted.
       dom.body.style.transformOrigin = `50% ${((GROUND + 1 + FRAME.oy) / FRAME.h) * 100}%`;
       if (pose !== "walk") {
@@ -1640,31 +1784,56 @@ const FireflyBuddy = (() => {
       return Math.max(0, st.laneW - stageWidth());
     }
 
+    /* How far up its floor the cat can go: nothing in a lane, all of it in a roaming area. */
+    function laneRise() {
+      return Math.max(0, st.laneH - FRAME.h * st.px);
+    }
+
+    /* Keep the cat on its floor — after a resize too. */
+    function keepInBounds() {
+      st.x = clamp(st.x ?? laneTravel() / 2, 0, laneTravel());
+      st.y = clamp(st.y ?? 0, 0, laneRise());
+    }
+
+    /* Stand where it was told to start out, now that the floor is measured. */
+    function applyPlace() {
+      if (!st.place || !st.laneW) return;
+      const rect = host.getBoundingClientRect();
+      st.x = st.place.centerX - rect.left - stageWidth() / 2;
+      st.y = rect.bottom - st.place.bottom;
+      st.place = null;
+      keepInBounds();
+    }
+
+    // Art pixels a second for a cat out wandering: an unhurried stroll.
+    const ROAM_SPEED = 9;
+
     function stepWalk(now, dt) {
       if (!st.laneW) return 0;
       const travel = laneTravel();
-      if (st.x === null) st.x = travel / 2;
-      st.x = clamp(st.x, 0, travel);
+      keepInBounds();
 
       let speed = 0;
       if (st.activity !== "timer") {
-        // Roaming or playing: walk to wherever the cat has decided to go.
+        // Roaming or playing: walk to wherever the cat has decided to go, in a
+        // straight line — along the lane, or slantwise across a roaming area.
         if (st.goalX !== null && !st.turn) {
-          const goal = clamp(st.goalX, 0, travel);
-          const dx = goal - st.x;
+          const goalX = clamp(st.goalX, 0, travel);
+          const goalY = clamp(st.goalY ?? st.y, 0, laneRise());
+          const dx = goalX - st.x;
+          const dy = goalY - st.y;
+          const dist = Math.hypot(dx, dy);
           const dir = dx > 0 ? 1 : -1;
-          if (Math.abs(dx) < 0.5) {
-            st.x = goal;
-            st.goalX = null;
-          } else if (dir !== st.dir) {
+          if (dist < 0.5) {
+            arrive(goalX, goalY);
+          } else if (Math.abs(dx) > 0.5 && dir !== st.dir) {
             face(dir);
           } else {
-            speed = st.activity === "play" ? 11 : 8;
-            st.x += dir * Math.min(Math.abs(dx), speed * st.px * dt);
-            if (Math.abs(goal - st.x) < 0.5) {
-              st.x = goal;
-              st.goalX = null;
-            }
+            speed = st.activity === "play" ? 11 : ROAM_SPEED;
+            const stepLen = Math.min(dist, speed * st.px * dt);
+            st.x += (dx / dist) * stepLen;
+            st.y += (dy / dist) * stepLen;
+            if (Math.hypot(goalX - st.x, goalY - st.y) < 0.5) arrive(goalX, goalY);
           }
         }
       } else if (!st.turn && now >= st.pauseUntil && travel > 0) {
@@ -1693,20 +1862,34 @@ const FireflyBuddy = (() => {
       return accel;
     }
 
+    function arrive(x, y) {
+      st.x = x;
+      st.y = y;
+      st.goalX = null;
+      st.goalY = null;
+    }
+
     /* ---------- Roaming ---------- */
 
+    // Which way a wandering cat sets off: along the floor or on a slant, dy/dx
+    // of 0, ½ or 1 — the ways a cat drawn side-on can believably cross it.
+    // Never straight up or down: it would be walking on the spot.
+    const ROAM_SLOPES = [0, 0, 0.5, -0.5, 1, -1];
+
     /*
-     * Stroll to a spot somewhere along the lane, sit a while — now and then
-     * lie down for a nap — and set off again, somewhere else.
+     * Stroll to a spot somewhere else, sit a while — now and then lie down
+     * for a nap — and set off again. In a lane that is a spot along it; given
+     * a whole area, it is anywhere, reached in one straight line.
      */
     function roamBrain(now) {
       const br = st.brain;
       if (st.reduced) {
         br.pose = "sit";
         st.goalX = null;
+        st.goalY = null;
         return;
       }
-      if (purr.on || st.trans) return;
+      if (purr.on || st.trans || st.carry || st.toss) return;
       if (br.pose === "walk") {
         if (st.goalX === null) {
           br.pose = Math.random() < 0.2 ? "lie" : "sit";
@@ -1715,18 +1898,244 @@ const FireflyBuddy = (() => {
         return;
       }
       if (now < br.until) return;
-      const travel = laneTravel();
-      if (travel < 8 * st.px) {
+      const goal = pickRoamGoal();
+      if (!goal) {
         br.until = now + 4000;
         return;
       }
-      const here = st.x ?? travel / 2;
-      let x = rand(0, travel);
-      if (Math.abs(x - here) < travel * 0.25) {
-        x = here < travel / 2 ? rand(travel * 0.55, travel) : rand(0, travel * 0.45);
-      }
-      st.goalX = x;
+      st.goalX = goal.x;
+      st.goalY = goal.y;
       br.pose = "walk";
+    }
+
+    /* Somewhere a good stroll away, in one of the allowed directions. */
+    function pickRoamGoal() {
+      const travel = laneTravel();
+      const rise = laneRise();
+      if (travel < 8 * st.px) return null;
+      const x0 = st.x ?? travel / 2;
+      const y0 = st.y ?? 0;
+      let best = null;
+      for (let i = 0; i < 12; i += 1) {
+        const sx = Math.random() < 0.5 ? -1 : 1;
+        const slope = rise > 4 * st.px ? ROAM_SLOPES[Math.floor(Math.random() * ROAM_SLOPES.length)] : 0;
+        const ux = sx / Math.hypot(1, slope);
+        const uy = slope / Math.hypot(1, slope);
+        // as far as it can go that way before it meets an edge
+        let room = (sx > 0 ? travel - x0 : x0) / Math.abs(ux);
+        if (uy > 0) room = Math.min(room, (rise - y0) / uy);
+        if (uy < 0) room = Math.min(room, y0 / -uy);
+        const want = rand(40, rise > 0 ? 200 : 120) * st.px;
+        const reach = Math.min(room, want);
+        if (!best || reach > best.reach) best = { reach, x: x0 + ux * reach, y: y0 + uy * reach };
+        if (reach >= Math.min(want, travel * 0.25)) break;
+      }
+      return best && best.reach >= 6 * st.px ? best : null;
+    }
+
+    /* ---------- Carried and thrown ---------- */
+
+    // How high a carried cat hangs off the floor, art pixels; and how hard it
+    // falls back to it when let go, art pixels a second².
+    const CARRY_LIFT = 9;
+    const GRAVITY = 700;
+
+    /*
+     * A roaming cat can be picked up: press on it and move, and it comes off
+     * the floor, legs dangling, and swings a little as it is carried. Let go
+     * and it keeps the hand's speed — a toss — drops back to the floor, skids
+     * to a stop and sits down where it landed. A press without a move is a
+     * pat, as anywhere else: it purrs.
+     */
+    function onPointerDown(event) {
+      if (st.activity !== "roam" || event.button !== 0 || !st.enabled || st.grab || !overCat(event)) return;
+      st.grab = {
+        id: event.pointerId,
+        target: event.target,
+        x0: event.clientX,
+        y0: event.clientY,
+        samples: [[event.timeStamp, event.clientX, event.clientY]],
+      };
+      window.addEventListener("pointermove", onPointerMove, true);
+      window.addEventListener("pointerup", onPointerUp, true);
+      window.addEventListener("pointercancel", onPointerUp, true);
+    }
+
+    function onPointerMove(event) {
+      const g = st.grab;
+      if (!g || event.pointerId !== g.id) return;
+      g.samples.push([event.timeStamp, event.clientX, event.clientY]);
+      while (g.samples.length > 2 && event.timeStamp - g.samples[0][0] > 100) g.samples.shift();
+      if (!st.carry) {
+        // Only a real move picks it up; a press that stays put is a pat.
+        if (Math.hypot(event.clientX - g.x0, event.clientY - g.y0) <= 4) return;
+        pickUp();
+      }
+      carryTo(event.clientX, event.clientY);
+      event.preventDefault();
+    }
+
+    function onPointerUp(event) {
+      const g = st.grab;
+      if (!g || event.pointerId !== g.id) return;
+      stopListening();
+      st.grab = null;
+      if (!st.carry) return; // a pat: the click that follows makes it purr
+      try {
+        g.target.releasePointerCapture(g.id);
+      } catch (error) {
+        // Nothing was captured.
+      }
+      // The hand's speed over its last tenth of a second — none at all if it
+      // had stopped before letting go.
+      const [t0, x0, y0] = g.samples[0];
+      const [t1, x1, y1] = g.samples[g.samples.length - 1];
+      const still = event.type === "pointercancel" || event.timeStamp - t1 > 60 || t1 - t0 < 8;
+      const vx = still ? 0 : ((x1 - x0) / (t1 - t0)) * 1000;
+      const vy = still ? 0 : ((y1 - y0) / (t1 - t0)) * 1000;
+      st.carry = null;
+      st.droppedAt = nowMs();
+      dom.walker.classList.remove("is-carried");
+      host.removeAttribute("data-carried");
+      throwCat(vx, -vy);
+    }
+
+    function stopListening() {
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerUp, true);
+    }
+
+    /* Set it down on the spot, no throw — switched off or sent elsewhere mid-carry. */
+    function letGo() {
+      if (st.grab) {
+        stopListening();
+        try {
+          st.grab.target.releasePointerCapture(st.grab.id);
+        } catch (error) {
+          // Nothing was captured.
+        }
+        st.grab = null;
+      }
+      st.carry = null;
+      st.toss = null;
+      st.lift = 0;
+      dom.walker.classList.remove("is-carried");
+      host.removeAttribute("data-carried");
+    }
+
+    function pickUp() {
+      const g = st.grab;
+      const rect = dom.walker.getBoundingClientRect();
+      // Where on the cat the hand caught it, so it hangs from that point.
+      st.carry = { dx: g.x0 - rect.left, dy: rect.bottom - g.y0 - st.lift * st.px, vx: 0 };
+      st.toss = null;
+      st.goalX = null;
+      st.goalY = null;
+      st.brain.pose = "sit";
+      st.brain.until = 0;
+      try {
+        g.target.setPointerCapture(g.id);
+      } catch (error) {
+        // The pointer is already gone; the window listeners still follow it.
+      }
+      dom.walker.classList.add("is-carried");
+      host.setAttribute("data-carried", "");
+    }
+
+    function carryTo(clientX, clientY) {
+      const rect = host.getBoundingClientRect();
+      const g = st.grab;
+      const n = g.samples.length;
+      if (n > 1) {
+        const [ta, xa] = g.samples[n - 2];
+        const [tb, xb] = g.samples[n - 1];
+        if (tb > ta) st.carry.vx = ((xb - xa) / (tb - ta)) * 1000;
+      }
+      // The picture hangs under the hand; its floor point is the lift lower.
+      st.x = clientX - rect.left - st.carry.dx;
+      st.y = rect.bottom - clientY - st.carry.dy - st.lift * st.px;
+      keepInBounds();
+    }
+
+    function throwCat(vx, vy) {
+      const speed = Math.hypot(vx, vy);
+      const max = 1800;
+      if (speed > max) {
+        vx *= max / speed;
+        vy *= max / speed;
+      }
+      if (st.reduced) {
+        // no flight: set down on the spot
+        st.lift = 0;
+        st.toss = null;
+        land(false);
+        return;
+      }
+      // a hard throw goes up a little before it comes down
+      const up = Math.min(150, (Math.hypot(vx, vy) / st.px) * 0.12);
+      st.toss = { vx, vy, vz: up, air: true };
+      if (Math.abs(vx) > 150) face(vx > 0 ? 1 : -1);
+    }
+
+    function land(skid) {
+      st.brain.pose = "sit";
+      st.brain.until = nowMs() + rand(1800, 4000);
+      if (!skid) st.toss = null;
+      st.head.v += 8; // the landing nods it
+      st.ant[0].v += rand(-4, -2);
+      st.ant[1].v += rand(2, 4);
+    }
+
+    /* Held or flying: up off the floor, legs paddling the air. */
+    function stepCarried(dt) {
+      if (st.carry) {
+        st.lift += (CARRY_LIFT - st.lift) * (1 - Math.exp(-dt / 0.06));
+        st.carry.vx *= Math.exp(-dt / 0.08); // the hand has stopped unless it says otherwise
+      }
+      if (st.pose === "walk" && !st.trans) {
+        st.stride = (st.stride + dt * (st.toss?.air ? 2.6 : 1.1)) % 1;
+        setLegs(Math.floor(st.stride * WALK.frames) % WALK.frames);
+      }
+      st.speed = 0;
+    }
+
+    /* A carried cat trails behind the hand, and swings back when it stops. */
+    function stepSwing(dt) {
+      if (st.reduced) st.swing = { x: 0, v: 0 };
+      else if (st.carry) springStep(st.swing, clamp(-st.carry.vx / 1600, -0.45, 0.45), 60, 0.3, dt);
+      else springStep(st.swing, 0, 90, 0.5, dt);
+    }
+
+    /* Thrown: up and down to the floor, then a skid to a stop. */
+    function stepToss(dt) {
+      const tz = st.toss;
+      if (!tz) return;
+      st.x += tz.vx * dt;
+      st.y += tz.vy * dt;
+      // bump off the edges of the page
+      const travel = laneTravel();
+      const rise = laneRise();
+      if (st.x < 0 || st.x > travel) tz.vx = -tz.vx * 0.4;
+      if (st.y < 0 || st.y > rise) tz.vy = -tz.vy * 0.4;
+      keepInBounds();
+      if (tz.air) {
+        tz.vz -= GRAVITY * dt;
+        st.lift += tz.vz * dt;
+        const drag = Math.exp(-0.8 * dt);
+        tz.vx *= drag;
+        tz.vy *= drag;
+        if (st.lift <= 0) {
+          st.lift = 0;
+          tz.air = false;
+          land(true);
+        }
+        return;
+      }
+      const friction = Math.exp(-7 * dt);
+      tz.vx *= friction;
+      tz.vy *= friction;
+      if (Math.hypot(tz.vx, tz.vy) < 8 * st.px) st.toss = null;
     }
 
     /* ---------- Playing with the ball ---------- */
@@ -2055,7 +2464,9 @@ const FireflyBuddy = (() => {
         const wasHidden = host.hidden;
         host.hidden = false;
         measure();
-        if (st.x === null) st.x = Math.max(0, st.laneW - stageWidth()) / 2;
+        if (st.x === null) st.x = laneTravel() / 2;
+        if (st.y === null) st.y = 0;
+        applyPlace();
         if (!st.pose) showPose(targetPose(nowMs()));
         render(nowMs());
         if (!wasHidden && !animate) return;
@@ -2063,9 +2474,12 @@ const FireflyBuddy = (() => {
           dom.pop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: "ease-out" });
           return;
         }
-        // the lane opens, then the cat pops in with a burst of sparkles
-        host.animate([{ height: "0px", marginBottom: "0px" }, { height: `${laneHeight()}px` }],
-          { duration: 300, easing: "cubic-bezier(.3,.7,.2,1)" });
+        // the lane opens (a roaming area has nothing to open), then the cat
+        // pops in with a burst of sparkles
+        if (!laneRise()) {
+          host.animate([{ height: "0px", marginBottom: "0px" }, { height: `${laneHeight()}px` }],
+            { duration: 300, easing: "cubic-bezier(.3,.7,.2,1)" });
+        }
         dom.pop.animate(
           [
             { transform: "scale(0.15)", opacity: 0 },
@@ -2083,6 +2497,7 @@ const FireflyBuddy = (() => {
       }
 
       setPurring(false);
+      letGo();
       if (host.hidden) return;
       if (!animate) {
         host.hidden = true;
@@ -2100,20 +2515,26 @@ const FireflyBuddy = (() => {
         { duration: 380, easing: "cubic-bezier(.5,0,.75,.2)", fill: "forwards" }
       );
       st.hideAnims.push(vanish);
+      const gone = () => {
+        if (st.enabled) return;
+        host.hidden = true;
+        st.hideAnims.forEach((anim) => anim.cancel());
+        st.hideAnims = [];
+        updateLoop();
+      };
       vanish.onfinish = () => {
         if (st.enabled) return;
+        // a lane folds away after its cat; a roaming area just goes
+        if (laneRise()) {
+          gone();
+          return;
+        }
         const shrink = host.animate(
           [{ height: `${laneHeight()}px` }, { height: "0px", marginBottom: "0px" }],
           { duration: 260, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
         );
         st.hideAnims.push(shrink);
-        shrink.onfinish = () => {
-          if (st.enabled) return;
-          host.hidden = true;
-          st.hideAnims.forEach((anim) => anim.cancel());
-          st.hideAnims = [];
-          updateLoop();
-        };
+        shrink.onfinish = gone;
       };
     }
 
@@ -2124,8 +2545,6 @@ const FireflyBuddy = (() => {
       if (on === purr.on) return;
       if (on) purr.start();
       else purr.stop();
-      st.ant[0].v += rand(-3, 3);
-      st.ant[1].v += rand(-3, 3);
       onPurrChange?.(purr.on);
     }
 
@@ -2148,30 +2567,46 @@ const FireflyBuddy = (() => {
 
       // walking — the walker keeps its place while the cat sits
       let walkerAccel = 0;
-      if (st.pose === "walk" && !st.trans && !st.reduced) walkerAccel = stepWalk(now, dt);
+      if (st.carry || st.toss) {
+        stepCarried(dt);
+        stepToss(dt);
+        // the antennae feel it being swung about
+        const vx = (st.x - st.moved.x) / st.px / Math.max(dt, 1 / 240);
+        walkerAccel = clamp((vx - st.moved.vx) / Math.max(dt, 1 / 240), -600, 600);
+        st.moved.vx = vx;
+      } else if (st.pose === "walk" && !st.trans && !st.reduced) walkerAccel = stepWalk(now, dt);
       else {
         st.walkerV = 0;
         st.speed = 0;
         st.pauseUntil = 0;
         // A hidden lane measures zero wide; do not take that as where to sit.
         if (st.laneW > 0) {
-          const travel = Math.max(0, st.laneW - stageWidth());
-          if (st.x === null || st.reduced) st.x = travel / 2;
-          st.x = clamp(st.x, 0, travel);
+          // without motion the cat stands mid-lane — but a roaming one stays
+          // wherever it was put
+          if (st.x === null || (st.reduced && st.activity !== "roam")) st.x = laneTravel() / 2;
+          keepInBounds();
         }
       }
+      if (!st.carry && !st.toss?.air) st.lift = 0;
+      if (!st.carry && !st.toss) st.moved.vx = 0;
+      stepSwing(dt);
+      st.moved.x = st.x ?? 0;
 
       if (st.activity === "play") {
         stepBall(dt);
         stepSwat(now);
       }
 
-      // breathing, or the purr's own breaths while it purrs
-      const sample = purr.sample();
+      // Breathing — and while it purrs, the purr's own slower, deeper breaths,
+      // in time with what you hear. Nothing else moves to the purr: the cat
+      // used to hum along with a jitter, and that read as twitching. Eased
+      // towards rather than set, so the purr starting or stopping mid-breath
+      // never makes the chest jump.
+      const purrBreath = purr.breath();
       const period = st.pose === "lie" ? 4.6 : 3.6;
-      st.breath = st.reduced ? 0 : sample ? sample.breath : breathAt(t, period);
-      const level = sample ? sample.level : 0;
-      st.purrLevel = level;
+      const breathTarget = st.reduced ? 0 : purrBreath ?? breathAt(t, period);
+      st.breath += (breathTarget - st.breath) * (1 - Math.exp(-dt / 0.2));
+      st.depth += ((purrBreath === null ? 1 : PURR_DEPTH) - st.depth) * (1 - Math.exp(-dt / 0.6));
 
       // body: a stride bob while walking, the breath otherwise
       let headTarget = 0;
@@ -2180,17 +2615,8 @@ const FireflyBuddy = (() => {
         headTarget = st.bodyY * 0.9;
       } else {
         st.bodyY = 0;
-        const rise = st.pose === "lie" ? 0.07 : 0.028;
         const headY = POSES[st.pose].head[1];
-        headTarget = -rise * st.breath * (GROUND - headY) * (st.pose === "lie" ? 0.6 : 1);
-      }
-
-      // purring makes the body hum: a tiny jitter, stronger as it gets louder,
-      // and only as quick as the purr itself
-      const jitterAmp = st.reduced ? 0 : 0.5 * level;
-      st.jitterFrame = (st.jitterFrame + 1) % PURR_SLOWDOWN;
-      if (st.jitterFrame === 0 || jitterAmp === 0) {
-        st.jitter = [rand(-1, 1) * jitterAmp, rand(-1, 1) * jitterAmp];
+        headTarget = -breathRise() * st.breath * (GROUND - headY) * (st.pose === "lie" ? 0.6 : 1);
       }
 
       // springs, in small steps so stiff ones stay stable
@@ -2211,7 +2637,6 @@ const FireflyBuddy = (() => {
           let drive = (-(ax * Math.cos(angle) + headAccel * Math.sin(angle)) * 34) / 11;
           drive = clamp(drive, -70, 70);
           drive += 6 * (0.6 * Math.sin(1.31 * t + k * 2.1) + 0.4 * Math.sin(2.93 * t + k * 4.7));
-          if (level > 0) drive += rand(-1, 1) * 30 * level;
           springStep(a, 0, 227, 0.13, h, st.reduced ? 0 : drive);
           a.x = clamp(a.x, -0.5, 0.5);
         });
@@ -2256,21 +2681,27 @@ const FireflyBuddy = (() => {
     function render(now) {
       // art pixels → CSS pixels, landing on whole device pixels
       const toPx = (v) => snap(v * st.px);
-      const [jx, jy] = st.jitter;
       const t = st.clock;
 
-      setTransform(dom.walker, `translate3d(${snap(st.x ?? 0)}px, 0, 0)`);
+      setTransform(dom.walker, `translate3d(${snap(st.x ?? 0)}px, ${snap(-(st.y ?? 0))}px, 0)`);
       setTransform(dom.turn, `scaleX(${turnScale(now).toFixed(3)})`);
       setTransform(dom.rig, `scale(${st.squash[0].toFixed(3)}, ${st.squash[1].toFixed(3)})`);
+      // Off the floor: the cat rises (and swings, inside its mirror, so the
+      // swing goes the same way on screen whichever way it faces); its shadow
+      // stays down and shrinks.
+      const swing = st.swing.x * (st.dir < 0 ? -1 : 1);
+      setTransform(dom.lift, st.lift > 0.01 || Math.abs(swing) > 0.001
+        ? `translate3d(0, ${toPx(-st.lift)}px, 0) rotate(${swing.toFixed(4)}rad)`
+        : "none");
+      setTransform(dom.shadow, st.lift > 0.01 ? `scale(${(1 - Math.min(0.45, st.lift / 30)).toFixed(3)})` : "none");
 
       if (st.pose === "walk") {
-        setTransform(dom.body, `translate3d(${toPx(jx)}px, ${toPx(st.bodyY + jy)}px, 0)`);
+        setTransform(dom.body, `translate3d(0, ${toPx(st.bodyY)}px, 0)`);
         setTransform(dom.tail, `translate3d(0, ${toPx(st.bodyY)}px, 0) rotate(${st.tail.x.toFixed(4)}rad)`);
       } else {
-        const rise = st.pose === "lie" ? 0.07 : 0.028;
         const b = st.breath;
         setTransform(dom.body,
-          `translate3d(${toPx(jx)}px, ${toPx(jy)}px, 0) scale(${(1 + 0.008 * b).toFixed(4)}, ${(1 + rise * b).toFixed(4)})`);
+          `scale(${(1 + 0.008 * st.depth * b).toFixed(4)}, ${(1 + breathRise() * b).toFixed(4)})`);
         setTransform(dom.tip, `rotate(${st.tip.x.toFixed(4)}rad)`);
       }
       setTransform(dom.near, st.pose === "sit" ? `rotate(${pawAngle(now).toFixed(4)}rad)` : "none");
@@ -2280,7 +2711,7 @@ const FireflyBuddy = (() => {
         setTransform(st.ball.body, `rotate(${st.ball.angle.toFixed(3)}rad)`);
       }
 
-      setTransform(dom.head, `translate3d(${toPx(jx)}px, ${toPx(st.head.x + jy)}px, 0)`);
+      setTransform(dom.head, `translate3d(0, ${toPx(st.head.x)}px, 0)`);
 
       // whiskers: both tips rise and fall together, a beat apart
       const sway = 0.035 * Math.sin((2 * Math.PI * t) / 2.6) + 0.012 * Math.sin((2 * Math.PI * t) / 1.15 + 0.7);
@@ -2290,11 +2721,8 @@ const FireflyBuddy = (() => {
       setTransform(dom.whiskers[0], `rotate(${wl.toFixed(4)}rad)`);
       setTransform(dom.whiskers[1], `rotate(${wr.toFixed(4)}rad)`);
 
-      // a purr hums through the band: the antennae buzz with it
-      const buzz = st.reduced ? 0 : st.purrLevel * 0.03;
       dom.antennae.forEach((a, i) => {
-        const angle = st.ant[i].x + buzz * Math.sin(((2 * Math.PI * 9) / PURR_SLOWDOWN) * t + i * 1.7);
-        setTransform(a.wrap, `rotate(${angle.toFixed(4)}rad)`);
+        setTransform(a.wrap, `rotate(${st.ant[i].x.toFixed(4)}rad)`);
       });
     }
 
@@ -2380,7 +2808,8 @@ const FireflyBuddy = (() => {
       if (!st.pose) return false;
       const rect = dom.walker.getBoundingClientRect();
       let x = (event.clientX - rect.left) / st.px;
-      const y = (event.clientY - rect.top) / st.px;
+      // held up off the floor, the picture is that much higher than its box
+      const y = (event.clientY - rect.top) / st.px + st.lift;
       if (st.dir < 0) x = FRAME.w - x;
       const mask = art.masks[st.pose];
       for (let dy = -1; dy <= 1; dy += 1) {
@@ -2396,8 +2825,10 @@ const FireflyBuddy = (() => {
       dom.walker.classList.toggle("is-over-cat", overCat(event));
     });
     dom.walker.addEventListener("pointerleave", () => dom.walker.classList.remove("is-over-cat"));
+    dom.walker.addEventListener("pointerdown", onPointerDown);
     dom.walker.addEventListener("click", (event) => {
-      if (!overCat(event)) return;
+      // the click that ends a carry is not a pat
+      if (!overCat(event) || nowMs() - st.droppedAt < 400) return;
       setPurring(!purr.on);
     });
 
@@ -2430,34 +2861,58 @@ const FireflyBuddy = (() => {
       return {
         pose: st.pose,
         x: st.x,
+        y: st.y,
         dir: st.dir,
         eyes: st.eyes,
         px: st.px,
         trans: Boolean(st.trans),
         plan: st.brain.pose,
-        goal: st.goalX,
+        goal: st.goalX === null ? null : [st.goalX, st.goalY],
         swat: Boolean(st.swat),
         ball: st.ball ? { x: st.ball.x, v: st.ball.v } : null,
+        lift: st.lift,
+        carried: Boolean(st.carry),
+        tossed: st.toss ? (st.toss.air ? "air" : "skid") : null,
+        breath: st.breath,
+        depth: st.depth,
       };
     }
 
-    /* "timer", "roam" or "play" — see create(). */
-    function setActivity(name) {
+    /*
+     * "timer", "roam" or "play" — see create(). `from`, as for create(), is
+     * where a cat sent out roaming starts from.
+     */
+    function setActivity(name, { from = null } = {}) {
       if (name === st.activity) return;
+      letGo();
       st.activity = name;
+      host.dataset.activity = name;
       st.goalX = null;
+      st.goalY = null;
       st.swat = null;
       st.pauseUntil = 0;
       st.brain = { pose: "sit", until: nowMs() + rand(800, 2200), nextSwat: 0, restless: 0 };
       if (name === "play") ensureBall();
       else removeBall();
-      // The host may just have moved to another lane: measure it and stand
-      // in the middle of it.
+      // The host may just have moved somewhere else: measure it and stand in
+      // the middle of it — or, roaming, wherever the cat was before.
       st.x = null;
+      st.y = null;
+      st.place = name === "roam" ? from : null;
       if (!host.hidden) {
         measure();
-        if (st.laneW) st.x = laneTravel() / 2;
+        if (st.laneW) {
+          st.x = laneTravel() / 2;
+          st.y = 0;
+          applyPlace();
+        }
       }
+    }
+
+    /* Where the cat stands on the page, as `from` wants it. */
+    function whereabouts() {
+      const rect = dom.walker.getBoundingClientRect();
+      return { centerX: rect.left + rect.width / 2, bottom: rect.bottom };
     }
 
     /* Pop in with sparkles where the cat now is — after moving it somewhere new. */
@@ -2484,6 +2939,7 @@ const FireflyBuddy = (() => {
     function destroy() {
       removeBall();
       purr.stop();
+      letGo();
       st.enabled = false;
       if (st.raf) cancelAnimationFrame(st.raf);
       st.raf = 0;
@@ -2510,6 +2966,7 @@ const FireflyBuddy = (() => {
       sync,
       face,
       setActivity,
+      whereabouts,
       appear,
       destroy,
       setPurring,
