@@ -351,6 +351,24 @@ function normalizeTasks(tasks) {
     }));
 }
 
+/*
+ * One change to the state at a time. Every handler reads the whole state,
+ * changes it and writes it back, so two running side by side write over each
+ * other — and they did run side by side: the worker sleeps between events, and
+ * whatever wakes it (the stage-end alarm, a click on Start) arrives together
+ * with the restoreAlarmIfNeeded() that every start-up runs. A stage end that
+ * woke the worker was finished twice — two chimes and two notifications, or
+ * the break that had just begun finished on the spot — and the toolbar badge
+ * could be left showing the state from before the click.
+ */
+let stateQueue = Promise.resolve();
+
+function serial(task) {
+  const run = stateQueue.then(task);
+  stateQueue = run.catch(() => {});
+  return run;
+}
+
 async function getState() {
   const data = await chrome.storage.local.get("pomodoro");
   const saved = data.pomodoro || {};
@@ -423,7 +441,41 @@ async function notify(title, message) {
   });
 }
 
+/*
+ * chrome.alarms keeps an extension's alarms at least 30 seconds apart: one set
+ * less than 30 seconds ahead, or due less than 30 seconds after another one
+ * went off, waits out the rest — except in an extension loaded unpacked, which
+ * is why this never shows in development. Resume a stage with 20 seconds left,
+ * or set the reminder to 20 seconds before the end, and the end would come 10
+ * seconds late, the countdown sitting on 0:00 meanwhile. The worker stays
+ * awake for 30 seconds after its last event, so an ordinary timer covers
+ * that gap; the alarm stays as the fallback, and whichever of the two comes
+ * second finds nothing left to do. Only the real chrome.alarms has the floor:
+ * the app's stand-in (app/shim.js) fires on time, and only in the window that
+ * owns the timer.
+ */
+const ALARM_FLOOR_MS = typeof ServiceWorkerGlobalScope === "undefined" ? 0 : 30000;
+const soonTimers = {};
+
+function cancelSoonTimer(name) {
+  clearTimeout(soonTimers[name]);
+  delete soonTimers[name];
+}
+
+function setSoonTimer(name, at, task) {
+  cancelSoonTimer(name);
+  const delay = at - Date.now();
+  if (!ALARM_FLOOR_MS || delay >= ALARM_FLOOR_MS) return;
+
+  soonTimers[name] = setTimeout(() => {
+    delete soonTimers[name];
+    serial(task);
+  }, Math.max(0, delay));
+}
+
 async function clearTimerAlarms() {
+  cancelSoonTimer(END_ALARM);
+  cancelSoonTimer(WARNING_ALARM);
   await chrome.alarms.clear(END_ALARM);
   await chrome.alarms.clear(WARNING_ALARM);
 }
@@ -436,6 +488,7 @@ async function scheduleTimerAlarms(state) {
   await chrome.alarms.create(END_ALARM, {
     when: state.endsAt
   });
+  setSoonTimer(END_ALARM, state.endsAt, completeCycle);
 
   const warningAt = state.endsAt - state.settings.remindBeforeEndSeconds * 1000;
 
@@ -443,6 +496,7 @@ async function scheduleTimerAlarms(state) {
     await chrome.alarms.create(WARNING_ALARM, {
       when: warningAt
     });
+    setSoonTimer(WARNING_ALARM, warningAt, () => handleWarningAlarm(warningAt));
   }
 }
 
@@ -642,9 +696,32 @@ async function saveSettings(settings) {
   return nextState;
 }
 
-async function handleWarningAlarm() {
+// The stage the reminder was last given for: the alarm and its stand-in timer
+// can both report the same moment, and the reminder comes once.
+let warnedFor = null;
+
+async function handleWarningAlarm(dueAt) {
   const state = await getState();
-  if (!state.running) return state;
+  const remindMs = state.settings.remindBeforeEndSeconds * 1000;
+
+  // Only the reminder the running stage asked for, and only while that stage
+  // is still on. A computer waking from sleep finds every alarm overdue at
+  // once, and nothing promises the reminder comes before the end — it can
+  // turn up after the next stage has already begun.
+  if (
+    !state.running ||
+    !state.endsAt ||
+    state.endsAt <= Date.now() ||
+    warnedFor === state.endsAt ||
+    Math.abs(state.endsAt - remindMs - dueAt) > 1000
+  ) {
+    return state;
+  }
+  warnedFor = state.endsAt;
+  cancelSoonTimer(WARNING_ALARM);
+  await chrome.alarms.clear(WARNING_ALARM);
+  // A reminder less than 30 seconds before the end would hold the end back.
+  setSoonTimer(END_ALARM, state.endsAt, completeCycle);
 
   const msg = getMessages(state.settings);
   const seconds = state.settings.remindBeforeEndSeconds;
@@ -661,7 +738,10 @@ async function handleWarningAlarm() {
 async function completeCycle() {
   const state = await getState();
 
-  if (!state.running) return state;
+  // Only a stage that has really run out. The same end can be reported twice
+  // (its alarm, and the start-up check that alarm woke the worker for), and the
+  // second report must find the next stage already under way and leave it be.
+  if (!state.running || !state.endsAt || state.endsAt > Date.now() + 1000) return state;
 
   const msg = getMessages(state.settings);
   let sessionsDone = state.sessionsDone;
@@ -690,8 +770,13 @@ async function completeCycle() {
     signal = "startWork";
   }
 
-  const shouldRunNext = state.settings.autoContinue;
+  // The next stage began when this one ended, not when the worker heard of it:
+  // the computer may have been asleep, the browser shut. If the next stage
+  // would be over by now as well, nobody was there to keep the cycle going —
+  // it waits for Start rather than running out of date.
   const nextDuration = getDurationMs(nextMode, state.settings);
+  const nextEndsAt = state.endsAt + nextDuration;
+  const shouldRunNext = state.settings.autoContinue && nextEndsAt > Date.now() + 1000;
 
   if (state.mode === "work") {
     message = shouldRunNext
@@ -705,7 +790,7 @@ async function completeCycle() {
     ...state,
     mode: nextMode,
     running: shouldRunNext,
-    endsAt: shouldRunNext ? Date.now() + nextDuration : null,
+    endsAt: shouldRunNext ? nextEndsAt : null,
     remainingMs: shouldRunNext ? null : nextDuration,
     sessionsDone,
     stats
@@ -825,25 +910,25 @@ async function restoreAlarmIfNeeded() {
   await updateBadge(state);
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
-  await configureSidePanel();
-  const current = await getState();
-  await setState(current);
-  await restoreAlarmIfNeeded();
+chrome.runtime.onInstalled.addListener(() => {
+  serial(async () => {
+    const current = await getState();
+    await setState(current);
+    await restoreAlarmIfNeeded();
+  });
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  configureSidePanel();
-  restoreAlarmIfNeeded();
+  serial(restoreAlarmIfNeeded);
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === END_ALARM) {
-    completeCycle();
+    serial(completeCycle);
   }
 
   if (alarm.name === WARNING_ALARM) {
-    handleWarningAlarm();
+    serial(() => handleWarningAlarm(alarm.scheduledTime));
   }
 });
 
@@ -853,7 +938,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
 
-  (async () => {
+  // Not queued: Chrome opens the side panel only within the click's user
+  // gesture, and that would be gone by the time the queue got to it.
+  const panelOpening = message.type === "OPEN_SIDE_PANEL" ? openFullSidePanel(sender) : null;
+
+  serial(async () => {
     let state;
 
     switch (message.type) {
@@ -894,7 +983,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         state = await clearDoneTasks();
         break;
       case "OPEN_SIDE_PANEL":
-        await openFullSidePanel(sender);
+        await panelOpening;
         state = await getState();
         break;
       default:
@@ -902,7 +991,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     sendResponse({ ok: true, state });
-  })().catch((error) => {
+  }).catch((error) => {
     console.error(error);
     sendResponse({
       ok: false,
@@ -914,4 +1003,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 configureSidePanel();
-restoreAlarmIfNeeded();
+serial(restoreAlarmIfNeeded);

@@ -64,13 +64,13 @@ Firefly Focus also runs as an installable web app. Serve the repository root ove
 python3 -m http.server 8080     # or any static server
 ```
 
-Then visit `http://localhost:8080/` and use your browser's **Install** action. The app opens in its own window, keeps working offline, and shows the timer on the taskbar icon. It runs the same code as the extension — only the floating widget is missing, since that one has to be a browser extension.
+Then visit `http://localhost:8080/` and use your browser's **Install** action. The app opens in its own window, keeps working offline, and shows the timer on the taskbar icon. It runs the same code as the extension — only the floating widget is missing, since that one has to be a browser extension. The app keeps time while its window is minimised or covered, but it can only ring while the window is open; close it and the timer catches up the next time you open it.
 
 ---
 
 ## 🚀 Usage
 
-- **Open the panel** — click the toolbar icon to open the side panel with the full timer, tasks and settings.
+- **Open the panel** — click the toolbar icon to open the side panel with the full timer, tasks and settings. Close it whenever you like: the timer keeps running and still rings at the end of each stage. If Chrome itself is closed through a stage end, the timer catches up when Chrome starts again — and if the next stage would have finished as well, it waits for **Start**.
 - **Floating widget** — appears automatically on regular web pages (`http`/`https`) as two pieces you can drag apart: the **timer** (click the time to open the panel; the handle under it folds the task drawer away, and "+ New task" adds one) and the **cat** on its shelf (🐾 lets it stroll along the bottom of the tab, ⚽ keeps it home playing with a ball, the wave makes it purr; a tap on the cat purrs too). Hover either and press **×** to hide it on the current page (it comes back on reload). To turn it off everywhere, use **Settings → Floating widget on websites**.
 - **Add a deadline** — click the date pill under a task to set or change its due date; clear the date to remove it.
 - **Switch theme / language** — both selectors live at the top of the side panel.

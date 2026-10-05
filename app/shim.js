@@ -143,19 +143,65 @@
   }
 
   /* ---------- alarms ---------- */
+  /*
+   * chrome.alarms fires on time whatever the browser is doing; a hidden
+   * window's own timers do not. Once the window has been out of sight for a
+   * few minutes, Chrome runs a timer set from another timer's callback — and
+   * every stage after the first is armed from the one before — only once a
+   * minute, so a stage could end up to a minute late. A worker's timers are
+   * not held back that way, so the countdown to each alarm runs in one; it
+   * only says when, and the alarm itself still fires here. Each arming has its
+   * own number, so a late answer for an alarm that has since been set again
+   * cannot fire the new one.
+   */
+  let armings = 0;
+  const clock = startClock();
+
+  function startClock() {
+    try {
+      const source = `const timers = new Map();
+onmessage = ({ data }) => {
+  clearTimeout(timers.get(data.name));
+  timers.delete(data.name);
+  if (data.when === null) return;
+  timers.set(data.name, setTimeout(() => {
+    timers.delete(data.name);
+    postMessage(data);
+  }, Math.max(0, data.when - Date.now())));
+};`;
+      const worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+      worker.onmessage = ({ data }) => {
+        if (alarms.get(data.name)?.id === data.id) fireAlarm(data.name);
+      };
+      return worker;
+    } catch (error) {
+      return null;
+    }
+  }
+
   function armAlarm(name) {
     const alarm = alarms.get(name);
     if (!alarm || !isLeader) return;
 
+    alarm.id = ++armings;
+    if (clock) {
+      clock.postMessage({ name, id: alarm.id, when: alarm.when });
+      return;
+    }
     clearTimeout(alarm.timer);
     alarm.timer = setTimeout(() => fireAlarm(name), Math.max(0, alarm.when - Date.now()));
+  }
+
+  function disarmAlarm(name) {
+    clearTimeout(alarms.get(name)?.timer);
+    clock?.postMessage({ name, when: null });
   }
 
   function fireAlarm(name) {
     const alarm = alarms.get(name);
     if (!alarm) return;
 
-    clearTimeout(alarm.timer);
+    disarmAlarm(name);
     alarms.delete(name);
 
     for (const fn of alarmListeners.slice()) {
@@ -168,11 +214,9 @@
   }
 
   /*
-   * chrome.alarms fires on time whatever the browser is doing; setTimeout in a
-   * hidden window does not — Chrome throttles background timers to about once
-   * a minute, so a stage could end late. Sweeping for overdue alarms, and
-   * doing it immediately when the window comes back, keeps the overshoot to
-   * the throttle interval instead of letting it run on unbounded.
+   * The backstop: should the window be frozen outright, or have no worker,
+   * sweep for overdue alarms now and then, and straight away when the window
+   * comes back.
    */
   function sweepOverdueAlarms() {
     if (!isLeader) return;
@@ -286,12 +330,12 @@
 
     alarms: {
       async create(name, info) {
-        alarms.set(name, { when: info.when, timer: null });
+        disarmAlarm(name);
+        alarms.set(name, { when: info.when, timer: null, id: 0 });
         armAlarm(name);
       },
       async clear(name) {
-        const alarm = alarms.get(name);
-        if (alarm) clearTimeout(alarm.timer);
+        disarmAlarm(name);
         alarms.delete(name);
         return true;
       },
