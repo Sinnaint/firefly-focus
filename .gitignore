@@ -13,3 +13,7 @@ node_modules/
 # Packaged builds / local preview artifacts
 *.zip
 preview-*.html
+
+# The Windows program's build output
+desktop/out/
+desktop/dist/

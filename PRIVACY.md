@@ -1,46 +1,63 @@
 # Privacy Policy — Firefly Focus
 
-_Last updated: 2026-07-09_
+_Last updated: 2026-11-06_
 
-Firefly Focus ("the extension") is built to be private by default. This policy explains exactly what the extension does and does not do with your information.
+This policy covers Firefly Focus in all its forms: the Windows program, the Chrome extension and the web app. It explains exactly what they do and do not do with your information.
 
 ## Short version
 
-**Firefly Focus does not collect, transmit, sell or share any personal data. Everything you enter stays on your own device.**
+**Firefly Focus does not collect, transmit, sell or share any personal data. Everything you enter stays on your own device.** There is no account, no sign-in, no analytics and no advertising, and we have no servers that could receive your data.
 
-## What data the extension stores
+## What is stored, and where
 
-The extension saves the following **locally on your device** using the browser's `chrome.storage.local` API:
+Firefly Focus saves the following **on your device only**:
 
-- Timer state (current mode, whether it's running, remaining time).
-- Your tasks, including any optional deadlines and completion status.
-- Your settings (durations, theme, language, sound style, toggles, etc.).
-- Daily statistics (sessions completed today, focus time, totals) where you last left the floating widget's timer and cat, and whether the cat plays or strolls.
+- Timer state (current mode, whether it is running, remaining time).
+- Your tasks, including any optional deadlines and completion status. Task text is whatever you type, so keep in mind that it may contain anything you choose to write there.
+- Your settings (durations, theme, language, sound style, toggles and so on).
+- Daily statistics (sessions completed today, focus time, totals).
+- Where you last left the widgets and the on-screen icon, and what the cat is doing.
 
-This data never leaves your browser. It is not sent to us or to any third party, and there is no account or login of any kind.
+Where exactly:
 
-## What the extension does NOT do
+- **Windows program:** in one file in the program's own data folder on your computer. It is protected the way your other files are, by your Windows account, and it is not encrypted separately.
+- **Chrome extension:** in the browser's `chrome.storage.local`.
+- **Web app:** in your browser's storage for the site.
 
-- ❌ No data is transmitted over the network. The extension makes **no external requests**.
-- ❌ No analytics, telemetry, tracking pixels or advertising IDs.
-- ❌ No reading, collecting or transmitting of the content of the web pages you visit.
+This data is used only to run the timer and show your tasks and statistics. It is not sent to us or to anyone else.
+
+## What Firefly Focus does NOT do
+
+- ❌ No data is transmitted over the network, and no external requests are made.
+- ❌ No analytics, telemetry, crash reports, tracking pixels or advertising IDs.
+- ❌ No automatic updater inside the program. Updates of the Windows program come through the Microsoft Store.
+- ❌ No reading, collecting or transmitting of what you do in other programs or on the web pages you visit.
 - ❌ No selling or sharing of data with third parties.
 - ❌ No cookies.
 
-## Host (website) access
+## The Windows program
 
-The extension requests access to `http://*/*` and `https://*/*` for a single purpose: to inject the optional draggable **floating timer widget** onto web pages so your timer stays visible while you work. The content script only renders the widget (inside an isolated Shadow DOM) and reads/writes the extension's own local storage. **It does not read, modify, store or transmit the content of the pages you visit.**
+The program runs as a desktop app, which Windows and the Microsoft Store list as being able to use "all system resources". This is how desktop programs work in general, and Firefly Focus needs it to draw its widgets and icon over your other programs. It does not use it to look at them: it does not read your screen, files, keystrokes or the contents of other windows. It sees the mouse pointer's position over the screen only to know when the pointer is on one of its own widgets, and it sees what you type only while you are typing into one of its own fields.
 
-## Permissions summary
+The program also refuses network connections in its own code, so it stays local even if something in it were to try.
 
-- `alarms`, `storage`, `notifications`, `offscreen`, `sidePanel` — used solely to run the timer, save your data locally, show notifications and play sounds.
-- Host access — used solely to display the floating widget.
+## The Chrome extension
 
-## Data deletion
+The extension requests access to `http://*/*` and `https://*/*` for a single purpose: to show the optional draggable **floating timer widget** on web pages so your timer stays visible while you work. The content script only renders the widget (inside an isolated Shadow DOM) and reads and writes the extension's own local storage. **It does not read, modify, store or transmit the content of the pages you visit.**
 
-Because all data is stored locally, you can remove it at any time by:
-- clearing tasks/stats from within the extension, or
-- removing the extension from `chrome://extensions` (this deletes its local storage).
+Its other permissions, `alarms`, `storage`, `notifications`, `offscreen` and `sidePanel`, are used solely to run the timer, save your data locally, show notifications and play sounds.
+
+## Your control over your data
+
+All of it is on your device, so you can see, change and remove it at any time:
+
+- Change or delete tasks and settings within Firefly Focus, and clear statistics with **Reset statistics** in the settings.
+- **Windows program:** uninstalling it removes its data as well.
+- **Chrome extension:** removing it from `chrome://extensions` deletes its local storage.
+
+## Children
+
+Firefly Focus collects no information from anyone, children included.
 
 ## Changes to this policy
 

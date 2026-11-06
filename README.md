@@ -47,6 +47,11 @@
 
 ## 📦 Install
 
+### As a Windows program
+> _Microsoft Store link coming soon._
+
+The widgets, the on-screen icon and the cat stay over all your other programs, and it works without any browser. See [desktop/README.md](desktop/README.md) to run it from source.
+
 ### From the Chrome Web Store
 > _Store link coming soon._
 

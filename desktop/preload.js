@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("fireflyHost", {
   notify: (options) => ipcRenderer.send("notify", options),
   setBadge: (text) => ipcRenderer.send("badge", text),
   openFullscreen: () => ipcRenderer.send("open-fullscreen"),
+  openLicenses: () => ipcRenderer.send("open-licenses"),
+  appVersion: () => ipcRenderer.invoke("app-version"),
   quit: () => ipcRenderer.send("quit"),
 
   // The layer the widgets live on.

@@ -38,6 +38,21 @@ npm start
 
 In PowerShell, use `npm.cmd` if scripts are disabled on the system. The data is in `firefly-focus.json` in the program's folder under `%APPDATA%`.
 
+## Building the package
+
+```
+npm.cmd --prefix desktop run dist
+```
+
+This gathers exactly the files the program needs (`FILES` in `tools/build.js`; a new file has to be added there) and packs them into `desktop/dist/FireflyFocus-<version>-x64.appx` for the Microsoft Store, which signs it itself. It also leaves the unpacked program in `desktop/dist/win-unpacked`, handy for trying it out; add `--user-data-dir=<a temporary folder>` to keep away from your real data.
+
+For a real submission, first fill `store-identity.json` with the values Partner Center gives when the name is reserved. Everything else for the submission is in [STORE-LISTING.md](STORE-LISTING.md).
+
+| Command | What it does |
+|---|---|
+| `npm.cmd --prefix desktop run tiles` | Draws the package's icons from the logo, into `build/appx` |
+| `npm.cmd --prefix desktop run screenshots` | Takes the Store screenshots in every language from the real program, on throwaway data, into `dist/store-screenshots`. Its windows show on the screen meanwhile |
+
 ## Local only
 
 The program must not reach the internet. `main.js` refuses every request that is not for its own files and turns off Chromium's search for a proxy on the local network, its pages have a security policy of their own, and the spellchecker, which would download dictionaries, is off.

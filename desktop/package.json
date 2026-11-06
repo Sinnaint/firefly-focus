@@ -1,13 +1,17 @@
 {
   "name": "firefly-focus-desktop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Firefly Focus as a Windows program.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "tiles": "electron tools/make-tiles.js",
+    "dist": "node tools/build.js",
+    "screenshots": "electron tools/screenshots.js"
   },
   "devDependencies": {
-    "electron": "^45.2.3"
+    "electron": "^45.2.3",
+    "electron-builder": "26.18.0"
   }
 }

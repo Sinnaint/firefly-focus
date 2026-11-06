@@ -24,6 +24,8 @@
     if (kindSelect) kindSelect.value = kind;
     const launcherBox = document.getElementById("desktopLauncherShown");
     if (launcherBox) launcherBox.checked = !data.desktopLauncherHidden;
+    const version = document.getElementById("desktopVersion");
+    if (version && !version.textContent) window.fireflyHost.appVersion().then((text) => { version.textContent = text; });
 
     // One cat at a time: while it is out on the layer, this window goes without.
     // The fullscreen timer always has its own, because the layer is shut for it.
@@ -92,6 +94,7 @@
 
   document.addEventListener("click", (event) => {
     if (event.target.id === "desktopQuit") window.fireflyHost.quit();
+    if (event.target.id === "desktopLicenses") window.fireflyHost.openLicenses();
   });
 
   chrome.storage.onChanged.addListener((changes) => {

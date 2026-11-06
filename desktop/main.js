@@ -100,7 +100,17 @@ const PROGRAM_SETTINGS = `<div class="settings-grid desktop-settings">
       </div>
 
       `;
-const QUIT_BUTTON = '\n      <button id="desktopQuit" type="button" data-i18n="desktopQuit"></button>';
+const QUIT_BUTTON = `
+      <button id="desktopQuit" type="button" data-i18n="desktopQuit"></button>
+
+      <div class="desktop-about">
+        <h3><span data-i18n="desktopAboutTitle"></span></h3>
+        <p><strong>Firefly Focus</strong> <span id="desktopVersion"></span></p>
+        <p data-i18n="desktopPrivacyText"></p>
+        <p data-i18n="desktopLicenseText"></p>
+        <p><span data-i18n="desktopSupportLabel"></span> github.com/Sinnaint/firefly-focus</p>
+        <button id="desktopLicenses" class="tiny" type="button" data-i18n="desktopLicensesButton"></button>
+      </div>`;
 
 /*
  * The extension's pages come as they are, with the adapter put in front of
@@ -119,9 +129,40 @@ function adaptPage(html) {
     .replace(/(<button id="saveBtn"[^]*?<\/button>)/, `$1${QUIT_BUTTON}`);
 }
 
+/*
+ * The licenses of what the program is made of, on one page and from its own files:
+ * Electron brings its notices along beside the program. It reads them, wherever
+ * packaging has put them and under whichever of their names.
+ */
+async function licensesPage() {
+  const readAny = async (...candidates) => {
+    for (const file of candidates) {
+      try {
+        return await fs.promises.readFile(file, "utf8");
+      } catch (error) {
+        // Not under this name: try the next.
+      }
+    }
+    return "";
+  };
+  const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const beside = path.dirname(process.execPath);
+  const own = await readAny(path.join(ROOT, "LICENSE"));
+  const electron = await readAny(path.join(beside, "LICENSE.electron.txt"), path.join(beside, "LICENSE"));
+  // Its links to Chromium's own stylesheets lead nowhere here.
+  const chromium = (await readAny(path.join(beside, "LICENSES.chromium.html"))).replace(/<link[^>]*chrome:[^>]*>/g, "");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Firefly Focus</title></head><body>
+    <h1>Firefly Focus</h1><pre>${escape(own)}</pre>
+    <h1>Electron</h1><pre>${escape(electron)}</pre>
+    <h1>Chromium</h1>${chromium}</body></html>`;
+}
+
 function serveFiles() {
   session.defaultSession.protocol.handle(SCHEME, async (request) => {
     const { pathname } = new URL(request.url);
+    if (pathname === "/licenses.html") {
+      return new Response(await licensesPage(), { headers: { "content-type": CONTENT_TYPES[".html"], "content-security-policy": POLICY } });
+    }
     const file = path.normalize(path.join(ROOT, decodeURIComponent(pathname)));
     const type = CONTENT_TYPES[path.extname(file).toLowerCase()];
     if (!type || !file.startsWith(ROOT + path.sep)) return new Response(null, { status: 404 });
@@ -248,6 +289,17 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+  // A page that has crashed would stay blank. The data is safe in the store.
+  mainWindow.webContents.on("render-process-gone", () => {
+    if (!quitting) mainWindow?.webContents.reload();
+  });
+  // The computer shutting down: what is about to be written goes to disk now, and
+  // nothing holds the windows back. The timer stays marked as running on purpose:
+  // that really is a stage missed, and the next start catches up on it.
+  mainWindow.on("session-end", () => {
+    if (saveTimer) saveStoreNow();
+    quitting = true;
+  });
   mainWindow.loadURL(pageUrl("sidepanel.html"));
   mainWindow.once("ready-to-show", () => mainWindow.show());
 }
@@ -284,6 +336,9 @@ function openFullscreen() {
     fullscreenWindow = null;
     updateScreen();
   });
+  fullscreenWindow.webContents.on("render-process-gone", () => {
+    if (!quitting) fullscreenWindow?.destroy();
+  });
   fullscreenWindow.once("ready-to-show", () => {
     fullscreenWindow.maximize();
     fullscreenWindow.show();
@@ -291,6 +346,36 @@ function openFullscreen() {
   });
   fullscreenWindow.loadURL(pageUrl("fullscreen.html"));
   updateScreen();
+}
+
+let licensesWindow = null;
+
+function openLicenses() {
+  if (licensesWindow) {
+    licensesWindow.show();
+    licensesWindow.focus();
+    return;
+  }
+  licensesWindow = new BrowserWindow({
+    width: 760,
+    height: 640,
+    title: "Firefly Focus",
+    icon: ICON,
+    webPreferences: { spellcheck: false },
+  });
+  licensesWindow.on("closed", () => {
+    licensesWindow = null;
+  });
+  licensesWindow.loadURL(pageUrl("licenses.html"));
+}
+
+/* Crashed, the layer and the icon are simply opened anew, a moment later. */
+function reopenIfItCrashes(win) {
+  win.webContents.on("render-process-gone", () => {
+    if (quitting) return;
+    win.destroy();
+    setTimeout(updateScreen, 1000);
+  });
 }
 
 /*
@@ -323,6 +408,7 @@ function createOverlay(kind) {
   win.on("closed", () => {
     if (overlay === win) overlay = null;
   });
+  reopenIfItCrashes(win);
   win.once("ready-to-show", () => {
     win.showInactive();
     launcher?.moveTop();
@@ -367,6 +453,7 @@ function createLauncher() {
   win.on("closed", () => {
     if (launcher === win) launcher = null;
   });
+  reopenIfItCrashes(win);
   // On a scaled screen a see-through window comes out a little larger than asked,
   // and would shrink at the first drag.
   win.once("ready-to-show", () => {
@@ -548,6 +635,8 @@ function listen() {
     tray?.setToolTip(text ? `Firefly Focus · ${text}` : "Firefly Focus");
   });
   ipcMain.on("open-fullscreen", openFullscreen);
+  ipcMain.on("open-licenses", openLicenses);
+  ipcMain.handle("app-version", () => app.getVersion());
   ipcMain.on("quit", () => app.quit());
 
   // The layer takes the mouse only while the pointer is over the widget or the cat.
@@ -587,11 +676,40 @@ function listen() {
   setInterval(showProgressOnTaskbar, 5000);
 }
 
+/* The system's language if the program speaks it, English for everyone else. */
+function systemLanguage() {
+  for (const tag of app.getPreferredSystemLanguages()) {
+    const language = tag.slice(0, 2).toLowerCase();
+    if (WORDS[language]) return language;
+  }
+  return "en";
+}
+
+/*
+ * The engine writes its state only when something changes, and on a new install
+ * nothing has yet. Everything here reads it, so it is written before the first
+ * window opens, in the language of the system instead of the extension's default.
+ */
+async function firstRun() {
+  const answer = await Promise.race([
+    askEngine({ type: "GET_STATE" }),
+    new Promise((resolve) => setTimeout(resolve, 5000, {})),
+  ]);
+  if (!answer.state) return;
+  setStored({ pomodoro: { ...answer.state, settings: { ...answer.state.settings, language: systemLanguage() } } });
+}
+
+// Whatever goes wrong in here should not end in an error box over someone's work:
+// the timer lives in another window and carries on, and the data is on disk.
+process.on("uncaughtException", (error) => console.error(error));
+process.on("unhandledRejection", (error) => console.error(error));
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   let loaded = false;
-  app.setAppUserModelId("com.sinnaint.fireflyfocus");
+  // Installed from the Store, the package itself gives the program its identity.
+  if (!process.windowsStore) app.setAppUserModelId("com.sinnaint.fireflyfocus");
   app.on("second-instance", showMainWindow);
   app.on("before-quit", () => {
     // Quit before the data was even read, there is nothing to save, and
@@ -602,7 +720,7 @@ if (!app.requestSingleInstanceLock()) {
     quitting = true;
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     loadStore();
     loaded = true;
@@ -612,13 +730,9 @@ if (!app.requestSingleInstanceLock()) {
     serveFiles();
     listen();
     createEngine();
+    if (!store.pomodoro) await firstRun();
     createMainWindow();
     createTray();
     updateScreen();
-    // The engine writes its state only when something changes, and on a new
-    // install nothing has yet. Everything here reads it, so it is there from the start.
-    askEngine({ type: "GET_STATE" }).then(({ state }) => {
-      if (state && !store.pomodoro) setStored({ pomodoro: state });
-    });
   });
 }

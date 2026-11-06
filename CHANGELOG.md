@@ -3,6 +3,21 @@
 All notable changes to Firefly Focus are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## Windows program [1.0.0] — unreleased
+
+The first version of the program for the Microsoft Store, with its own version number. It runs the extension's code.
+
+### Added
+- **Widgets over every program.** The floating widget and the cat now live on a see-through layer above all your windows. Clicks pass through everywhere except on them.
+- **An on-screen icon** whose ring shows the timer's progress. A click opens or closes the widgets, a drag moves it, the right button opens the menu.
+- **Quick timer card** with presets and − and + for each length, from the widget, the main window and the fullscreen timer.
+- **Choose what the widget shows:** just the timer, the timer and tasks, or those and the cat. Fireflies on the widget have a button of their own.
+- **Everything can be put away** with the timer running on, its progress on the taskbar button. **Close the program and stop the timer** ends it all.
+- **About section** in the settings, with the version, a privacy note and the licenses of the components.
+
+### Privacy
+- The program makes no network requests and blocks them in its own code. The privacy policy now covers it.
+
 ## [2.5.0] — 2026-08-10
 
 First Chrome Web Store release.

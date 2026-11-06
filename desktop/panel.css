@@ -44,6 +44,36 @@ body.is-app #ring {
   margin-top: 10px;
 }
 
+.desktop-about {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--stroke);
+  color: var(--muted);
+  font-size: calc(12.5px * var(--text-scale, 1));
+  line-height: 1.45;
+}
+
+.desktop-about h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: calc(14px * var(--text-scale, 1));
+}
+
+.desktop-about p {
+  margin: 0;
+}
+
+.desktop-about strong {
+  color: var(--text);
+}
+
+#desktopLicenses {
+  padding: 0 12px;
+}
+
 #desktopQuit {
   width: 100%;
   min-height: 42px;
