@@ -46,6 +46,7 @@ const FILES = [
   "desktop/engine.js",
   "desktop/overlay.html",
   "desktop/overlay.js",
+  "desktop/cat_demo.js",
   "desktop/launcher.html",
   "desktop/launcher.js",
   "desktop/panel.js",

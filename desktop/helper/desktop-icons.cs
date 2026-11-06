@@ -1,15 +1,19 @@
 /*
  * Tells the program where the icons on the desktop are, for the cat to play with.
  *
- * It only looks. It asks the shell, through its documented interfaces, for the
- * position of each icon, and checks the order and size of the windows on the screen
- * to see which icons are not covered right now. It never reads an icon's name, never
- * moves or opens anything, and has no way out to the network: it answers on its
- * standard output and ends as soon as the program closes its standard input.
+ * It asks the shell, through its documented interfaces, for the position of each
+ * icon, and checks the order and size of the windows on the screen to see which icons
+ * are not covered right now. It never reads an icon's name, never opens anything, and
+ * has no way out to the network: it answers on its standard output and ends as soon
+ * as the program closes its standard input.
  *
  * Asked "scan", it answers with one line of JSON, and "image <id>" with one icon's
  * picture as PNG in base64. The program asks only while the cat's game with the
  * icons is switched on in its settings.
+ *
+ * "move <id> <x> <y>" puts one icon somewhere else on the desktop, the same as
+ * dragging it there. The file stays where it is. The program asks for this only with
+ * a setting of its own switched on, and to put back what was moved.
  *
  * Built with the C# compiler that comes with Windows, see tools/build-helper.js.
  */
@@ -60,6 +64,10 @@ interface IFolderView {
   void _VtblGap2_3();
   void GetItemPosition(IntPtr pidl, out POINT position);
   void GetSpacing(out POINT spacing);
+  void GetDefaultSpacing(out POINT spacing);
+  [PreserveSig] int GetAutoArrange();
+  void SelectItem(int item, uint flags);
+  void SelectAndPositionItems(uint count, [In] ref IntPtr pidls, [In] ref POINT points, uint flags);
 }
 
 [ComImport, Guid("BCC18B79-BA16-442F-80C4-8A59C30C463B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -69,6 +77,7 @@ interface IShellItemImageFactory {
 
 static class Program {
   const uint SVGIO_ALLVIEW = 2;
+  const uint SVSI_POSITIONITEM = 0x80;
   const int SWC_DESKTOP = 8;
   const int SWFO_NEEDDISPATCH = 1;
   const int GWL_EXSTYLE = -20;
@@ -111,12 +120,18 @@ static class Program {
       try {
         if (line == "scan") answer = Scan();
         else if (line.StartsWith("image ")) answer = Image(line.Substring(6));
+        else if (line.StartsWith("move ")) answer = Move(line.Split(' '));
         else answer = "{\"error\":\"unknown request\"}";
       } catch (Exception error) {
         answer = "{\"error\":\"" + error.GetType().Name + "\"}";
       }
-      output.WriteLine(answer);
-      output.Flush();
+      // No one listening any more, as when icons are put back on quitting: it carries
+      // on with what it was told until its input ends.
+      try {
+        output.WriteLine(answer);
+        output.Flush();
+      } catch (IOException) {
+      }
     }
     return 0;
   }
@@ -192,7 +207,7 @@ static class Program {
 
     int count;
     view.ItemCount(SVGIO_ALLVIEW, out count);
-    text.Append("{\"spacing\":[" + spacing.X + "," + spacing.Y + "],\"iconSize\":" + iconSize + ",\"icons\":[");
+    text.Append("{\"spacing\":[" + spacing.X + "," + spacing.Y + "],\"iconSize\":" + iconSize + ",\"auto\":" + (view.GetAutoArrange() == 0 ? "true" : "false") + ",\"icons\":[");
     for (int i = 0; i < count; i += 1) {
       IntPtr pidl;
       view.Item(i, out pidl);
@@ -216,6 +231,43 @@ static class Program {
     }
     text.Append("]}");
     return text.ToString();
+  }
+
+  /*
+   * One icon to another spot on the desktop: "move <id> <x> <y>", in the same screen
+   * pixels as "scan", and answers with where it ended up. Only its place on the
+   * desktop changes, the way dragging it would. The file stays where it is.
+   */
+  static string Move(string[] request) {
+    string id = request[1];
+    int toX = int.Parse(request[2]);
+    int toY = int.Parse(request[3]);
+    IFolderView view;
+    object shellView = DesktopView(out view);
+    IntPtr viewWindow;
+    ((IShellView)shellView).GetWindow(out viewWindow);
+    POINT origin = new POINT();
+    ClientToScreen(viewWindow, ref origin);
+    // With the desktop arranging itself, it would only jump straight back.
+    if (view.GetAutoArrange() == 0) return "{\"id\":\"" + id + "\",\"auto\":true}";
+    int count;
+    view.ItemCount(SVGIO_ALLVIEW, out count);
+    for (int i = 0; i < count; i += 1) {
+      IntPtr pidl;
+      view.Item(i, out pidl);
+      try {
+        if (IdOf(pidl) != id) continue;
+        IntPtr one = pidl;
+        POINT to = new POINT { X = toX - origin.X, Y = toY - origin.Y };
+        view.SelectAndPositionItems(1, ref one, ref to, SVSI_POSITIONITEM);
+        POINT at;
+        view.GetItemPosition(pidl, out at);
+        return "{\"id\":\"" + id + "\",\"x\":" + (at.X + origin.X) + ",\"y\":" + (at.Y + origin.Y) + "}";
+      } finally {
+        Marshal.FreeCoTaskMem(pidl);
+      }
+    }
+    return "{\"id\":\"" + id + "\",\"gone\":true}";
   }
 
   /* One icon's picture, only so that a copy of it can wobble when the ball hits it. */

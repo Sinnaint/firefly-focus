@@ -1432,6 +1432,21 @@ const FireflyBuddy = (() => {
   will-change: transform;
 }
 
+/* What it hunts: one spark of light, moved by the same loop as the cat. */
+.buddy-prey {
+  position: absolute;
+  left: calc(var(--px) * -1.5px);
+  bottom: calc(var(--px) * -1.5px);
+  width: calc(var(--px) * 3px);
+  height: calc(var(--px) * 3px);
+  border-radius: 50%;
+  background: #f6ffb0;
+  box-shadow: 0 0 calc(var(--px) * 4px) calc(var(--px) * 1.5px) rgba(190, 255, 110, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .buddy-bulb-lit, .buddy-glow { transition: none; }
 }
@@ -1486,6 +1501,10 @@ const FireflyBuddy = (() => {
     onBite = null,
     onBiteEnd = null,
     onBump = null,
+    canDrag = null,
+    onDragPlan = null,
+    onDrag = null,
+    onDragEnd = null,
   } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
@@ -1571,6 +1590,15 @@ const FireflyBuddy = (() => {
       leap: null,
       clipLine: null, // gone behind something: nothing below this line shows
       biting: null,
+      dragging: null, // teeth in something and pulling it along
+      backing: false, // walking backwards, facing the way it came
+      crouchWanted: 0, // low to the ground, about to pounce
+      crouchAmt: 0,
+      prey: null, // a firefly it is after
+      pointer: { x: null, y: null, movedAt: -Infinity }, // the mouse, from the host's bottom left
+      happyUntil: 0,
+      focus: false, // a focus session is on: it keeps out of the way
+      scripted: false, // someone else picks its outings for now
     };
 
     const dom = buildDom();
@@ -1742,7 +1770,7 @@ const FireflyBuddy = (() => {
 
     function targetPose(now) {
       // held up, or flying: all four legs hang
-      if (st.carry || st.toss?.air || st.leap) return "walk";
+      if (st.carry || st.toss?.air || (st.leap && !st.leap.keepPose)) return "walk";
       if (st.activity !== "timer") {
         // a purring cat settles where it is
         if (purr.on) return st.pose === "lie" ? "lie" : "sit";
@@ -1904,7 +1932,7 @@ const FireflyBuddy = (() => {
           const dir = dx > 0 ? 1 : -1;
           if (dist < 0.5) {
             arrive(goalX, goalY);
-          } else if (Math.abs(dx) > 0.5 && dir !== st.dir) {
+          } else if (Math.abs(dx) > 0.5 && dir !== st.dir && !st.backing) {
             face(dir);
           } else {
             speed = st.brain.speed || (st.activity === "play" ? 11 : ROAM_SPEED);
@@ -1932,7 +1960,8 @@ const FireflyBuddy = (() => {
       st.speed = speed;
 
       if (speed > 0) {
-        st.stride = (st.stride + (speed * dt) / CYCLE_DISTANCE) % 1;
+        // backing up, the same gait runs the other way round
+        st.stride = (st.stride + ((st.backing ? -1 : 1) * speed * dt) / CYCLE_DISTANCE + 1) % 1;
         setLegs(Math.floor(st.stride * WALK.frames) % WALK.frames);
       } else if (!st.turn || now < st.turn.start) {
         setLegs("stand");
@@ -2415,34 +2444,49 @@ const FireflyBuddy = (() => {
 
     function endErrand() {
       if (st.biting) releaseBite();
+      if (st.dragging) stopDrag();
+      if (st.prey && !st.prey.leaving) st.prey.leaving = 2.2;
       const had = st.errand;
       st.errand = null;
       st.offstage = false;
       st.flip = false;
       st.clipLine = null;
       st.leap = null;
+      st.backing = false;
+      st.crouchWanted = 0;
       st.brain.speed = undefined;
       if (had) {
         st.goalX = null;
         st.goalY = null;
         st.brain.pose = "sit";
         st.brain.until = nowMs() + rand(1500, 5000);
+        had.done?.(true);
       }
     }
 
     const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
+    const outing = (name) => ({ name, steps: OUTINGS[name]() });
+
     /* What a cat with nothing better to do gets up to next, if anything. */
     function pickOuting() {
-      if (st.reduced || !st.laneW) return null;
+      if (st.reduced || !st.laneW || st.scripted) return null;
       const roll = Math.random();
-      const seen = st.perches;
-      if (seen.length) {
-        if (roll < 0.16 && st.activity === "roam") return { name: "bite", steps: biteOuting() };
-        if (roll < 0.4) return { name: "hop", steps: hopOuting() };
-        if (roll < 0.55) return { name: "hide", steps: hideOuting() };
+      const roaming = st.activity === "roam";
+      // Through a focus session it keeps out of the way: no teeth, no chases, no dashes.
+      const playful = !st.focus;
+      if (st.perches.length) {
+        if (playful && roaming && roll < 0.1) return outing("bite");
+        if (playful && roaming && roll < 0.2 && canDrag?.()) return outing("drag");
+        if (roll < 0.36) return outing("hop");
+        if (roll < 0.48) return outing("hide");
       }
-      if (edges && roll > 0.74) return { name: "peek", steps: peekOuting() };
+      if (edges) {
+        if (playful && roll > 0.94) return outing("zoomies");
+        if (playful && roll > 0.89) return outing("firefly");
+        if (playful && roaming && roll > 0.84 && pointerFresh()) return outing("cursor");
+        if (roll > 0.68) return outing("peek");
+      }
       return null;
     }
 
@@ -2461,10 +2505,15 @@ const FireflyBuddy = (() => {
       return (now) => now >= until && !st.trans;
     }
 
-    // A jump in one arc, legs going. `clipAt` draws the line it drops behind, at the top of the arc.
-    function leapTo(x, y, height = 24, { clipAt = undefined, then = null } = {}) {
+    /*
+     * A jump in one arc, legs going. `clipAt` draws the line it drops behind, at the
+     * top of the arc. `facing` keeps it looking one way, for a hop backwards, and
+     * `keepPose` makes it a quick shift of a cat that stays sitting.
+     */
+    function leapTo(x, y, height = 24, { clipAt = undefined, then = null, facing = null, keepPose = false, ms = null } = {}) {
       const dist = Math.hypot(x - st.x, y - st.y);
-      if (Math.abs(x - st.x) > 2) st.dir = x > st.x ? 1 : -1;
+      if (facing) st.dir = facing;
+      else if (Math.abs(x - st.x) > 2) st.dir = x > st.x ? 1 : -1;
       st.turn = null;
       st.goalX = null;
       st.goalY = null;
@@ -2474,10 +2523,11 @@ const FireflyBuddy = (() => {
         x1: x,
         y1: y,
         start: nowMs(),
-        ms: clamp(320 + dist * 0.9, 380, 950),
+        ms: ms || clamp(320 + dist * 0.9, 380, 950),
         height,
         clipAt,
         then,
+        keepPose,
       };
       st.ant[0].v -= 5;
       st.ant[1].v += 5;
@@ -2540,26 +2590,26 @@ const FireflyBuddy = (() => {
     }
 
     /* Off the side of the screen, gone a while, then a head somewhere along an edge. */
-    function* peekOuting() {
+    function* peekOuting({ edges: where = ["left", "right", "bottom", "top"], rounds = null, pace = null } = {}) {
       const px = st.px;
       const travel = laneTravel();
       const side = st.x < travel / 2 ? -1 : 1;
-      yield* stroll(side < 0 ? 0 : travel, st.y);
+      yield* stroll(side < 0 ? 0 : travel, st.y, pace);
       st.offstage = true;
-      yield walkTo(side < 0 ? -stageWidth() - 2 * px : travel + stageWidth() + 2 * px, st.y);
+      yield walkTo(side < 0 ? -stageWidth() - 2 * px : travel + stageWidth() + 2 * px, st.y, pace || undefined);
 
       let spot = null;
-      for (let round = Math.ceil(rand(0, 3)); round > 0; round -= 1) {
-        yield waitFor(rand(1200, 4500));
-        spot = peekSpots(pick(["left", "right", "bottom", "top"]));
+      for (let round = rounds ?? Math.ceil(rand(0, 3)), turn = 0; round > 0; round -= 1, turn += 1) {
+        yield waitFor(rounds ? 500 : rand(1200, 4500));
+        spot = peekSpots(rounds ? where[turn % where.length] : pick(where));
         [st.x, st.y] = spot.hidden;
         st.dir = spot.dir;
         st.turn = null;
         st.flip = spot.flip;
-        yield walkTo(...spot.shown, 14);
-        yield waitFor(rand(1800, 4200));
+        yield walkTo(...spot.shown, rounds ? 28 : 14);
+        yield waitFor(rounds ? 1600 : rand(1800, 4200));
         // ducks away and comes straight back, as often as not
-        if (Math.random() < 0.45) {
+        if (!rounds && Math.random() < 0.45) {
           const halfway = [(spot.hidden[0] + spot.shown[0]) / 2, (spot.hidden[1] + spot.shown[1]) / 2];
           yield walkTo(...halfway, 30);
           yield waitFor(rand(500, 1300));
@@ -2570,14 +2620,14 @@ const FireflyBuddy = (() => {
       }
 
       // and in it comes, along the floor, from a side
-      yield waitFor(rand(600, 1800));
+      yield waitFor(rounds ? 400 : rand(600, 1800));
       st.flip = false;
       const from = Math.random() < 0.5 ? "left" : "right";
       const way = peekSpots(from);
       [st.x, st.y] = way.hidden;
       st.dir = way.dir;
       st.turn = null;
-      yield walkTo(from === "left" ? rand(30, 160) * px : travel - rand(30, 160) * px, st.y);
+      yield walkTo(from === "left" ? rand(30, 160) * px : travel - rand(30, 160) * px, st.y, pace || undefined);
     }
 
     const perchCenter = (p) => p.x + p.w / 2;
@@ -2606,16 +2656,16 @@ const FireflyBuddy = (() => {
     }
 
     /* Up onto a perch, and on from one to the next, looking pleased. */
-    function* hopOuting() {
-      let perch = perchNear(st.x, st.y);
+    function* hopOuting({ route = null } = {}) {
+      let perch = route ? route[0] : perchNear(st.x, st.y);
       if (!perch) return;
       st.offstage = true;
-      yield* stroll(...launchFor(...standOn(perch)));
-      for (let hops = Math.ceil(rand(1, 4)); perch && hops > 0; hops -= 1) {
+      yield* stroll(...launchFor(...standOn(perch)), route ? SHOWN_PACE : undefined);
+      for (let hops = route ? route.length : Math.ceil(rand(1, 4)), turn = 1; perch && hops > 0; hops -= 1, turn += 1) {
         yield leapTo(...standOn(perch), rand(18, 30));
-        yield waitFor(rand(700, 2400), "sit");
+        yield waitFor(route ? 800 : rand(700, 2400), "sit");
         const before = perch;
-        perch = perchNear(st.x, st.y, before, 340 * (st.px / 1.75));
+        perch = route ? route[turn] : perchNear(st.x, st.y, before, 340 * (st.px / 1.75));
       }
       const [x, y] = launchFor(st.x, st.y);
       yield leapTo(x, y, rand(14, 24));
@@ -2623,10 +2673,10 @@ const FireflyBuddy = (() => {
     }
 
     /* Dropped behind a perch; the head comes up over it, and goes down again. */
-    function* hideOuting() {
+    function* hideOuting({ perch: chosen = null, peeks: times = null } = {}) {
       const px = st.px;
       const options = st.perches.filter((p) => p.y > 60 * px);
-      const perch = options.length ? pick(options) : null;
+      const perch = chosen || (options.length ? pick(options) : null);
       if (!perch) return;
       st.offstage = true;
       const dir = perch.x < st.laneW / 2 ? 1 : -1;
@@ -2635,11 +2685,11 @@ const FireflyBuddy = (() => {
       const line = perch.y + 1;
       const down = st.laneH - line - FRAME.h * px - 2 * px;
       const up = st.laneH - line - 28 * px;
-      yield* stroll(...launchFor(x, down));
+      yield* stroll(...launchFor(x, down), chosen ? SHOWN_PACE : undefined);
       yield leapTo(x, down, 34, { clipAt: line });
       st.dir = dir;
-      yield waitFor(rand(900, 2500), "walk");
-      for (let peeks = Math.ceil(rand(0, 3)); peeks > 0 && perchAlive(perch); peeks -= 1) {
+      yield waitFor(chosen ? 800 : rand(900, 2500), "walk");
+      for (let peeks = times ?? Math.ceil(rand(0, 3)); peeks > 0 && perchAlive(perch); peeks -= 1) {
         yield walkTo(x, up, 16);
         yield waitFor(rand(1500, 3400));
         if (peeks > 1) {
@@ -2655,44 +2705,337 @@ const FireflyBuddy = (() => {
       st.offstage = false;
     }
 
-    /* On it, head to the thing, and it will not let go until it is made to. */
-    function* biteOuting() {
+    // How far its face reaches to each side, art pixels.
+    const FACE_HALF = 11;
+    // Sent somewhere to show what it can do, it does not dawdle on the way, art pixels a second.
+    const SHOWN_PACE = 60;
+
+    /*
+     * Where to stand for the middle of its face to be at a spot, looking `dir`: the
+     * cat is placed by the corner of its frame, and mirrored when it looks left.
+     */
+    function standForFace(faceX, faceY, pose, dir) {
+      const [headX, headY] = POSES[pose].head;
+      const col = FRAME.ox + headX;
+      return [
+        faceX - (dir > 0 ? col : FRAME.w - col) * st.px,
+        st.laneH - faceY - (FRAME.h - FRAME.oy - headY) * st.px,
+      ];
+    }
+
+    /*
+     * A lunge with its head on the thing, then it sits back beside it to admire the
+     * result. Its head is about as wide as an icon, so the bite mark only shows from
+     * there. Now and then it goes back for more, and it will not let go of the thing
+     * until it is made to.
+     */
+    function* biteOuting({ perch: chosen = null, holdMs = null } = {}) {
       const px = st.px;
-      const perch = perchNear(st.x, st.y);
+      const perch = chosen || perchNear(st.x, st.y);
       if (!perch) return;
       st.offstage = true;
-      // beside it, on the side with room, the head over its near half
       const dir = perch.x < stageWidth() + 40 ? -1 : 1;
-      const headAt = perchCenter(perch) - dir * perch.w * 0.15;
-      const x = headAt - (dir > 0 ? 47 : 21) * px;
-      const y = st.laneH - perch.y - perch.h / 2 - 40 * px;
-      yield* stroll(...launchFor(x, y));
-      yield leapTo(x, y, 22);
-      st.dir = dir;
+      const faceY = perch.y + perch.h / 2;
+      const clear = (FACE_HALF + 3) * px;
+      const [besideX, y] = standForFace(dir > 0 ? perch.x - clear : perch.x + perch.w + clear, faceY, "sit", dir);
+      const [onX] = standForFace(perchCenter(perch) - dir * perch.w * 0.12, faceY, "sit", dir);
+
+      yield* stroll(...launchFor(besideX, y), chosen ? SHOWN_PACE : undefined);
+      yield leapTo(besideX, y, 22, { facing: dir });
       yield waitFor(350, "sit");
       if (!perchAlive(perch)) return;
 
-      st.biting = { perch, until: nowMs() + rand(45000, 90000) };
-      onBite?.(perch);
-      let chomps = 4;
+      st.biting = { perch, until: nowMs() + (holdMs ?? rand(45000, 90000)) };
+      onBite?.(perch, dir);
+      let chomps = 3;
       while (st.biting) {
         if (nowMs() >= st.biting.until || !perchAlive(perch)) {
           releaseBite();
           break;
         }
         if (chomps > 0) {
-          chomps -= 1;
-          chomp();
-          yield waitFor(rand(170, 260));
-        } else {
-          yield waitFor(rand(2500, 7000));
-          chomps = Math.ceil(rand(0, 3)); // goes back for more
+          yield leapTo(onX, y, 5, { facing: dir, keepPose: true, ms: 170 });
+          for (; chomps > 0 && st.biting; chomps -= 1) {
+            chomp();
+            yield waitFor(rand(170, 260));
+          }
+          yield leapTo(besideX, y, 7, { facing: dir, keepPose: true, ms: 230 });
         }
+        const until = nowMs() + rand(2500, 7000);
+        yield (now) => now >= until || !st.biting;
+        chomps = Math.ceil(rand(0, 3)); // goes back for more
       }
       const [outX, outY] = launchFor(st.x, st.y);
       yield leapTo(outX, outY, rand(16, 26));
       st.offstage = false;
     }
+
+    /*
+     * Teeth in it and backwards, the way a cat drags off something too big to carry:
+     * it stands on the side the thing is going, looks back at it, and pulls.
+     * `plan` says which perch goes where, { id, x, y }, or `onDragPlan` is asked.
+     */
+    function* dragOuting({ plan: given = null } = {}) {
+      const px = st.px;
+      let plan = given;
+      if (!plan) {
+        let answered = false;
+        Promise.resolve(onDragPlan?.(perchNear(st.x, st.y))).then(
+          (answer) => {
+            plan = answer || null;
+            answered = true;
+          },
+          () => {
+            answered = true;
+          }
+        );
+        yield () => answered;
+      }
+      const perch = plan && st.perches.find((p) => p.id === plan.id);
+      if (!perch) return;
+      st.offstage = true;
+      const dir = plan.x > perch.x ? -1 : 1;
+      const faceX = dir > 0 ? perch.x - 3 * px : perch.x + perch.w + 3 * px;
+      const [x, y] = standForFace(faceX, perch.y + perch.h / 2, "walk", dir);
+      yield* stroll(...launchFor(x, y), given ? SHOWN_PACE : undefined);
+      yield leapTo(x, y, 20, { facing: dir });
+      yield waitFor(260, "walk");
+      if (!perchAlive(perch)) return;
+
+      chomp();
+      st.dragging = { perch, dx: perch.x - st.x, top: perch.y + st.y };
+      yield waitFor(320, "walk");
+      st.backing = true;
+      yield walkTo(st.x + plan.x - perch.x, st.y - (plan.y - perch.y), 17);
+      st.backing = false;
+      stopDrag();
+
+      st.happyUntil = nowMs() + 1800;
+      yield waitFor(rand(900, 1500), "sit");
+      const [outX, outY] = launchFor(st.x, st.y);
+      yield leapTo(outX, outY, rand(16, 26));
+      st.offstage = false;
+    }
+
+    /* Whatever it has in its teeth comes along with it, at the same distance. */
+    function stepDrag() {
+      const d = st.dragging;
+      if (!d) return;
+      const { perch } = d;
+      const x = st.x + d.dx;
+      const y = d.top - st.y;
+      if (x === perch.x && y === perch.y) return;
+      if (perch.cell) {
+        perch.cell.x += x - perch.x;
+        perch.cell.y += y - perch.y;
+      }
+      perch.x = x;
+      perch.y = y;
+      onDrag?.(perch, x, y);
+    }
+
+    function stopDrag() {
+      const d = st.dragging;
+      if (!d) return;
+      st.dragging = null;
+      onDragEnd?.(d.perch, d.perch.x, d.perch.y);
+    }
+
+    /* ---------- The hunt: a firefly, or the mouse pointer ---------- */
+
+    function pointerFresh() {
+      return st.pointer.x !== null && nowMs() - st.pointer.movedAt < 30000;
+    }
+
+    function onAnyPointerMove(event) {
+      const rect = host.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = rect.bottom - event.clientY;
+      const p = st.pointer;
+      if (p.x === null || Math.hypot(x - p.x, y - p.y) > 2) p.movedAt = nowMs();
+      p.x = x;
+      p.y = y;
+    }
+
+    /* Where to land so that a paw just reaches a spot, and the rest of the cat does not. */
+    function pounceAt(x, y, side) {
+      return [
+        clamp(x - side * (pawFront() + 3 * st.px) - stageWidth() / 2, 0, laneTravel()),
+        clamp(y - 14 * st.px, 0, laneRise()),
+      ];
+    }
+
+    function spawnPrey(x, y) {
+      const el = document.createElement("div");
+      el.className = "buddy-prey";
+      host.appendChild(el);
+      st.prey = { el, x, y, homeX: x, homeY: y, t: rand(0, 9), quick: 0, held: false, leaving: 0, alpha: 0 };
+    }
+
+    function removePrey() {
+      st.prey?.el.remove();
+      st.prey = null;
+    }
+
+    /* It loops about its spot, shoots off when told, and at the end drifts up and away. */
+    function stepPrey(dt) {
+      const f = st.prey;
+      if (!f) return;
+      const px = st.px;
+      f.t += dt;
+      f.alpha = Math.min(1, f.alpha + dt / 0.5);
+      if (f.leaving) {
+        f.leaving = Math.max(0, f.leaving - dt);
+        f.alpha = Math.min(f.alpha, f.leaving / 0.8);
+        f.y += 34 * px * dt;
+        f.x += Math.sin(f.t * 4) * 20 * px * dt;
+        if (!f.leaving) removePrey();
+        return;
+      }
+      if (f.held) return;
+      f.quick = Math.max(0, f.quick - dt);
+      const wantX = f.homeX + (Math.sin(f.t * 0.9) * 22 + Math.sin(f.t * 2.4) * 7) * px;
+      const wantY = f.homeY + (Math.sin(f.t * 1.3 + 1) * 13 + Math.cos(f.t * 3.1) * 4) * px;
+      const k = 1 - Math.exp(-dt * (f.quick > 0 ? 6 : 2.2));
+      f.x += (wantX - f.x) * k;
+      f.y += (wantY - f.y) * k;
+    }
+
+    function dartPrey() {
+      const f = st.prey;
+      const px = st.px;
+      const angle = rand(0, Math.PI * 2);
+      const far = rand(90, 170) * px;
+      f.homeX = clamp(f.homeX + Math.cos(angle) * far, 30 * px, st.laneW - 30 * px);
+      f.homeY = clamp(f.homeY + Math.sin(angle) * far * 0.7, 40 * px, laneRise() + 10 * px);
+      f.quick = 0.7;
+    }
+
+    /* Low, with the rear end going, the way every cat gets ready. */
+    function* stalkTo(x, y, pace) {
+      st.crouchWanted = 0.55;
+      if (Math.hypot(x - st.x, y - st.y) > 12 * st.px) yield* stroll(x, y, pace);
+    }
+
+    /* A firefly drifts in. It gets stared at, stalked and pounced on until it is caught, and then let go. */
+    function* fireflyOuting({ rounds = null } = {}) {
+      const px = st.px;
+      const start = catCenter() < st.laneW / 2 ? 1 : -1;
+      spawnPrey(
+        clamp(catCenter() + start * rand(130, 200) * px, 30 * px, st.laneW - 30 * px),
+        clamp(st.y + rand(45, 80) * px, 40 * px, laneRise() + 10 * px)
+      );
+      const preySide = () => (st.prey.x >= catCenter() ? 1 : -1);
+      yield waitFor(rand(700, 1100), "sit");
+      face(preySide());
+      yield waitFor(rand(800, 1300), "sit");
+
+      const tries = rounds ?? Math.ceil(rand(1, 3));
+      for (let attempt = 1; attempt <= tries; attempt += 1) {
+        const f = st.prey;
+        const side = preySide();
+        const [nearX, nearY] = pounceAt(f.x, f.y, side);
+        yield* stalkTo(clamp(nearX - side * rand(50, 75) * px, 0, laneTravel()), nearY, rounds ? 34 : 20);
+        face(preySide());
+        st.crouchWanted = 1;
+        yield waitFor(rand(800, 1300), "walk");
+        st.crouchWanted = 0;
+        const catches = attempt === tries;
+        const way = preySide();
+        const landing = pounceAt(f.x, f.y, way);
+        yield leapTo(...landing, rand(22, 34), { facing: way, then: () => {
+          if (!catches) return;
+          f.held = true;
+          f.x = catCenter() + way * (pawFront() + 2 * px);
+          f.y = st.y + 9 * px;
+        } });
+        if (!catches) {
+          dartPrey();
+          yield waitFor(rand(500, 900), "sit");
+          face(preySide());
+          yield waitFor(rand(300, 600), "sit");
+        }
+      }
+
+      // Between its paws for a moment. Then it opens them and watches it go.
+      sparkle();
+      st.happyUntil = nowMs() + 2600;
+      yield waitFor(1300, "sit");
+      st.prey.held = false;
+      st.prey.leaving = 2.6;
+      yield waitFor(1900, "sit");
+    }
+
+    /* The same for the pointer, which moves about more. It ends beside it, never over it, so clicks still land. */
+    function* cursorOuting() {
+      const px = st.px;
+      const p = st.pointer;
+      if (p.x === null) return;
+      const pointerSide = () => (p.x >= catCenter() ? 1 : -1);
+      for (let chase = 0; chase < 3; chase += 1) {
+        const side = pointerSide();
+        const [nearX, nearY] = pounceAt(p.x, p.y, side);
+        yield* stalkTo(clamp(nearX - side * rand(50, 75) * px, 0, laneTravel()), nearY, chase ? 34 : 24);
+        face(pointerSide());
+        st.crouchWanted = 1;
+        const atX = p.x;
+        const atY = p.y;
+        yield waitFor(rand(800, 1300), "walk");
+        st.crouchWanted = 0;
+        // Off it went while the cat was getting ready: after it.
+        if (Math.hypot(p.x - atX, p.y - atY) > 70 * px && chase < 2) continue;
+        const way = pointerSide();
+        yield leapTo(...pounceAt(p.x, p.y, way), rand(24, 34), { facing: way });
+        yield waitFor(120, "sit");
+        st.swat = { start: nowMs(), hit: false };
+        yield waitFor(750, "sit");
+        break;
+      }
+      st.happyUntil = nowMs() + 1800;
+      yield waitFor(rand(1400, 2400), "sit");
+    }
+
+    /* For no reason at all, flat out across the screen and back, then as if nothing happened. */
+    function* zoomiesOuting({ legs = null } = {}) {
+      const px = st.px;
+      const travel = laneTravel();
+      const rise = laneRise();
+      yield waitFor(rand(200, 450), "walk");
+      for (let leg = legs ?? Math.ceil(rand(2, 6)); leg > 0; leg -= 1) {
+        const toward = st.x < travel / 2 ? 1 : -1;
+        const x = clamp(st.x + toward * rand(0.35, 0.8) * travel, 0, travel);
+        const y = clamp(st.y + Math.abs(x - st.x) * pick(ROAM_SLOPES), 0, rise);
+        if (Math.random() < 0.3) {
+          const hopX = clamp(st.x + toward * rand(60, 110) * px, 0, travel);
+          yield leapTo(hopX, st.y, rand(26, 42));
+        }
+        yield walkTo(x, y, rand(170, 240));
+      }
+      yield waitFor(rand(1600, 3000), "sit");
+    }
+
+    /* A focus session is done: up in the air, sparks flying. */
+    function* cheerOuting() {
+      st.happyUntil = nowMs() + 3200;
+      for (let jumps = 2; jumps > 0; jumps -= 1) {
+        sparkle();
+        yield leapTo(st.x, st.y, rand(24, 34), { ms: 520 });
+        yield waitFor(120, "walk");
+      }
+      yield waitFor(1200, "sit");
+    }
+
+    const OUTINGS = {
+      peek: peekOuting,
+      hop: hopOuting,
+      hide: hideOuting,
+      bite: biteOuting,
+      drag: dragOuting,
+      firefly: fireflyOuting,
+      cursor: cursorOuting,
+      zoomies: zoomiesOuting,
+      cheer: cheerOuting,
+    };
 
     /* A mouthful: the head goes down hard, and a crumb or two falls. */
     function chomp() {
@@ -2745,6 +3088,7 @@ const FireflyBuddy = (() => {
     function setPerches(list) {
       st.perches = list || [];
       if (st.biting && !perchAlive(st.biting.perch)) releaseBite();
+      if (st.dragging && !perchAlive(st.dragging.perch)) endErrand();
     }
 
     /* ---------- The ball over a whole floor ---------- */
@@ -3046,7 +3390,7 @@ const FireflyBuddy = (() => {
 
     function baseEyes(now) {
       if (st.pose === "lie") return "shut";
-      if (purr.on) return "happy";
+      if (purr.on || now < st.happyUntil) return "happy";
       if (st.biting) return Math.sin(st.clock * 1.3) > 0.2 ? "happy" : "look"; // very pleased with itself
       if ((st.activity === "play" || st.activity === "ball") && st.ball) return "look"; // eyes on the ball
       if (st.errand) return "look"; // up to something
@@ -3339,12 +3683,17 @@ const FireflyBuddy = (() => {
       if (!st.carry && !st.toss && !st.leap) st.moved.vx = 0;
       stepSwing(dt);
       st.moved.x = st.x ?? 0;
+      stepDrag();
+      stepPrey(dt);
+      st.crouchAmt += (st.crouchWanted - st.crouchAmt) * (1 - Math.exp(-dt / 0.12));
 
       if (st.activity === "play") {
         stepBall(dt);
         stepSwat(now);
       } else if (st.activity === "ball") {
         stepWorldBall(dt);
+        stepSwat(now);
+      } else if (st.swat) {
         stepSwat(now);
       }
 
@@ -3436,7 +3785,17 @@ const FireflyBuddy = (() => {
 
       setTransform(dom.walker, `translate3d(${snap(st.x ?? 0)}px, ${snap(-(st.y ?? 0))}px, 0)`);
       setTransform(dom.turn, `scaleX(${turnScale(now).toFixed(3)})`);
-      setTransform(dom.rig, `scale(${st.squash[0].toFixed(3)}, ${(st.flip ? -st.squash[1] : st.squash[1]).toFixed(3)})`);
+      // Crouching: flatter, from the floor, with the rear end going from side to side.
+      const low = st.crouchAmt;
+      const wide = st.squash[0] * (1 + 0.1 * low);
+      const tall = st.squash[1] * (1 - 0.24 * low);
+      const wiggle = low > 0.7 ? Math.sin(t * 17) * 0.02 * low : 0;
+      setTransform(dom.rig, `scale(${wide.toFixed(3)}, ${(st.flip ? -tall : tall).toFixed(3)})${wiggle ? ` rotate(${wiggle.toFixed(4)}rad)` : ""}`);
+      if (st.prey) {
+        const f = st.prey;
+        setTransform(f.el, `translate3d(${snap(f.x)}px, ${snap(-f.y)}px, 0)`);
+        f.el.style.opacity = (f.alpha * (0.62 + 0.38 * Math.abs(Math.sin(f.t * 3.2)))).toFixed(2);
+      }
       // Behind something: the real thing shows through wherever the cat is not drawn.
       const clip = st.clipLine === null
         ? "none"
@@ -3504,7 +3863,7 @@ const FireflyBuddy = (() => {
       const now = nowMs();
       // 60 frames a second is plenty, even on a 120 Hz screen
       const ballMoving = st.activity === "ball" && st.ball && (st.ball.held || st.ball.z > 0 || st.ball.vx !== 0 || st.ball.vy !== 0);
-      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss && !st.leap && !ballMoving;
+      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss && !st.leap && !ballMoving && !st.prey;
       if (now - st.last < 1000 / ((still ? restFps : maxFps) + 2)) return;
       const dt = clamp((now - st.last) / 1000, 0, 0.1);
       st.last = now;
@@ -3610,8 +3969,15 @@ const FireflyBuddy = (() => {
         releaseBite();
         return;
       }
+      if (st.dragging) {
+        endErrand();
+        return;
+      }
       setPurring(!purr.on);
     });
+    // Out on a whole screen it can hunt the pointer. A window that ignores the mouse
+    // still hears where it goes, and nothing here keeps that for later.
+    if (edges) window.addEventListener("pointermove", onAnyPointerMove, true);
 
     /* ---------- Public ---------- */
 
@@ -3658,6 +4024,11 @@ const FireflyBuddy = (() => {
         leap: Boolean(st.leap),
         clip: st.clipLine,
         biting: st.biting?.perch.id || null,
+        dragging: st.dragging?.perch.id || null,
+        backing: st.backing,
+        crouch: st.crouchAmt,
+        prey: st.prey ? { x: st.prey.x, y: st.prey.y, held: st.prey.held, leaving: st.prey.leaving } : null,
+        focus: st.focus,
         lift: st.lift,
         carried: Boolean(st.carry),
         tossed: st.toss ? (st.toss.air ? "air" : "skid") : null,
@@ -3728,6 +4099,8 @@ const FireflyBuddy = (() => {
       removeBall();
       purr.stop();
       letGo();
+      removePrey();
+      window.removeEventListener("pointermove", onAnyPointerMove, true);
       st.enabled = false;
       if (st.raf) cancelAnimationFrame(st.raf);
       st.raf = 0;
@@ -3763,11 +4136,42 @@ const FireflyBuddy = (() => {
       setPerches,
       scold,
       step,
-      // for tests: send it on an outing now, rather than whenever it feels like one
-      startOuting: (name) => {
-        const make = { peek: peekOuting, hop: hopOuting, hide: hideOuting, bite: biteOuting }[name];
-        if (make) startErrand(make(), name);
+      // Send it on an outing now, rather than whenever it feels like one. The promise
+      // is kept when the outing is over, however it ended; false if it never started.
+      perform: (name, options) => new Promise((resolve) => {
+        if (!OUTINGS[name] || st.reduced || !st.laneW) {
+          resolve(false);
+          return;
+        }
+        startErrand(OUTINGS[name](options), name);
+        st.errand.done = resolve;
+      }),
+      endOuting: endErrand,
+      // No outings of its own while someone else is choosing them.
+      setScripted(on) {
+        st.scripted = on;
       },
+      // A focus session is on: what it has its teeth in, or is chasing, it lets go.
+      setFocus(on) {
+        st.focus = on;
+        if (on && ["bite", "drag", "firefly", "cursor", "zoomies"].includes(st.errand?.name) && !st.scripted) endErrand();
+      },
+      cheer() {
+        if (!st.enabled || st.reduced || st.scripted || st.carry || st.toss || purr.on || !st.laneW) return;
+        startErrand(cheerOuting(), "cheer");
+      },
+      rollBallAt(x, yFromTop, speed = 380) {
+        const b = st.ball;
+        if (!b || b.x === null || b.held) return;
+        const dx = x - b.x;
+        const dy = st.laneH - yFromTop - b.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        b.vx = (dx / dist) * speed * st.px;
+        b.vy = (dy / dist) * speed * st.px;
+        b.vz = 40 * st.px;
+      },
+      // for tests: what it would do next, if it were to choose now
+      nextOuting: () => pickOuting()?.name ?? null,
     };
   }
 

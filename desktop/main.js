@@ -104,7 +104,13 @@ const PROGRAM_SETTINGS = `<div class="settings-grid desktop-settings">
           <span data-i18n="desktopCatIconsLabel"></span>
         </label>
         <p class="desktop-note" data-i18n="desktopCatIconsNote"></p>
+        <label>
+          <input id="desktopCatMoves" type="checkbox" />
+          <span data-i18n="desktopCatMovesLabel"></span>
+        </label>
+        <p class="desktop-note" data-i18n="desktopCatMovesNote"></p>
       </div>
+      <button id="desktopCatDemo" type="button" data-i18n="desktopCatDemoButton"></button>
 
       `;
 const QUIT_BUTTON = `
@@ -217,6 +223,8 @@ function setStored(items) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveStoreNow, 200);
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send("storage-changed", changes);
+  // No longer allowed to play with the icons: what it moved goes back where it was.
+  if (["desktopCatMoves", "desktopCatIcons"].some((key) => key in items && items[key] !== true)) putIconsBack();
   updateScreen();
 }
 
@@ -363,10 +371,13 @@ function openFullscreen() {
  * open, and ends with the program, because its input goes with it.
  */
 const ICONS_EVERY_MS = 2000;
+// The cat puts one back before it takes a third.
+const MOST_OUT_OF_PLACE = 2;
 let iconHelper = null;
 let iconTimer = null;
 let iconsSent = "";
 let iconAnswers = [];
+let lastScan = null;
 
 const helperPath = () => (app.isPackaged
   ? path.join(process.resourcesPath, "desktop-icons.exe")
@@ -387,32 +398,205 @@ function stopWatchingIcons() {
   clearInterval(iconTimer);
   iconTimer = null;
   iconsSent = "";
+  lastScan = null;
   const helper = iconHelper;
   iconHelper = null;
   for (const answer of iconAnswers.splice(0)) answer(null);
   helper?.stdin.end();
 }
 
+/* The helper counts in real screen pixels, and of the icon's whole cell; the layer in its own, of the picture. */
+function iconMeasures(scan) {
+  const { scaleFactor: scale, workArea } = screen.getPrimaryDisplay();
+  const iconSize = scan.iconSize / scale;
+  const [spaceX, spaceY] = scan.spacing.map((v) => v / scale);
+  const inset = (spaceX - iconSize) / 2;
+  return {
+    scale,
+    workArea,
+    iconSize,
+    spaceX,
+    spaceY,
+    toLayer: (x, y) => ({ x: x / scale - workArea.x + inset, y: y / scale - workArea.y + 2 }),
+    toScreen: (x, y) => [Math.round((x - inset + workArea.x) * scale), Math.round((y - 2 + workArea.y) * scale)],
+  };
+}
+
+/* An icon moved by hand since the cat left it is where it belongs now. */
+const movedByHand = (icon, entry) => Boolean(entry.left)
+  && (Math.abs(icon.x - entry.left[0]) > 4 || Math.abs(icon.y - entry.left[1]) > 4);
+
+function forgetIconsNoLongerOurs(scan) {
+  const moved = store.desktopCatMoved;
+  if (!moved) return;
+  const kept = Object.entries(moved).filter(([id, entry]) => {
+    const icon = scan.icons.find((other) => other.id === id);
+    return icon && !movedByHand(icon, entry);
+  });
+  if (kept.length < Object.keys(moved).length) setStored({ desktopCatMoved: Object.fromEntries(kept) });
+}
+
 /* From the helper's real screen pixels to this layer's, for the icons in plain view. */
 async function sendIcons() {
   const answer = await askHelper("scan");
-  if (!overlay || !answer?.icons) return;
-  const display = screen.getPrimaryDisplay();
-  const scale = display.scaleFactor;
-  const { workArea } = display;
-  const iconSize = answer.iconSize / scale;
-  const [spaceX, spaceY] = (answer.spacing || [0, 0]).map((v) => v / scale);
+  // Asked with the desktop's icons switched off, it says nothing but an empty list.
+  if (!overlay || !answer?.icons || !answer.spacing) return;
+  lastScan = answer;
+  forgetIconsNoLongerOurs(answer);
+  const { workArea, iconSize, spaceX, spaceY, toLayer } = iconMeasures(answer);
   const icons = answer.icons
     .filter((icon) => icon.seen)
     .map((icon) => {
-      const cell = { x: icon.x / scale - workArea.x, y: icon.y / scale - workArea.y, w: spaceX, h: spaceY };
-      return { id: icon.id, x: cell.x + (spaceX - iconSize) / 2, y: cell.y + 2, w: iconSize, h: iconSize, cell };
+      const at = toLayer(icon.x, icon.y);
+      const cell = { x: at.x - (spaceX - iconSize) / 2, y: at.y - 2, w: spaceX, h: spaceY };
+      return { id: icon.id, x: at.x, y: at.y, w: iconSize, h: iconSize, cell };
     })
     .filter((icon) => icon.cell.x >= 0 && icon.cell.y >= 0 && icon.cell.x < workArea.width && icon.cell.y < workArea.height);
   const text = JSON.stringify(icons);
   if (text === iconsSent) return;
   iconsSent = text;
   overlay.webContents.send("desktop-icons", icons);
+}
+
+/* ---------- Moving icons, for the cat ---------- */
+
+/*
+ * Only with its own setting on. Only the icon's place on the desktop changes, the
+ * way dragging it would: the file stays where it is. Where it came from is noted in
+ * the data, so that switching this off or quitting can put it back, and so can the
+ * next start after a crash. An icon someone has moved by hand since is left alone.
+ */
+const safeIconId = (id) => String(id).replace(/[^0-9a-f]/g, "");
+
+function iconCellTaken(id, x, y, scan) {
+  const [spaceX, spaceY] = scan.spacing;
+  const near = ([ox, oy]) => Math.abs(ox - x) < spaceX && Math.abs(oy - y) < spaceY;
+  return scan.icons.some((other) => other.id !== id && near([other.x, other.y]))
+    || Object.entries(store.desktopCatMoved || {}).some(([other, entry]) => other !== id && near(entry.home));
+}
+
+function iconCellFits(x, y, scan) {
+  const { scale, workArea } = iconMeasures(scan);
+  const [spaceX, spaceY] = scan.spacing;
+  return x >= workArea.x * scale
+    && y >= workArea.y * scale
+    && x + spaceX <= (workArea.x + workArea.width) * scale
+    && y + spaceY <= (workArea.y + workArea.height) * scale;
+}
+
+/* A free place a few columns away and at most a row up or down: a walk the cat can make. */
+function freeCellNear(icon, scan) {
+  const [spaceX, spaceY] = scan.spacing;
+  const cells = [];
+  for (let column = -4; column <= 4; column += 1) {
+    if (Math.abs(column) < 2) continue;
+    for (let row = -1; row <= 1; row += 1) {
+      const x = icon.x + column * spaceX;
+      const y = icon.y + row * spaceY;
+      if (iconCellFits(x, y, scan) && !iconCellTaken(icon.id, x, y, scan)) cells.push([x, y]);
+    }
+  }
+  return cells.length ? cells[Math.floor(Math.random() * cells.length)] : null;
+}
+
+/* Let go of on its way somewhere: the nearest free place on the desktop's grid. */
+function nearestFreeCell(id, x, y, scan) {
+  const [spaceX, spaceY] = scan.spacing;
+  const fixed = scan.icons.find((other) => other.id !== id && !store.desktopCatMoved?.[other.id]);
+  if (!fixed) return [x, y];
+  const column = Math.round((x - fixed.x) / spaceX);
+  const row = Math.round((y - fixed.y) / spaceY);
+  for (let ring = 0; ring < 4; ring += 1) {
+    for (let dc = -ring; dc <= ring; dc += 1) {
+      for (let dr = -ring; dr <= ring; dr += 1) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== ring) continue;
+        const cx = fixed.x + (column + dc) * spaceX;
+        const cy = fixed.y + (row + dr) * spaceY;
+        if (iconCellFits(cx, cy, scan) && !iconCellTaken(id, cx, cy, scan)) return [cx, cy];
+      }
+    }
+  }
+  return [x, y];
+}
+
+function planIconMove(wantedId) {
+  const scan = lastScan;
+  if (store.desktopCatMoves !== true || !iconHelper || !scan || scan.auto) return null;
+  const { toLayer } = iconMeasures(scan);
+  const moved = store.desktopCatMoved || {};
+  const out = Object.keys(moved);
+  if (out.length >= MOST_OUT_OF_PLACE) {
+    // Enough out of place: this trip takes one home, if one is in sight.
+    const id = out.find((key) => scan.icons.some((icon) => icon.id === key && icon.seen));
+    return id ? { id, ...toLayer(...moved[id].home) } : null;
+  }
+  const icon = scan.icons.find((other) => other.id === wantedId && other.seen);
+  const cell = icon && freeCellNear(icon, scan);
+  return cell ? { id: icon.id, ...toLayer(...cell) } : null;
+}
+
+function moveIconTo(rawId, x, y) {
+  const scan = lastScan;
+  if (store.desktopCatMoves !== true || !iconHelper || !scan) return;
+  const id = safeIconId(rawId);
+  const moved = store.desktopCatMoved || {};
+  const icon = scan.icons.find((other) => other.id === id);
+  if (!icon) return;
+  // Where it was left says nothing once it is on the move again, and moving away
+  // from there would read as a hand having moved it.
+  if (!moved[id]) setStored({ desktopCatMoved: { ...moved, [id]: { home: [icon.x, icon.y] } } });
+  else if (moved[id].left) setStored({ desktopCatMoved: { ...moved, [id]: { home: moved[id].home } } });
+  const [toX, toY] = iconMeasures(scan).toScreen(x, y);
+  // The scan is up to a couple of seconds old: for this icon, the cat knows better.
+  icon.x = toX;
+  icon.y = toY;
+  askHelper(`move ${id} ${toX} ${toY}`);
+}
+
+async function dropIcon(rawId, x, y) {
+  const scan = lastScan;
+  const id = safeIconId(rawId);
+  const entry = store.desktopCatMoved?.[id];
+  if (store.desktopCatMoves !== true || !iconHelper || !scan || !entry) return;
+  const [spaceX, spaceY] = scan.spacing;
+  const [atX, atY] = iconMeasures(scan).toScreen(x, y);
+  const home = Math.abs(atX - entry.home[0]) < spaceX / 2 && Math.abs(atY - entry.home[1]) < spaceY / 2;
+  const [toX, toY] = home ? entry.home : nearestFreeCell(id, atX, atY, scan);
+  const answer = await askHelper(`move ${id} ${toX} ${toY}`);
+  const left = [answer?.x ?? toX, answer?.y ?? toY];
+  const icon = lastScan?.icons.find((other) => other.id === id);
+  if (icon) [icon.x, icon.y] = left;
+  const moved = { ...store.desktopCatMoved };
+  if (!moved[id]) return;
+  if (home) delete moved[id];
+  else moved[id] = { home: entry.home, left };
+  setStored({ desktopCatMoved: moved });
+}
+
+/*
+ * With a helper of its own, which works through what it is told and ends when its
+ * input closes. So this holds on quitting too, with the program already gone.
+ */
+function putIconsBack() {
+  const moved = store.desktopCatMoved;
+  if (!moved || !Object.keys(moved).length) return;
+  store.desktopCatMoved = {};
+  let helper;
+  try {
+    helper = spawn(helperPath(), [String(process.pid)], { stdio: ["pipe", "ignore", "ignore"], windowsHide: true });
+  } catch (error) {
+    return;
+  }
+  helper.on("error", () => {});
+  helper.stdin.on("error", () => {});
+  for (const [id, entry] of Object.entries(moved)) {
+    const icon = lastScan?.icons.find((other) => other.id === id);
+    if (icon && movedByHand(icon, entry)) continue;
+    helper.stdin.write(`move ${safeIconId(id)} ${Math.round(entry.home[0])} ${Math.round(entry.home[1])}\n`);
+  }
+  helper.stdin.end();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveStoreNow, 200);
 }
 
 function startWatchingIcons() {
@@ -600,15 +784,23 @@ const widgetsWanted = () => store.pomodoro?.settings?.floatingWidgetEnabled !== 
  */
 function updateScreen() {
   if (quitting) return;
+  // Showing off what the cat can do brings out the layer with the cat on it, for
+  // as long as that lasts. The fullscreen timer closes for it: it was asked for.
+  const showingOff = store.desktopCatDemo === true;
+  if (showingOff && fullscreenWindow) {
+    fullscreenWindow.close();
+    return;
+  }
   const free = !fullscreenWindow;
-  const kind = store.desktopWidgetKind || "full";
+  const kind = showingOff ? "full" : store.desktopWidgetKind || "full";
+  const wanted = widgetsWanted() || showingOff;
 
-  if (overlay && (!free || !widgetsWanted() || kind !== overlayKind)) {
+  if (overlay && (!free || !wanted || kind !== overlayKind)) {
     const old = overlay;
     overlay = null;
     old.destroy();
   }
-  if (!overlay && free && widgetsWanted()) createOverlay(kind);
+  if (!overlay && free && wanted) createOverlay(kind);
 
   const launcherWanted = free && !store.desktopLauncherHidden;
   if (launcher && !launcherWanted) {
@@ -660,6 +852,7 @@ function programMenu() {
       checked: !store.desktopLauncherHidden,
       click: () => setStored({ desktopLauncherHidden: !store.desktopLauncherHidden }),
     },
+    { label: say.catDemo, click: () => setStored({ desktopCatDemo: true }) },
     { type: "separator" },
     { label: say.quit, click: () => app.quit() },
   ]);
@@ -753,9 +946,12 @@ function listen() {
     else stopWatchingIcons();
   });
   ipcMain.handle("icon-image", async (_event, id) => {
-    const answer = await askHelper(`image ${String(id).replace(/[^0-9a-f]/g, "")}`);
+    const answer = await askHelper(`image ${safeIconId(id)}`);
     return answer?.png ? `data:image/png;base64,${answer.png}` : null;
   });
+  ipcMain.handle("plan-icon", (_event, id) => planIconMove(safeIconId(id)));
+  ipcMain.on("move-icon", (_event, id, x, y) => moveIconTo(id, x, y));
+  ipcMain.on("drop-icon", (_event, id, x, y) => dropIcon(id, x, y));
 
   ipcMain.on("launcher-click", () => setWidgets(!widgetsWanted()));
   ipcMain.on("launcher-move", (_event, x, y) => {
@@ -820,6 +1016,7 @@ if (!app.requestSingleInstanceLock()) {
     // Quit before the data was even read, there is nothing to save, and
     // saving would write an empty file over it.
     if (quitting || !loaded) return;
+    putIconsBack();
     stopTheTimer();
     saveStoreNow();
     quitting = true;
@@ -830,6 +1027,9 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null);
     loadStore();
     loaded = true;
+    delete store.desktopCatDemo;
+    // Left out of place only if the last run never got to quit.
+    putIconsBack();
     // Out on the screen the cat wanders from the start. Websites start it on its shelf.
     store.pomodoroBuddyMode ??= "roam";
     refuseTheNetwork();

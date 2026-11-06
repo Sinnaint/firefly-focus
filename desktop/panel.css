@@ -82,6 +82,21 @@ body.is-app #ring {
   padding: 0 12px;
 }
 
+#desktopCatDemo {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 15px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-weight: 700;
+}
+
+#desktopCatMoves:disabled + span {
+  opacity: 0.5;
+}
+
 #desktopQuit {
   width: 100%;
   min-height: 42px;

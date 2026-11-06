@@ -16,8 +16,12 @@
   const TYPING = 'input:not([type="checkbox"])';
   const FIREFLIES_KEY = "desktopWidgetFireflies";
   const ICONS_KEY = "desktopCatIcons";
+  const MOVES_KEY = "desktopCatMoves";
+  const DEMO_KEY = "desktopCatDemo";
+  const MODE_KEY = "pomodoroBuddyMode";
 
   const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l1.9 6.6 6.6 1.9-6.6 1.9-1.9 6.6-1.9-6.6L3.5 12l6.6-1.9z"/></svg>';
+  const SHOW_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.6-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6z"/><path d="M4.2 3l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3L1.2 6l2.3-.7z"/></svg>';
 
   /* ---------- What the program adds to the widget ---------- */
 
@@ -27,10 +31,16 @@
   let timerState = null;
   let fireflyButton = null;
   let quickButton = null;
+  let demoButton = null;
+  let renderWidget = () => {};
+
+  const wordsNow = () => DESKTOP_WORDS[timerState?.settings?.language] || DESKTOP_WORDS.uk;
 
   function labelButtons() {
     if (!fireflyButton) return;
-    const words = DESKTOP_WORDS[timerState?.settings?.language] || DESKTOP_WORDS.uk;
+    const words = wordsNow();
+    demoButton.title = words.widget.demoTitle;
+    demoButton.setAttribute("aria-label", words.widget.demoTitle);
     fireflyButton.title = words.widget.fireflies;
     fireflyButton.setAttribute("aria-label", words.widget.fireflies);
     fireflyButton.setAttribute("aria-pressed", String(firefliesOn));
@@ -50,8 +60,18 @@
     return button;
   }
 
-  function addControls({ piece, taskCard, render }) {
+  function addControls({ piece, taskCard, pill, render }) {
     widgetRoot = piece.parentNode;
+    renderWidget = render;
+
+    demoButton = document.createElement("button");
+    demoButton.type = "button";
+    demoButton.className = "pill-btn show-off";
+    demoButton.innerHTML = SHOW_ICON;
+    demoButton.addEventListener("click", () => chrome.storage.local.set({ [DEMO_KEY]: true }));
+    pill.append(demoButton);
+    startDemoIfDue();
+
     fireflyButton = edgeButton("edge-fireflies", SPARK_ICON);
     fireflyButton.addEventListener("click", () => {
       firefliesOn = !firefliesOn;
@@ -79,15 +99,29 @@
     labelButtons();
   }
 
-  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY, ICONS_KEY]).then((data) => {
+  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY, ICONS_KEY, MOVES_KEY, DEMO_KEY]).then((data) => {
     timerState = data.pomodoro;
     firefliesOn = data[FIREFLIES_KEY] === true;
+    movesWanted = data[MOVES_KEY] === true;
     labelButtons();
-    if (kind === "full") syncIcons(data[ICONS_KEY] === true);
+    if (kind === "full") {
+      syncIcons(data[ICONS_KEY] === true);
+      syncDemo(data[DEMO_KEY] === true);
+    }
+    followTimer();
   });
   chrome.storage.onChanged.addListener((changes) => {
-    if (changes.pomodoro?.newValue) timerState = changes.pomodoro.newValue;
+    if (changes.pomodoro?.newValue) {
+      timerState = changes.pomodoro.newValue;
+      followTimer();
+    }
+    if (changes[MOVES_KEY]) {
+      movesWanted = changes[MOVES_KEY].newValue === true;
+      // Taken back in the middle of a move: it drops what it has.
+      if (!movesWanted && !demoRun) cat?.endOuting();
+    }
     if (changes[ICONS_KEY] && kind === "full") syncIcons(changes[ICONS_KEY].newValue === true);
+    if (changes[DEMO_KEY] && kind === "full") syncDemo(changes[DEMO_KEY].newValue === true);
     labelButtons();
   });
 
@@ -101,14 +135,21 @@
    */
   let cat = null;
   let iconsWanted = false;
+  let movesWanted = false;
+  let latestIcons = [];
   let widgetRoot = null;
   const iconImages = new Map();
   const biteMarks = new Map();
 
-  // A chunk gone from the corner, with teeth marks round it.
-  const BITE_MARK = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M100 0v52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16L27 0z" fill="rgba(24,12,34,.9)"/><path d="M100 52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-dasharray="7 5"/></svg>`;
+  /* Under the cat, which has to stay clickable, and over the demonstration's folders. */
+  function underCat(node) {
+    widgetRoot.querySelector(".floor").before(node);
+  }
 
-  function markBitten(perch) {
+  // A chunk gone from the corner, with teeth marks round it.
+  const BITE_MARK = `<svg viewBox="0 0 100 100" aria-hidden="true"><g transform="translate(26 0) scale(.74)"><path d="M100 0v52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16L27 0z" fill="rgba(24,12,34,.9)"/><path d="M100 52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="5" stroke-dasharray="7 5"/></g></svg>`;
+
+  function markBitten(perch, catFacing) {
     if (!widgetRoot || biteMarks.has(perch.id)) return;
     // Over the whole icon with its label: while it is bitten, clicks stop here.
     const guard = document.createElement("div");
@@ -117,13 +158,13 @@
     const mark = document.createElement("div");
     mark.className = "icon-bite";
     mark.innerHTML = BITE_MARK;
-    mark.style.cssText = `left:${perch.x - perch.cell.x}px;top:${perch.y - perch.cell.y}px;width:${perch.w}px;height:${perch.h}px`;
+    // The chunk is gone from the corner the cat bit, on its own side of the icon.
+    mark.style.cssText = `left:${perch.x - perch.cell.x}px;top:${perch.y - perch.cell.y}px;width:${perch.w}px;height:${perch.h}px${catFacing > 0 ? ";transform:scaleX(-1)" : ""}`;
     guard.append(mark);
     // Tried anyway: the cat is not impressed. Only it can give the icon back.
     guard.addEventListener("click", () => cat?.scold());
     guard.addEventListener("dblclick", () => cat?.scold());
-    // First in the widget, so that it lies under the cat, which has to stay clickable.
-    widgetRoot.prepend(guard);
+    underCat(guard);
     biteMarks.set(perch.id, guard);
   }
 
@@ -150,7 +191,7 @@
     copy.className = "icon-wobble";
     if (source) copy.src = source;
     copy.style.cssText = `left:${perch.x}px;top:${perch.y}px;width:${perch.w}px;height:${perch.h}px`;
-    widgetRoot.prepend(copy);
+    underCat(copy);
     const jolt = copy.animate(
       [
         { transform: "none" },
@@ -165,21 +206,98 @@
     jolt.oncancel = () => copy.remove();
   }
 
+  /* The icons as last heard of: the cat may not exist yet when the first list comes. */
+  function giveCatIcons() {
+    if (!demoRun) cat?.setPerches(iconsWanted ? latestIcons : []);
+  }
+
   function syncIcons(wanted) {
     if (wanted === iconsWanted) return;
     iconsWanted = wanted;
     door.watchIcons(wanted);
-    if (!wanted) cat?.setPerches([]);
+    giveCatIcons();
   }
 
   door.onDesktopIcons((icons) => {
-    cat?.setPerches(iconsWanted ? icons : []);
+    latestIcons = icons;
+    giveCatIcons();
   });
+
+  /*
+   * Its teeth in an icon and walking off with it. The real icon follows along, a
+   * dozen and more steps a second, which is as fast as the desktop needs to look
+   * like it is gliding. Only its place on the desktop changes, as with a mouse drag.
+   */
+  const ICON_STEP_MS = 66;
+  let lastIconStep = 0;
+
+  function iconDragged(perch, x, y) {
+    if (perch.fake) {
+      demoRun?.moved(perch);
+      return;
+    }
+    const now = performance.now();
+    if (now - lastIconStep < ICON_STEP_MS) return;
+    lastIconStep = now;
+    door.moveIcon(perch.id, x, y);
+  }
+
+  function iconDropped(perch, x, y) {
+    if (!perch.fake) door.dropIcon(perch.id, x, y);
+  }
+
+  /* ---------- The cat and the timer ---------- */
+
+  let sessionsBefore = null;
+
+  /* It keeps out of the way through a focus session, and is glad when one is done. */
+  function followTimer() {
+    if (!timerState) return;
+    cat?.setFocus(Boolean(timerState.running && timerState.mode === "work"));
+    const done = timerState.sessionsDone;
+    if (sessionsBefore !== null && done > sessionsBefore) cat?.cheer();
+    sessionsBefore = done;
+  }
+
+  /* ---------- Showing off ---------- */
+
+  let demoWanted = false;
+  let demoRun = null;
+
+  function startDemoIfDue() {
+    if (!demoWanted || demoRun || !cat || !widgetRoot) return;
+    demoRun = FireflyCatDemo.start({
+      cat,
+      root: widgetRoot,
+      say: wordsNow().widget,
+      images: iconImages,
+      onEnd: endDemo,
+    });
+  }
+
+  async function endDemo() {
+    demoRun = null;
+    demoWanted = false;
+    giveCatIcons();
+    const data = await chrome.storage.local.get(MODE_KEY);
+    cat?.setActivity(data[MODE_KEY] === "play" ? "ball" : "roam", { from: cat.whereabouts() });
+    renderWidget();
+    chrome.storage.local.set({ [DEMO_KEY]: false });
+  }
+
+  function syncDemo(wanted) {
+    if (wanted === demoWanted) return;
+    demoWanted = wanted;
+    renderWidget();
+    if (wanted) startDemoIfDue();
+    else demoRun?.stop();
+  }
 
   window.__FIREFLY_DESKTOP__ = {
     tasks: kind !== "timer",
     cat: kind === "full",
     words: DESKTOP_WORDS,
+    showingOff: () => demoWanted,
     // This runs all day beside other programs, and each frame costs the same
     // whatever the size of the window: measured, 30 a second takes half the
     // graphics card that 60 does, and a walk this slow looks no different. A cat
@@ -191,11 +309,17 @@
       onBite: markBitten,
       onBiteEnd: unmarkBitten,
       onBump: wobbleIcon,
+      canDrag: () => movesWanted,
+      onDragPlan: (perch) => (perch ? door.planIcon(perch.id) : null),
+      onDrag: iconDragged,
+      onDragEnd: iconDropped,
     },
     buddyReady(buddy) {
       cat = buddy;
       window.__FIREFLY_DESKTOP__.cat_ = buddy; // for the tests
-      door.onCatReady?.();
+      giveCatIcons();
+      followTimer();
+      startDemoIfDue();
     },
     fireflies: () => firefliesOn,
     mount: addControls,
@@ -258,6 +382,13 @@
       .piece:hover .edge-btn:disabled {
         opacity: 0.4;
       }
+
+      .show-off svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      ${FireflyCatDemo.STYLES}
 
       .icon-guard {
         position: fixed;

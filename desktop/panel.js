@@ -15,7 +15,7 @@
     if (i18n[language]) Object.assign(i18n[language], words.pages);
   }
 
-  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden", "desktopCatIcons"];
+  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden", "desktopCatIcons", "desktopCatMoves", "desktopCatDemo"];
   const isMainWindow = location.pathname === "/sidepanel.html";
 
   function show(data) {
@@ -26,13 +26,20 @@
     if (launcherBox) launcherBox.checked = !data.desktopLauncherHidden;
     const iconsBox = document.getElementById("desktopCatIcons");
     if (iconsBox) iconsBox.checked = data.desktopCatIcons === true;
+    // Moving them is a part of the game with them, and means nothing without it.
+    const movesBox = document.getElementById("desktopCatMoves");
+    if (movesBox) {
+      movesBox.checked = data.desktopCatMoves === true;
+      movesBox.disabled = data.desktopCatIcons !== true;
+    }
     const version = document.getElementById("desktopVersion");
     if (version && !version.textContent) window.fireflyHost.appVersion().then((text) => { version.textContent = text; });
 
     // One cat at a time: while it is out on the layer, this window goes without.
     // The fullscreen timer always has its own, because the layer is shut for it.
     if (isMainWindow) {
-      const outOnLayer = kind === "full" && data.pomodoro?.settings?.floatingWidgetEnabled !== false;
+      const outOnLayer = data.desktopCatDemo === true
+        || (kind === "full" && data.pomodoro?.settings?.floatingWidgetEnabled !== false);
       document.body.dataset.catOnLayer = String(outOnLayer);
     }
 
@@ -92,13 +99,19 @@
     } else if (event.target.id === "desktopLauncherShown") {
       chrome.storage.local.set({ desktopLauncherHidden: !event.target.checked });
     } else if (event.target.id === "desktopCatIcons") {
-      chrome.storage.local.set({ desktopCatIcons: event.target.checked });
+      // Off, it takes the moving with it: that was agreed to as a part of the game.
+      chrome.storage.local.set(event.target.checked
+        ? { desktopCatIcons: true }
+        : { desktopCatIcons: false, desktopCatMoves: false });
+    } else if (event.target.id === "desktopCatMoves") {
+      chrome.storage.local.set({ desktopCatMoves: event.target.checked });
     }
   });
 
   document.addEventListener("click", (event) => {
     if (event.target.id === "desktopQuit") window.fireflyHost.quit();
     if (event.target.id === "desktopLicenses") window.fireflyHost.openLicenses();
+    if (event.target.id === "desktopCatDemo") chrome.storage.local.set({ desktopCatDemo: true });
   });
 
   chrome.storage.onChanged.addListener((changes) => {

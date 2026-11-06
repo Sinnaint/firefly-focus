@@ -1277,7 +1277,7 @@
     };
 
     bindEvents();
-    DESKTOP?.mount({ piece: nodes.timerPiece, taskCard: nodes.taskCard, render });
+    DESKTOP?.mount({ piece: nodes.timerPiece, taskCard: nodes.taskCard, pill: nodes.pill, render });
   }
 
   /* ---------- The cat ---------- */
@@ -1911,9 +1911,11 @@
 
     const settings = state.settings || {};
     const dictionary = t();
-    const enabled = settings.floatingWidgetEnabled !== false;
+    // Showing off what the cat can do, in the program, brings it out whatever was put away.
+    const showingOff = Boolean(DESKTOP?.showingOff());
+    const enabled = settings.floatingWidgetEnabled !== false || showingOff;
     const showTimer = enabled && !dismissed.timer;
-    const showCompanion = enabled && !dismissed.buddy && (!DESKTOP || DESKTOP.cat);
+    const showCompanion = enabled && (!dismissed.buddy || showingOff) && (!DESKTOP || DESKTOP.cat);
 
     host.style.display = showTimer || showCompanion ? "block" : "none";
     if (DESKTOP && enabled && !showTimer && !showCompanion) DESKTOP.nothingShown();
@@ -1956,7 +1958,7 @@
     if (!folded) renderTasks(dictionary);
 
     // ---- the cat
-    const catOn = showCompanion && settings.studyBuddyEnabled !== false;
+    const catOn = showCompanion && (settings.studyBuddyEnabled !== false || showingOff);
     syncBuddy(catOn);
     nodes.pill.setAttribute("aria-label", dictionary.catToolbar);
     label(nodes.walkBtn, dictionary.walkMode);
