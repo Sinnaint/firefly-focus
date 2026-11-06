@@ -1161,6 +1161,7 @@ const FireflyBuddy = (() => {
     let source = null;
     let startedAt = 0;
     let on = false;
+    let letGo = null;
 
     function ensure() {
       if (ctx) return true;
@@ -1197,6 +1198,7 @@ const FireflyBuddy = (() => {
 
     function start() {
       if (on || !ensure()) return on;
+      clearTimeout(letGo);
       ctx.resume?.().catch?.(() => {});
       source = ctx.createBufferSource();
       source.buffer = buffer;
@@ -1225,6 +1227,11 @@ const FireflyBuddy = (() => {
         // Already stopped.
       }
       source = null;
+      // Faded out, let go of the sound card. A context left running keeps the
+      // output open on silence, and some headphones hiss for as long as it is.
+      letGo = setTimeout(() => {
+        if (!on) ctx.suspend?.().catch?.(() => {});
+      }, 450);
     }
 
     /*
@@ -1431,9 +1438,10 @@ const FireflyBuddy = (() => {
    *             lines and diagonals, and can be picked up and thrown;
    *   "play"  — stays put and plays with a ball.
    * `from` ({ centerX, bottom }, viewport pixels) is where a roaming cat
-   * starts out — where it was standing before it came here.
+   * starts out — where it was standing before it came here. `maxFps` caps the
+   * animation, for a cat that keeps running beside other programs.
    */
-  function create(host, { onPurrChange = null, activity = "timer", from = null } = {}) {
+  function create(host, { onPurrChange = null, activity = "timer", from = null, maxFps = 60 } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -2730,7 +2738,7 @@ const FireflyBuddy = (() => {
       st.raf = requestAnimationFrame(frame);
       const now = nowMs();
       // 60 frames a second is plenty, even on a 120 Hz screen
-      if (now - st.last < 1000 / 62) return;
+      if (now - st.last < 1000 / (maxFps + 2)) return;
       const dt = clamp((now - st.last) / 1000, 0, 0.05);
       st.last = now;
       update(now, dt);
