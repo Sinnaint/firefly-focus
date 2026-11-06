@@ -13,10 +13,24 @@ const buddy = FireflyBuddy.create(host, {
   from: { centerX: window.innerWidth / 2, bottom: window.innerHeight / 2 },
   // This runs all day beside other programs, and each frame costs the same
   // whatever the size of the window: measured, 30 a second takes half the
-  // graphics card that 60 does, and a walk this slow looks no different.
+  // graphics card that 60 does, and a walk this slow looks no different. A cat
+  // sitting still, with only its breath and antennae moving, needs fewer yet.
   maxFps: 30,
+  restFps: 15,
 });
-buddy.sync({ enabled: true, running: false, night: true });
+
+function syncCat(state) {
+  buddy.sync({
+    enabled: state?.settings?.studyBuddyEnabled !== false,
+    running: Boolean(state?.running),
+    night: (state?.settings?.theme || "midnight") !== "daylight",
+  });
+}
+
+chrome.storage.local.get("pomodoro").then((data) => syncCat(data.pomodoro));
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.pomodoro) syncCat(changes.pomodoro.newValue);
+});
 
 let through = true;
 
@@ -25,7 +39,7 @@ function followPointer(event) {
   const next = !over && !host.hasAttribute("data-carried");
   if (next === through) return;
   through = next;
-  window.overlay.clickThrough(through);
+  window.fireflyHost.clickThrough(through);
 }
 
 window.addEventListener("pointermove", followPointer);
@@ -33,4 +47,3 @@ window.addEventListener("pointerup", followPointer);
 
 // For the tests: lets them drive the cat by hand and read where it is.
 window.__buddy = buddy;
-window.__clickThrough = () => through;

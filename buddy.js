@@ -1439,9 +1439,10 @@ const FireflyBuddy = (() => {
    *   "play"  — stays put and plays with a ball.
    * `from` ({ centerX, bottom }, viewport pixels) is where a roaming cat
    * starts out — where it was standing before it came here. `maxFps` caps the
-   * animation, for a cat that keeps running beside other programs.
+   * animation, for a cat that keeps running beside other programs, and
+   * `restFps` caps it further while the cat sits or lies still.
    */
-  function create(host, { onPurrChange = null, activity = "timer", from = null, maxFps = 60 } = {}) {
+  function create(host, { onPurrChange = null, activity = "timer", from = null, maxFps = 60, restFps = maxFps } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -2738,8 +2739,9 @@ const FireflyBuddy = (() => {
       st.raf = requestAnimationFrame(frame);
       const now = nowMs();
       // 60 frames a second is plenty, even on a 120 Hz screen
-      if (now - st.last < 1000 / (maxFps + 2)) return;
-      const dt = clamp((now - st.last) / 1000, 0, 0.05);
+      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss;
+      if (now - st.last < 1000 / ((still ? restFps : maxFps) + 2)) return;
+      const dt = clamp((now - st.last) / 1000, 0, 0.1);
       st.last = now;
       update(now, dt);
       render(now);
