@@ -17,6 +17,7 @@
   const PREFIX = "firefly:";
   const CHANNEL = "firefly-focus";
   const ENGINE_LOCK = "firefly-engine";
+  const VOICE_LOCK = "firefly-voice";
 
   /*
    * Listeners are tagged with the script that registered them, so a message
@@ -27,6 +28,7 @@
   const listeners = [];
   const changeListeners = [];
   const alarmListeners = [];
+  const startupListeners = [];
   const alarms = new Map();
   const channel = "BroadcastChannel" in self ? new BroadcastChannel(CHANNEL) : null;
 
@@ -236,7 +238,32 @@ onmessage = ({ data }) => {
    * stage-end twice: two sounds, two notifications. The Web Locks API hands
    * the lock straight to the next window when this one closes, so ownership
    * survives the leader being shut.
+   *
+   * Each window has its own alarms but all of them share one state, so the
+   * owner's alarms say nothing about what the others did: Start pressed in
+   * another window leaves an alarm there that is never armed, and the window
+   * inheriting the timer holds only what it set itself, which may be nothing,
+   * or a stage long gone. Either way the stage never ends, the countdown
+   * sitting on 0:00. So the owner takes its alarms from the state, whenever it
+   * inherits the timer and whenever another window writes that state. Reading
+   * the state and arming to match is what the engine does at browser start
+   * (its onStartup listener), and completeCycle() makes that safe to repeat.
    */
+  function catchUpWithState() {
+    for (const fn of startupListeners.slice()) {
+      try {
+        fn();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  function takeOverTimer() {
+    isLeader = true;
+    catchUpWithState();
+  }
+
   async function claimLeadership() {
     if (!navigator.locks?.request) {
       isLeader = true;
@@ -245,13 +272,66 @@ onmessage = ({ data }) => {
 
     navigator.locks
       .request(ENGINE_LOCK, () => {
-        isLeader = true;
-        for (const name of alarms.keys()) armAlarm(name);
+        takeOverTimer();
         return new Promise(() => {});
       })
-      .catch(() => {
-        isLeader = true;
-      });
+      .catch(takeOverTimer);
+  }
+
+  // The storage event rather than the channel: a window has its own cached copy
+  // of localStorage, and only this event promises the new value has reached it.
+  // The channel's message can arrive first, and the engine would read the old.
+  window.addEventListener("storage", (event) => {
+    if (isLeader && event.key === `${PREFIX}pomodoro`) catchUpWithState();
+  });
+
+  /* ---------- sound ---------- */
+  /*
+   * A page may start sound only once it has been clicked: until then its
+   * AudioContext stays suspended and resume() never settles, so the signal is
+   * lost without a word. And the window that owns the timer need not be one
+   * that was clicked: Start may have been pressed in another window, or the
+   * timer may have passed to a window nobody has touched. So a window that
+   * cannot play a signal hands it to one that can.
+   *
+   * A lock picks which one, because two clicked windows must not both play it:
+   * the first window clicked holds it, and it passes on when that window closes.
+   * If nobody holds it, nobody has clicked, and the signal is tried here anyway:
+   * a browser can allow sound on a site it knows without a click.
+   */
+  const activation = navigator.userActivation;
+  const ACTIVATING_EVENTS = ["pointerdown", "pointerup", "keydown"];
+  let hasVoice = false;
+
+  function claimVoice() {
+    if (!activation.hasBeenActive) return;
+
+    for (const type of ACTIVATING_EVENTS) window.removeEventListener(type, claimVoice, true);
+
+    navigator.locks
+      .request(VOICE_LOCK, () => {
+        hasVoice = true;
+        return new Promise(() => {});
+      })
+      .catch(() => {});
+  }
+
+  if (activation && navigator.locks?.request) {
+    for (const type of ACTIVATING_EVENTS) window.addEventListener(type, claimVoice, true);
+    // Chrome keeps a click through a reload, so there may be no further event.
+    claimVoice();
+  }
+
+  async function sendSignal(message) {
+    if (!activation || activation.hasBeenActive || !channel || !navigator.locks?.query) {
+      return dispatch(message);
+    }
+
+    const { held } = await navigator.locks.query();
+    if (!held.some((lock) => lock.name === VOICE_LOCK)) return dispatch(message);
+
+    channel.postMessage({ kind: "signal", message });
+    return undefined;
   }
 
   /* ---------- notifications and badge ---------- */
@@ -302,6 +382,7 @@ onmessage = ({ data }) => {
         if (message?.type === "OPEN_SIDE_PANEL") {
           window.location.assign("index.html");
         }
+        if (message?.target === "offscreen") return sendSignal(message);
         return dispatch(message);
       },
 
@@ -312,7 +393,12 @@ onmessage = ({ data }) => {
       },
 
       onInstalled: { addListener() {} },
-      onStartup: { addListener() {} },
+      // Never a browser start here: see catchUpWithState().
+      onStartup: {
+        addListener(fn) {
+          startupListeners.push(fn);
+        }
+      },
 
       // ensureOffscreenDocument() asks whether the audio document already
       // exists. In one page it always does — this page is it.
@@ -353,8 +439,11 @@ onmessage = ({ data }) => {
     },
 
     action: {
+      // One badge however many windows show it, as in the extension: a window
+      // that did not write the state has no other way to hear what it now says.
       async setBadgeText({ text }) {
         setBadge(text);
+        channel?.postMessage({ kind: "badge", text });
       },
       async setBadgeBackgroundColor() {}
     },
@@ -393,6 +482,8 @@ onmessage = ({ data }) => {
 
   channel?.addEventListener("message", (event) => {
     if (event.data?.kind === "storage") fireChange(event.data.changes);
+    if (event.data?.kind === "signal" && hasVoice) dispatch(event.data.message);
+    if (event.data?.kind === "badge") setBadge(event.data.text);
   });
 
   window.chrome = shim;

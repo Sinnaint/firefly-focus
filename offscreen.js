@@ -12,7 +12,7 @@ chrome.runtime.onMessage.addListener((message) => {
     }
     activePlays += 1;
 
-    playSignal(message.kind, message.theme)
+    playPhrase(message.kind, message.theme)
       .catch(console.error)
       .finally(() => {
         activePlays = Math.max(0, activePlays - 1);
@@ -123,7 +123,10 @@ const themes = {
   }
 };
 
-async function playSignal(kind = "warning", themeName = "bright") {
+// Not named playSignal: the app loads this file into one page with
+// service_worker.js, and a function of that name here would replace the engine's
+// own, the one that honours the sound settings.
+async function playPhrase(kind = "warning", themeName = "bright") {
   const context = new AudioContext();
   const theme = themes[themeName] || themes.bright;
   const notes = theme.sequences[kind] || theme.sequences.warning;

@@ -295,13 +295,16 @@ function normalizeSettings(settings = {}) {
   };
 }
 
-function getLanguage(settings) {
+// Not named getLanguage: the app loads this file into one page with sidepanel.js
+// or fullscreen.js, whose getLanguage takes no argument and reads the page's own
+// copy of the state, which can still hold the language from before a change.
+function languageOf(settings) {
   const lang = settings?.language;
   return messages[lang] ? lang : "uk";
 }
 
 function getMessages(settings) {
-  return messages[getLanguage(settings)];
+  return messages[languageOf(settings)];
 }
 
 function getTodayKey() {
