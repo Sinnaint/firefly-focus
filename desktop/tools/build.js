@@ -73,6 +73,7 @@ function gather() {
 
 async function main() {
   gather();
+  require("./build-helper.js");
   const files = await build({
     projectDir: DESKTOP,
     targets: Platform.WINDOWS.createTarget(["appx"], Arch.x64),
@@ -93,6 +94,7 @@ async function main() {
       // The languages the program speaks, and no others: each costs several megabytes.
       electronLanguages: ["en-US", "uk", "de", "es", "it", "sk", "cs"],
       win: { icon: path.join(ROOT, "assets", "logo", "icon-512.png") },
+      extraResources: [{ from: path.join(DESKTOP, "out", "desktop-icons.exe"), to: "desktop-icons.exe" }],
       appx: {
         ...identity,
         applicationId: "FireflyFocus",

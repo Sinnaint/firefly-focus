@@ -15,7 +15,7 @@
     if (i18n[language]) Object.assign(i18n[language], words.pages);
   }
 
-  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden"];
+  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden", "desktopCatIcons"];
   const isMainWindow = location.pathname === "/sidepanel.html";
 
   function show(data) {
@@ -24,6 +24,8 @@
     if (kindSelect) kindSelect.value = kind;
     const launcherBox = document.getElementById("desktopLauncherShown");
     if (launcherBox) launcherBox.checked = !data.desktopLauncherHidden;
+    const iconsBox = document.getElementById("desktopCatIcons");
+    if (iconsBox) iconsBox.checked = data.desktopCatIcons === true;
     const version = document.getElementById("desktopVersion");
     if (version && !version.textContent) window.fireflyHost.appVersion().then((text) => { version.textContent = text; });
 
@@ -89,6 +91,8 @@
       chrome.storage.local.set({ desktopWidgetKind: event.target.value });
     } else if (event.target.id === "desktopLauncherShown") {
       chrome.storage.local.set({ desktopLauncherHidden: !event.target.checked });
+    } else if (event.target.id === "desktopCatIcons") {
+      chrome.storage.local.set({ desktopCatIcons: event.target.checked });
     }
   });
 

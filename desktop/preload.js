@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld("fireflyHost", {
   clickThrough: (through) => ipcRenderer.send("click-through", through),
   takeKeyboard: (wanted) => ipcRenderer.send("take-keyboard", wanted),
   closeWidgets: () => ipcRenderer.send("close-widgets"),
+  watchIcons: (on) => ipcRenderer.send("watch-icons", on),
+  onDesktopIcons: (fn) => ipcRenderer.on("desktop-icons", (_event, icons) => fn(icons)),
+  iconImage: (id) => ipcRenderer.invoke("icon-image", id),
 
   // The icon on the screen.
   launcherClick: () => ipcRenderer.send("launcher-click"),

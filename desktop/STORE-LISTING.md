@@ -48,7 +48,7 @@ Microsoft передає IARC ім'я видавця й пошту акаунт�
 **Restricted capabilities, чому потрібен `runFullTrust`:**
 
 ```
-Firefly Focus is a desktop application built with Electron and packaged as a full-trust Win32 app, an app model that requires runFullTrust. The app uses it to run its own windows and to show a small always-on-top icon and a click-through layer with its timer widget over other programs. It does not read other programs' windows, the user's files or keystrokes, and it makes no network requests.
+Firefly Focus is a desktop application built with Electron and packaged as a full-trust Win32 app, an app model that requires runFullTrust. The app uses it to run its own windows and to show a small always-on-top icon and a click-through layer with its timer widget over other programs. An optional game, off by default, also asks the shell for the positions of desktop icons, through its documented interfaces, so that an animated cat can play around them. The app does not read the contents of other programs' windows, the user's files or keystrokes, and it makes no network requests.
 ```
 
 **Notes for certification:**
@@ -65,6 +65,7 @@ To test:
 - The X of the main window only minimizes it, since the timer keeps running, and the first time a notification says so.
 - To quit: "Close the program and stop the timer" in the menu or at the bottom of the settings in the main window.
 - The widgets appear on the main display only. The language follows the system's, falling back to English, and can be changed in the main window.
+- Optional, off by default: "The cat gets up to mischief with desktop icons" in the settings. With it on, and the desktop in view, the cat jumps on icons, hides behind them and sometimes bites one. While it holds a bitten icon, the app's own transparent layer takes mouse clicks on that icon, so it does not open with the mouse. Nothing about the icon changes and the keyboard still opens it. Clicking the cat, dragging it away, turning on the ball, or a window covering the icon all release it at once, and the cat lets go by itself after a minute or so. It is a helper program in the package, desktop-icons.exe, that reads the positions. It reads no names, moves nothing and does not use the network.
 ```
 
 ## Лістинг (Store listings)
@@ -89,7 +90,7 @@ To test:
 ```
 Firefly Focus is a calm focus timer that stays with you while you work. A small icon and a compact timer float over your other programs, so you can see how much time is left without leaving what you are doing. When you want nothing else on the screen, one click opens a clean fullscreen timer with drifting fireflies.
 
-A pixel-art cat keeps you company: it strolls across your screen, plays with a ball on its shelf and purrs when you pet it. Pick it up and toss it wherever you like.
+A pixel-art cat keeps you company: it strolls across your screen, peeks in from behind its edges, chases a bouncing ball all over it and purrs when you pet it. Pick up the cat or the ball and toss them wherever you like.
 
 WHAT IT DOES
 • Focus sessions, short breaks and long breaks in the Pomodoro style, with ready-made rhythms (25/5, 50/10, 52/17, 90/20, 15/3) or your own.
@@ -97,6 +98,7 @@ WHAT IT DOES
 • Tasks with optional deadlines: overdue ones turn red, those due soon turn amber.
 • Choose what the widget shows: just the timer, the timer and tasks, or all that and the cat.
 • Put everything away when you want to: the timer keeps running in the background, with its progress on the taskbar button.
+• If you like, a little mischief: switch on the cat's game with your desktop icons, and it hides behind them, jumps on them and bites one now and then. A bitten icon will not open with the mouse until you click the cat, pull it away or turn on the ball. It stays off until you switch it on.
 • Daily statistics and a daily goal.
 • Three themes, three timer faces, four sound styles and notifications.
 • Seven languages: English, Ukrainian, German, Spanish, Italian, Slovak and Czech.
@@ -130,7 +132,7 @@ GOOD TO KNOW
 ```
 Firefly Focus — спокійний таймер фокусу, який лишається поруч, поки ви працюєте. Маленький значок і компактний таймер плавають поверх інших програм, тож видно, скільки часу лишилось, і не треба ні на що перемикатися. А коли хочеться, щоб на екрані не було нічого зайвого, один клік відкриває чистий таймер на весь екран зі світлячками.
 
-Компанію складає піксельний кіт: гуляє екраном, грається з м'ячиком на своїй поличці й муркоче, коли його гладять. Його можна підхопити й закинути куди завгодно.
+Компанію складає піксельний кіт: гуляє екраном, визирає з-за його країв, ганяє стрибучий м'ячик по всьому екрану й муркоче, коли його гладять. І кота, і м'ячик можна підхопити й закинути куди завгодно.
 
 ЩО ВМІЄ
 • Робота, короткі й довгі перерви за методом Pomodoro, з готовими ритмами (25/5, 50/10, 52/17, 90/20, 15/3) або власним.
@@ -138,6 +140,7 @@ Firefly Focus — спокійний таймер фокусу, який лиш�
 • Задачі з необов'язковими дедлайнами: прострочені стають червоними, а ті, що скоро, бурштиновими.
 • Ви обираєте, що показує віджет: лише таймер, таймер із задачами або ще й кота.
 • Усе можна прибрати з екрана: таймер працює далі у фоні, а його хід видно на кнопці панелі завдань.
+• Якщо хочеться, трохи пустощів: увімкніть гру кота зі значками на робочому столі, і він ховатиметься за ними, стрибатиме по них і часом надкусить якийсь. Надкушений значок не відкривається мишею, поки не клацнете по коту, не відтягнете його або не ввімкнете м'ячик. Без вашого вмикання цього не буде.
 • Статистика за день і денна ціль.
 • Три теми, три вигляди таймера, чотири стилі звуку й сповіщення.
 • Сім мов: українська, англійська, німецька, іспанська, італійська, словацька й чеська.
@@ -171,7 +174,7 @@ Firefly Focus — спокійний таймер фокусу, який лиш�
 ```
 Firefly Focus ist ein ruhiger Fokus-Timer, der dich bei der Arbeit begleitet. Ein kleines Symbol und ein kompakter Timer schweben über deinen anderen Programmen, sodass du jederzeit siehst, wie viel Zeit noch bleibt, ohne deine Arbeit zu verlassen. Soll nichts anderes auf dem Bildschirm sein, öffnet ein Klick einen aufgeräumten Vollbild-Timer mit schwebenden Glühwürmchen.
 
-Eine Pixel-Katze leistet dir Gesellschaft: Sie spaziert über den Bildschirm, spielt auf ihrem Regal mit einem Ball und schnurrt, wenn du sie streichelst. Du kannst sie hochheben und werfen, wohin du willst.
+Eine Pixel-Katze leistet dir Gesellschaft: Sie spaziert über den Bildschirm, lugt hinter seinen Rändern hervor, jagt einen hüpfenden Ball quer darüber und schnurrt, wenn du sie streichelst. Katze und Ball kannst du hochheben und werfen, wohin du willst.
 
 WAS ES KANN
 • Fokusphasen, kurze und lange Pausen nach der Pomodoro-Methode, mit fertigen Rhythmen (25/5, 50/10, 52/17, 90/20, 15/3) oder deinem eigenen.
@@ -179,6 +182,7 @@ WAS ES KANN
 • Aufgaben mit optionalen Fristen: Überfällige werden rot, bald fällige bernsteinfarben.
 • Du bestimmst, was das Widget zeigt: nur den Timer, Timer und Aufgaben oder dazu die Katze.
 • Alles lässt sich wegräumen: Der Timer läuft im Hintergrund weiter, sein Fortschritt ist auf der Taskleisten-Schaltfläche zu sehen.
+• Wenn du magst, ein wenig Unfug: Schalte das Spiel der Katze mit deinen Desktop-Symbolen ein, dann versteckt sie sich dahinter, springt darauf und beißt ab und zu in eines. Ein angebissenes Symbol öffnet sich nicht per Maus, bis du die Katze anklickst, wegziehst oder den Ball einschaltest. Ohne dein Einschalten bleibt es aus.
 • Tagesstatistik und Tagesziel.
 • Drei Designs, drei Timer-Ansichten, vier Klangstile und Benachrichtigungen.
 • Sieben Sprachen: Deutsch, Englisch, Ukrainisch, Spanisch, Italienisch, Slowakisch und Tschechisch.
@@ -212,7 +216,7 @@ GUT ZU WISSEN
 ```
 Firefly Focus es un temporizador de enfoque tranquilo que te acompaña mientras trabajas. Un pequeño icono y un temporizador compacto flotan sobre tus otros programas, así ves cuánto tiempo queda sin dejar lo que estás haciendo. Y cuando no quieres nada más en la pantalla, un clic abre un temporizador limpio a pantalla completa con luciérnagas a la deriva.
 
-Un gato de píxeles te hace compañía: pasea por la pantalla, juega con una pelota en su estante y ronronea cuando lo acaricias. Puedes cogerlo y lanzarlo donde quieras.
+Un gato de píxeles te hace compañía: pasea por la pantalla, se asoma por detrás de sus bordes, persigue una pelota que rebota por toda ella y ronronea cuando lo acaricias. Puedes coger al gato o la pelota y lanzarlos donde quieras.
 
 QUÉ HACE
 • Sesiones de enfoque y descansos cortos y largos al estilo Pomodoro, con ritmos listos para usar (25/5, 50/10, 52/17, 90/20, 15/3) o el tuyo propio.
@@ -220,6 +224,7 @@ QUÉ HACE
 • Tareas con fecha límite opcional: las vencidas se ponen en rojo y las próximas, en ámbar.
 • Elige qué muestra el widget: solo el temporizador, el temporizador y las tareas, o además el gato.
 • Guárdalo todo cuando quieras: el temporizador sigue en segundo plano y su progreso se ve en el botón de la barra de tareas.
+• Si quieres, algo de travesura: activa el juego del gato con los iconos del escritorio, y se esconderá detrás, saltará sobre ellos y de vez en cuando morderá uno. Un icono mordido no se abre con el ratón hasta que hagas clic en el gato, lo apartes o actives la pelota. Sigue desactivado hasta que lo actives.
 • Estadísticas diarias y un objetivo diario.
 • Tres temas, tres vistas del temporizador, cuatro estilos de sonido y notificaciones.
 • Siete idiomas: español, inglés, ucraniano, alemán, italiano, eslovaco y checo.
@@ -253,7 +258,7 @@ CONVIENE SABER
 ```
 Firefly Focus è un timer di concentrazione tranquillo che resta con te mentre lavori. Una piccola icona e un timer compatto fluttuano sopra gli altri programmi, così vedi quanto tempo manca senza lasciare quello che stai facendo. E quando non vuoi altro sullo schermo, un clic apre un timer pulito a schermo intero con lucciole che fluttuano.
 
-Un gatto in pixel art ti fa compagnia: passeggia sullo schermo, gioca con una pallina sulla sua mensola e fa le fusa quando lo accarezzi. Puoi prenderlo e lanciarlo dove vuoi.
+Un gatto in pixel art ti fa compagnia: passeggia sullo schermo, sbuca da dietro i suoi bordi, insegue una pallina che rimbalza ovunque e fa le fusa quando lo accarezzi. Puoi prendere il gatto o la pallina e lanciarli dove vuoi.
 
 COSA FA
 • Sessioni di concentrazione e pause brevi e lunghe in stile Pomodoro, con ritmi già pronti (25/5, 50/10, 52/17, 90/20, 15/3) o il tuo.
@@ -261,6 +266,7 @@ COSA FA
 • Attività con scadenze facoltative: quelle scadute diventano rosse, quelle vicine color ambra.
 • Scegli cosa mostra il widget: solo il timer, il timer e le attività, oppure anche il gatto.
 • Metti via tutto quando vuoi: il timer continua in background e il suo avanzamento si vede sul pulsante della barra delle applicazioni.
+• Se ti va, qualche birichinata: attiva il gioco del gatto con le icone del desktop, e si nasconderà dietro, ci salterà sopra e ogni tanto ne morderà una. Un'icona morsa non si apre con il mouse finché non clicchi sul gatto, non lo sposti o non attivi la pallina. Resta disattivato finché non lo attivi.
 • Statistiche giornaliere e un obiettivo giornaliero.
 • Tre temi, tre aspetti del timer, quattro stili sonori e notifiche.
 • Sette lingue: italiano, inglese, ucraino, tedesco, spagnolo, slovacco e ceco.
@@ -294,7 +300,7 @@ BUONO A SAPERSI
 ```
 Firefly Focus je pokojný časovač sústredenia, ktorý je s vami, kým pracujete. Malá ikona a kompaktný časovač plávajú nad ostatnými programami, takže vidíte, koľko času zostáva, bez toho, aby ste od práce odchádzali. A keď nechcete mať na obrazovke nič iné, jedným kliknutím otvoríte čistý časovač na celú obrazovku so svetluškami.
 
-Spoločnosť vám robí pixelová mačka: prechádza sa po obrazovke, hrá sa s loptičkou na svojej poličke a pradie, keď ju pohladíte. Môžete ju zdvihnúť a hodiť, kam chcete.
+Spoločnosť vám robí pixelová mačka: prechádza sa po obrazovke, vykúka spoza jej okrajov, naháňa skákajúcu loptičku po celej ploche a pradie, keď ju pohladíte. Mačku aj loptičku môžete zdvihnúť a hodiť, kam chcete.
 
 ČO DOKÁŽE
 • Sústredenie, krátke a dlhé prestávky v štýle Pomodoro, s hotovými rytmami (25/5, 50/10, 52/17, 90/20, 15/3) alebo vlastným.
@@ -302,6 +308,7 @@ Spoločnosť vám robí pixelová mačka: prechádza sa po obrazovke, hrá sa s 
 • Úlohy s voliteľnými termínmi: po termíne sú červené a tie, čo sa blížia, jantárové.
 • Vyberiete si, čo widget ukazuje: iba časovač, časovač a úlohy, alebo aj mačku.
 • Všetko môžete odložiť: časovač beží ďalej na pozadí a jeho priebeh vidno na tlačidle na paneli úloh.
+• Ak chcete, trochu šibalstva: zapnite hru mačky s ikonami na ploche a bude sa za nimi skrývať, skákať po nich a občas do niektorej zahryzne. Nahryznutá ikona sa myšou neotvorí, kým nekliknete na mačku, neodtiahnete ju alebo nezapnete loptičku. Bez vášho zapnutia to nebude.
 • Denná štatistika a denný cieľ.
 • Tri motívy, tri vzhľady časovača, štyri štýly zvuku a oznámenia.
 • Sedem jazykov: slovenčina, angličtina, ukrajinčina, nemčina, španielčina, taliančina a čeština.
@@ -335,7 +342,7 @@ DOBRÉ VEDIEŤ
 ```
 Firefly Focus je klidný časovač soustředění, který je s vámi, zatímco pracujete. Malá ikona a kompaktní časovač plují nad ostatními programy, takže vidíte, kolik času zbývá, aniž byste od práce odcházeli. A když nechcete mít na obrazovce nic jiného, jedním kliknutím otevřete čistý časovač na celou obrazovku se světluškami.
 
-Společnost vám dělá pixelová kočka: prochází se po obrazovce, hraje si s míčkem na své poličce a přede, když ji pohladíte. Můžete ji zvednout a hodit, kam chcete.
+Společnost vám dělá pixelová kočka: prochází se po obrazovce, vykukuje zpoza jejích okrajů, honí skákající míček po celé ploše a přede, když ji pohladíte. Kočku i míček můžete zvednout a hodit, kam chcete.
 
 CO UMÍ
 • Soustředění, krátké a dlouhé přestávky ve stylu Pomodoro, s hotovými rytmy (25/5, 50/10, 52/17, 90/20, 15/3) nebo vlastním.
@@ -343,6 +350,7 @@ CO UMÍ
 • Úkoly s volitelnými termíny: po termínu jsou červené a ty, které se blíží, jantarové.
 • Vyberete si, co widget ukazuje: jen časovač, časovač a úkoly, nebo i kočku.
 • Všechno můžete odložit: časovač běží dál na pozadí a jeho průběh je vidět na tlačítku na hlavním panelu.
+• Chcete-li, trochu lumpárny: zapněte hru kočky s ikonami na ploše a bude se za nimi schovávat, skákat po nich a občas do některé kousne. Nakousnutá ikona se myší neotevře, dokud nekliknete na kočku, neodtáhnete ji nebo nezapnete míček. Bez vašeho zapnutí se to nestane.
 • Denní statistika a denní cíl.
 • Tři motivy, tři vzhledy časovače, čtyři styly zvuku a oznámení.
 • Sedm jazyků: čeština, angličtina, ukrajinština, němčina, španělština, italština a slovenština.

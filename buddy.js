@@ -1405,6 +1405,33 @@ const FireflyBuddy = (() => {
 .buddy-ball-body { height: calc(var(--px) * ${BALL_SIZE}px); will-change: transform; }
 .buddy-ball-gloss { height: calc(var(--px) * ${BALL_SIZE + 1}px); }
 
+/* Out on a whole screen the ball is twice the size, flies, and can be picked up. */
+.buddy[data-activity="ball"] .buddy-hit { touch-action: none; }
+.buddy[data-activity="ball"] .buddy-walker { z-index: 1; }
+.buddy[data-activity="ball"] .buddy-walker.is-over-cat .buddy-hit { cursor: grab; }
+.buddy[data-activity="ball"] .buddy-ball {
+  bottom: 0;
+  width: calc(var(--px) * ${BALL_SIZE * 2}px);
+  height: calc(var(--px) * ${(BALL_SIZE + 1) * 2}px);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.buddy[data-activity="ball"] .buddy-ball .buddy-px { width: calc(var(--px) * ${BALL_SIZE * 2}px); }
+.buddy[data-activity="ball"] .buddy-ball-body { height: calc(var(--px) * ${BALL_SIZE * 2}px); }
+.buddy[data-activity="ball"] .buddy-ball-gloss { height: calc(var(--px) * ${(BALL_SIZE + 1) * 2}px); }
+.buddy-ball-shade {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--px) * ${BALL_SIZE * 2}px);
+  height: calc(var(--px) * ${BALL_SIZE * 0.7}px);
+  border-radius: 50%;
+  background: rgba(20, 10, 30, 0.26);
+  pointer-events: none;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .buddy-bulb-lit, .buddy-glow { transition: none; }
 }
@@ -1436,13 +1463,30 @@ const FireflyBuddy = (() => {
    *   "roam"  — wanders about on its own, sits, now and then naps. Given a
    *             host taller than a lane, it goes anywhere in it, in straight
    *             lines and diagonals, and can be picked up and thrown;
-   *   "play"  — stays put and plays with a ball.
+   *   "play"  — stays put and plays with a ball;
+   *   "ball"  — the same game over a whole area: the ball flies and bounces,
+   *             the cat runs after it, pounces, and the ball can be thrown.
    * `from` ({ centerX, bottom }, viewport pixels) is where a roaming cat
    * starts out — where it was standing before it came here. `maxFps` caps the
    * animation, for a cat that keeps running beside other programs, and
    * `restFps` caps it further while the cat sits or lies still.
+   *
+   * For a cat on a whole screen: `edges` lets it slip off the sides and peek back
+   * in, and setPerches() gives it things to jump on and hide behind. `onBite` and
+   * `onBiteEnd` say when it has its teeth in one of them, `onBump` when the ball
+   * hits one. A page that passes none of this gets the cat it always had.
    */
-  function create(host, { onPurrChange = null, activity = "timer", from = null, maxFps = 60, restFps = maxFps } = {}) {
+  function create(host, {
+    onPurrChange = null,
+    activity = "timer",
+    from = null,
+    maxFps = 60,
+    restFps = maxFps,
+    edges = false,
+    onBite = null,
+    onBiteEnd = null,
+    onBump = null,
+  } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
     const reduceQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -1519,11 +1563,19 @@ const FireflyBuddy = (() => {
       swing: { x: 0, v: 0 },
       moved: { x: 0, vx: 0 }, // where it was a frame ago, and how fast it went
       droppedAt: -Infinity,
+      // outings on a whole screen
+      perches: [], // what it can jump on: { id, x, y, w, h }, pixels from the host's top left
+      errand: null, // { name, steps, wait }: an outing with steps of its own
+      offstage: false, // allowed past the edges of its floor
+      flip: false, // hanging upside down from the top edge
+      leap: null,
+      clipLine: null, // gone behind something: nothing below this line shows
+      biting: null,
     };
 
     const dom = buildDom();
     host.dataset.activity = activity;
-    if (activity === "play") ensureBall();
+    if (activity === "play" || activity === "ball") ensureBall();
 
     /* ---------- DOM ---------- */
 
@@ -1619,12 +1671,18 @@ const FireflyBuddy = (() => {
       const gloss = gridToCanvas(buildGrids().ball.gloss);
       gloss.className = "buddy-px buddy-ball-gloss";
       wrap.append(body, gloss);
+      const shade = document.createElement("div");
+      shade.className = "buddy-ball-shade";
+      if (st.activity === "ball") host.appendChild(shade);
       host.appendChild(wrap);
-      st.ball = { el: wrap, body, x: null, v: 0, angle: 0 };
+      st.ball = { el: wrap, body, shade, x: null, v: 0, angle: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, held: null };
+      wrap.addEventListener("pointerdown", onBallDown);
     }
 
     function removeBall() {
+      if (st.ball?.held) dropBall();
       st.ball?.el.remove();
+      st.ball?.shade.remove();
       st.ball = null;
     }
 
@@ -1684,7 +1742,7 @@ const FireflyBuddy = (() => {
 
     function targetPose(now) {
       // held up, or flying: all four legs hang
-      if (st.carry || st.toss?.air) return "walk";
+      if (st.carry || st.toss?.air || st.leap) return "walk";
       if (st.activity !== "timer") {
         // a purring cat settles where it is
         if (purr.on) return st.pose === "lie" ? "lie" : "sit";
@@ -1798,10 +1856,21 @@ const FireflyBuddy = (() => {
       return Math.max(0, st.laneH - FRAME.h * st.px);
     }
 
+    /* Off on an outing it can go a whole cat past each edge, and further at the top. */
+    function boundsX() {
+      return st.offstage ? [-stageWidth(), laneTravel() + stageWidth()] : [0, laneTravel()];
+    }
+
+    function boundsY() {
+      return st.offstage ? [-FRAME.h * st.px, laneRise() + 2 * FRAME.h * st.px] : [0, laneRise()];
+    }
+
     /* Keep the cat on its floor — after a resize too. */
     function keepInBounds() {
-      st.x = clamp(st.x ?? laneTravel() / 2, 0, laneTravel());
-      st.y = clamp(st.y ?? 0, 0, laneRise());
+      const [left, right] = boundsX();
+      const [low, high] = boundsY();
+      st.x = clamp(st.x ?? laneTravel() / 2, left, right);
+      st.y = clamp(st.y ?? 0, low, high);
     }
 
     /* Stand where it was told to start out, now that the floor is measured. */
@@ -1827,8 +1896,8 @@ const FireflyBuddy = (() => {
         // Roaming or playing: walk to wherever the cat has decided to go, in a
         // straight line — along the lane, or slantwise across a roaming area.
         if (st.goalX !== null && !st.turn) {
-          const goalX = clamp(st.goalX, 0, travel);
-          const goalY = clamp(st.goalY ?? st.y, 0, laneRise());
+          const goalX = clamp(st.goalX, ...boundsX());
+          const goalY = clamp(st.goalY ?? st.y, ...boundsY());
           const dx = goalX - st.x;
           const dy = goalY - st.y;
           const dist = Math.hypot(dx, dy);
@@ -1838,7 +1907,7 @@ const FireflyBuddy = (() => {
           } else if (Math.abs(dx) > 0.5 && dir !== st.dir) {
             face(dir);
           } else {
-            speed = st.activity === "play" ? 11 : ROAM_SPEED;
+            speed = st.brain.speed || (st.activity === "play" ? 11 : ROAM_SPEED);
             const stepLen = Math.min(dist, speed * st.px * dt);
             st.x += (dx / dist) * stepLen;
             st.y += (dy / dist) * stepLen;
@@ -1898,7 +1967,11 @@ const FireflyBuddy = (() => {
         st.goalY = null;
         return;
       }
-      if (purr.on || st.trans || st.carry || st.toss) return;
+      if (purr.on || st.trans || st.carry || st.toss || st.leap) return;
+      if (st.errand) {
+        stepErrand(now);
+        return;
+      }
       if (br.pose === "walk") {
         if (st.goalX === null) {
           br.pose = Math.random() < 0.2 ? "lie" : "sit";
@@ -1907,6 +1980,11 @@ const FireflyBuddy = (() => {
         return;
       }
       if (now < br.until) return;
+      const outing = pickOuting();
+      if (outing) {
+        startErrand(outing.steps, outing.name);
+        return;
+      }
       const goal = pickRoamGoal();
       if (!goal) {
         br.until = now + 4000;
@@ -1957,7 +2035,7 @@ const FireflyBuddy = (() => {
      * pat, as anywhere else: it purrs.
      */
     function onPointerDown(event) {
-      if (st.activity !== "roam" || event.button !== 0 || !st.enabled || st.grab || !overCat(event)) return;
+      if ((st.activity !== "roam" && st.activity !== "ball") || event.button !== 0 || !st.enabled || st.grab || !overCat(event)) return;
       st.grab = {
         id: event.pointerId,
         target: event.target,
@@ -2029,6 +2107,7 @@ const FireflyBuddy = (() => {
       st.carry = null;
       st.toss = null;
       st.lift = 0;
+      endErrand();
       dom.walker.classList.remove("is-carried");
       host.removeAttribute("data-carried");
     }
@@ -2039,6 +2118,8 @@ const FireflyBuddy = (() => {
       // Where on the cat the hand caught it, so it hangs from that point.
       st.carry = { dx: g.x0 - rect.left, dy: rect.bottom - g.y0 - st.lift * st.px, vx: 0 };
       st.toss = null;
+      // pulled away mid-outing: whatever it was up to is over, teeth included
+      endErrand();
       st.goalX = null;
       st.goalY = null;
       st.brain.pose = "sit";
@@ -2103,7 +2184,7 @@ const FireflyBuddy = (() => {
         st.carry.vx *= Math.exp(-dt / 0.08); // the hand has stopped unless it says otherwise
       }
       if (st.pose === "walk" && !st.trans) {
-        st.stride = (st.stride + dt * (st.toss?.air ? 2.6 : 1.1)) % 1;
+        st.stride = (st.stride + dt * (st.toss?.air || st.leap ? 2.6 : 1.1)) % 1;
         setLegs(Math.floor(st.stride * WALK.frames) % WALK.frames);
       }
       st.speed = 0;
@@ -2149,7 +2230,7 @@ const FireflyBuddy = (() => {
 
     /* ---------- Playing with the ball ---------- */
 
-    const ballRadius = () => (BALL_SIZE / 2) * st.px;
+    const ballRadius = () => (BALL_SIZE / 2) * st.px * (st.activity === "ball" ? 2 : 1);
     const catCenter = () => (st.x ?? 0) + stageWidth() / 2;
     // How far in front of the cat's middle a bat lands, in lane pixels.
     const pawFront = () => (FRAME.ox + SIT.reach - FRAME.w / 2) * st.px;
@@ -2259,7 +2340,9 @@ const FireflyBuddy = (() => {
       if (!sw.hit && t >= SWAT.up) {
         sw.hit = true;
         const ball = st.ball;
-        if (ball && ballInReach(7)) {
+        if (ball && st.activity === "ball") {
+          if (worldBallInReach(12)) kickWorldBall(1);
+        } else if (ball && ballInReach(7)) {
           ball.v = st.dir * rand(40, 130) * st.px; // a dab or a proper whack
           st.ant[0].v += rand(-3, 3);
           st.ant[1].v += rand(-3, 3);
@@ -2307,12 +2390,666 @@ const FireflyBuddy = (() => {
       return st.dir * Math.cos(p * Math.PI);
     }
 
+    /* ---------- Outings: past the edges of the screen, and over the perches ---------- */
+
+    /*
+     * An outing is a script with steps that take time: a generator that yields a
+     * test for "that step is done". The brain runs it whenever it would otherwise
+     * decide what to do next, so being petted or carried simply pauses or ends it.
+     */
+    function startErrand(steps, name) {
+      endErrand();
+      st.errand = { name, steps, wait: null };
+      st.goalX = null;
+      st.goalY = null;
+    }
+
+    function stepErrand(now) {
+      const errand = st.errand;
+      if (errand.wait && !errand.wait(now)) return;
+      const next = errand.steps.next();
+      if (st.errand !== errand) return; // it ended itself on the way
+      if (next.done) endErrand();
+      else errand.wait = next.value;
+    }
+
+    function endErrand() {
+      if (st.biting) releaseBite();
+      const had = st.errand;
+      st.errand = null;
+      st.offstage = false;
+      st.flip = false;
+      st.clipLine = null;
+      st.leap = null;
+      st.brain.speed = undefined;
+      if (had) {
+        st.goalX = null;
+        st.goalY = null;
+        st.brain.pose = "sit";
+        st.brain.until = nowMs() + rand(1500, 5000);
+      }
+    }
+
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+    /* What a cat with nothing better to do gets up to next, if anything. */
+    function pickOuting() {
+      if (st.reduced || !st.laneW) return null;
+      const roll = Math.random();
+      const seen = st.perches;
+      if (seen.length) {
+        if (roll < 0.16 && st.activity === "roam") return { name: "bite", steps: biteOuting() };
+        if (roll < 0.4) return { name: "hop", steps: hopOuting() };
+        if (roll < 0.55) return { name: "hide", steps: hideOuting() };
+      }
+      if (edges && roll > 0.74) return { name: "peek", steps: peekOuting() };
+      return null;
+    }
+
+    /* The steps. Each returns the test for its being over. */
+    function walkTo(x, y, speed) {
+      st.goalX = x;
+      st.goalY = y;
+      st.brain.pose = "walk";
+      st.brain.speed = speed;
+      return () => st.goalX === null && !st.trans;
+    }
+
+    function waitFor(ms, pose) {
+      if (pose) st.brain.pose = pose;
+      const until = nowMs() + ms;
+      return (now) => now >= until && !st.trans;
+    }
+
+    // A jump in one arc, legs going. `clipAt` draws the line it drops behind, at the top of the arc.
+    function leapTo(x, y, height = 24, { clipAt = undefined, then = null } = {}) {
+      const dist = Math.hypot(x - st.x, y - st.y);
+      if (Math.abs(x - st.x) > 2) st.dir = x > st.x ? 1 : -1;
+      st.turn = null;
+      st.goalX = null;
+      st.goalY = null;
+      st.leap = {
+        x0: st.x,
+        y0: st.y,
+        x1: x,
+        y1: y,
+        start: nowMs(),
+        ms: clamp(320 + dist * 0.9, 380, 950),
+        height,
+        clipAt,
+        then,
+      };
+      st.ant[0].v -= 5;
+      st.ant[1].v += 5;
+      return () => !st.leap;
+    }
+
+    function stepLeap(now) {
+      const lp = st.leap;
+      if (!lp) return;
+      const p = clamp((now - lp.start) / lp.ms, 0, 1);
+      st.x = lp.x0 + (lp.x1 - lp.x0) * p;
+      st.y = lp.y0 + (lp.y1 - lp.y0) * p;
+      st.lift = 4 * lp.height * p * (1 - p);
+      if (lp.clipAt !== undefined && p >= 0.5) st.clipLine = lp.clipAt;
+      if (p < 1) return;
+      st.leap = null;
+      st.lift = 0;
+      st.head.v += 9; // the landing nods it
+      st.ant[0].v += rand(-4, -2);
+      st.ant[1].v += rand(2, 4);
+      lp.then?.();
+    }
+
+    /* There on a slant it can believably walk: never straight up or down. */
+    function* stroll(x, y, pace) {
+      // however far it is, it gets there in about ten seconds
+      const speed = pace || clamp(Math.hypot(x - st.x, y - st.y) / st.px / 10, ROAM_SPEED, 42);
+      for (let leg = 0; leg < 4; leg += 1) {
+        const dx = x - st.x;
+        const dy = y - st.y;
+        if (Math.abs(dy) <= Math.abs(dx) * 1.05 || Math.abs(dy) < 4 * st.px) break;
+        const [left, right] = boundsX();
+        let side = dx >= 0 ? 1 : -1;
+        const room = (way) => (way > 0 ? right - st.x : st.x - left);
+        if (room(side) < Math.abs(dy) * 0.5) side = -side;
+        const reach = Math.min(Math.abs(dy) * 0.75, room(side));
+        if (reach < 4 * st.px) break;
+        yield walkTo(st.x + side * reach, st.y + Math.sign(dy) * reach, speed);
+      }
+      yield walkTo(x, y, speed);
+    }
+
+    /*
+     * Where to stand to show only the head at an edge. The head spans about these
+     * columns of the frame, in the walking pose; a cat facing left is mirrored.
+     */
+    function peekSpots(edge) {
+      const W = stageWidth();
+      const px = st.px;
+      const travel = laneTravel();
+      const rise = laneRise();
+      const y = rand(0.08, 0.92) * rise;
+      const x = rand(0.1, 0.9) * travel;
+      switch (edge) {
+        case "left": return { x, y, dir: 1, flip: false, hidden: [-W, y], shown: [-33 * px, y] };
+        case "right": return { x, y, dir: -1, flip: false, hidden: [travel + W, y], shown: [travel + W - 35 * px, y] };
+        case "bottom": return { x, y, dir: pick([-1, 1]), flip: false, hidden: [x, -FRAME.h * px], shown: [x, -21 * px] };
+        default: return { x, y, dir: pick([-1, 1]), flip: true, hidden: [x, st.laneH + 60 * px], shown: [x, st.laneH + 17 * px] };
+      }
+    }
+
+    /* Off the side of the screen, gone a while, then a head somewhere along an edge. */
+    function* peekOuting() {
+      const px = st.px;
+      const travel = laneTravel();
+      const side = st.x < travel / 2 ? -1 : 1;
+      yield* stroll(side < 0 ? 0 : travel, st.y);
+      st.offstage = true;
+      yield walkTo(side < 0 ? -stageWidth() - 2 * px : travel + stageWidth() + 2 * px, st.y);
+
+      let spot = null;
+      for (let round = Math.ceil(rand(0, 3)); round > 0; round -= 1) {
+        yield waitFor(rand(1200, 4500));
+        spot = peekSpots(pick(["left", "right", "bottom", "top"]));
+        [st.x, st.y] = spot.hidden;
+        st.dir = spot.dir;
+        st.turn = null;
+        st.flip = spot.flip;
+        yield walkTo(...spot.shown, 14);
+        yield waitFor(rand(1800, 4200));
+        // ducks away and comes straight back, as often as not
+        if (Math.random() < 0.45) {
+          const halfway = [(spot.hidden[0] + spot.shown[0]) / 2, (spot.hidden[1] + spot.shown[1]) / 2];
+          yield walkTo(...halfway, 30);
+          yield waitFor(rand(500, 1300));
+          yield walkTo(...spot.shown, 20);
+          yield waitFor(rand(1200, 2600));
+        }
+        yield walkTo(...spot.hidden, round > 1 ? 18 : 30);
+      }
+
+      // and in it comes, along the floor, from a side
+      yield waitFor(rand(600, 1800));
+      st.flip = false;
+      const from = Math.random() < 0.5 ? "left" : "right";
+      const way = peekSpots(from);
+      [st.x, st.y] = way.hidden;
+      st.dir = way.dir;
+      st.turn = null;
+      yield walkTo(from === "left" ? rand(30, 160) * px : travel - rand(30, 160) * px, st.y);
+    }
+
+    const perchCenter = (p) => p.x + p.w / 2;
+    const perchAlive = (p) => st.perches.some((other) => other.id === p.id);
+
+    /* Paws on the thing, on its lower part, so that it plainly stands on it. */
+    function standOn(p) {
+      return [perchCenter(p) - stageWidth() / 2, st.laneH - (p.y + p.h * 0.82) - 2 * st.px];
+    }
+
+    function perchNear(x, y, avoid = null, within = Infinity) {
+      const cx = x + stageWidth() / 2;
+      const footY = st.laneH - y;
+      const options = st.perches.filter((p) => p.id !== avoid?.id && Math.hypot(perchCenter(p) - cx, p.y - footY) < within);
+      if (!options.length) return null;
+      // a nearby one, not always the nearest
+      options.sort((a, b) => Math.hypot(perchCenter(a) - cx, a.y - footY) - Math.hypot(perchCenter(b) - cx, b.y - footY));
+      return options[Math.floor(Math.random() * Math.min(3, options.length))];
+    }
+
+    /* Somewhere to take off from: a short run-up away, on its floor. */
+    function launchFor(x, y) {
+      const px = st.px;
+      const side = x < st.laneW / 2 ? 1 : -1;
+      return [clamp(x + side * rand(40, 90) * px, 0, laneTravel()), clamp(y - rand(10, 40) * px, 0, laneRise())];
+    }
+
+    /* Up onto a perch, and on from one to the next, looking pleased. */
+    function* hopOuting() {
+      let perch = perchNear(st.x, st.y);
+      if (!perch) return;
+      st.offstage = true;
+      yield* stroll(...launchFor(...standOn(perch)));
+      for (let hops = Math.ceil(rand(1, 4)); perch && hops > 0; hops -= 1) {
+        yield leapTo(...standOn(perch), rand(18, 30));
+        yield waitFor(rand(700, 2400), "sit");
+        const before = perch;
+        perch = perchNear(st.x, st.y, before, 340 * (st.px / 1.75));
+      }
+      const [x, y] = launchFor(st.x, st.y);
+      yield leapTo(x, y, rand(14, 24));
+      st.offstage = false;
+    }
+
+    /* Dropped behind a perch; the head comes up over it, and goes down again. */
+    function* hideOuting() {
+      const px = st.px;
+      const options = st.perches.filter((p) => p.y > 60 * px);
+      const perch = options.length ? pick(options) : null;
+      if (!perch) return;
+      st.offstage = true;
+      const dir = perch.x < st.laneW / 2 ? 1 : -1;
+      // the head over the middle of the thing, the line along its top
+      const x = perchCenter(perch) - (dir > 0 ? 48 : 20) * px;
+      const line = perch.y + 1;
+      const down = st.laneH - line - FRAME.h * px - 2 * px;
+      const up = st.laneH - line - 28 * px;
+      yield* stroll(...launchFor(x, down));
+      yield leapTo(x, down, 34, { clipAt: line });
+      st.dir = dir;
+      yield waitFor(rand(900, 2500), "walk");
+      for (let peeks = Math.ceil(rand(0, 3)); peeks > 0 && perchAlive(perch); peeks -= 1) {
+        yield walkTo(x, up, 16);
+        yield waitFor(rand(1500, 3400));
+        if (peeks > 1) {
+          yield walkTo(x, down, 26);
+          yield waitFor(rand(700, 1800));
+        }
+      }
+      const [outX, outY] = launchFor(x, down);
+      // back up and over: seen again from the top of the jump
+      st.y = Math.max(st.y, up);
+      st.leap = null;
+      yield leapTo(outX, outY, 30, { clipAt: null });
+      st.offstage = false;
+    }
+
+    /* On it, head to the thing, and it will not let go until it is made to. */
+    function* biteOuting() {
+      const px = st.px;
+      const perch = perchNear(st.x, st.y);
+      if (!perch) return;
+      st.offstage = true;
+      // beside it, on the side with room, the head over its near half
+      const dir = perch.x < stageWidth() + 40 ? -1 : 1;
+      const headAt = perchCenter(perch) - dir * perch.w * 0.15;
+      const x = headAt - (dir > 0 ? 47 : 21) * px;
+      const y = st.laneH - perch.y - perch.h / 2 - 40 * px;
+      yield* stroll(...launchFor(x, y));
+      yield leapTo(x, y, 22);
+      st.dir = dir;
+      yield waitFor(350, "sit");
+      if (!perchAlive(perch)) return;
+
+      st.biting = { perch, until: nowMs() + rand(45000, 90000) };
+      onBite?.(perch);
+      let chomps = 4;
+      while (st.biting) {
+        if (nowMs() >= st.biting.until || !perchAlive(perch)) {
+          releaseBite();
+          break;
+        }
+        if (chomps > 0) {
+          chomps -= 1;
+          chomp();
+          yield waitFor(rand(170, 260));
+        } else {
+          yield waitFor(rand(2500, 7000));
+          chomps = Math.ceil(rand(0, 3)); // goes back for more
+        }
+      }
+      const [outX, outY] = launchFor(st.x, st.y);
+      yield leapTo(outX, outY, rand(16, 26));
+      st.offstage = false;
+    }
+
+    /* A mouthful: the head goes down hard, and a crumb or two falls. */
+    function chomp() {
+      st.head.v += 26;
+      st.ant[0].v += rand(-3, 3);
+      st.ant[1].v += rand(-3, 3);
+      if (st.reduced) return;
+      const [cx, cy] = headCenterInStage();
+      for (let i = 0; i < 3; i += 1) {
+        const crumb = pixelSvg(SPARK, SPARK_COLORS[i % 2]);
+        crumb.classList.add("buddy-spark");
+        crumb.style.left = `${cx + rand(-8, 8) * st.px}px`;
+        crumb.style.top = `${cy + 6 * st.px}px`;
+        dom.fx.appendChild(crumb);
+        const anim = crumb.animate(
+          [
+            { transform: "scale(0.5)", opacity: 1 },
+            { transform: `translate3d(${rand(-12, 12) * st.px}px, ${rand(14, 26) * st.px}px, 0) scale(0.25)`, opacity: 0 },
+          ],
+          { duration: rand(380, 620), easing: "cubic-bezier(.3,.1,.7,1)" }
+        );
+        anim.onfinish = () => crumb.remove();
+        anim.oncancel = () => crumb.remove();
+      }
+    }
+
+    function releaseBite() {
+      const biting = st.biting;
+      if (!biting) return;
+      st.biting = null;
+      onBiteEnd?.(biting.perch);
+      st.head.v -= 10;
+      st.ant[0].v -= 4;
+      st.ant[1].v += 4;
+    }
+
+    /* Told off for trying the thing it has hold of: it shakes its head and carries on. */
+    function scold() {
+      st.head.v += 20;
+      st.ant[0].v += rand(-6, -3);
+      st.ant[1].v += rand(3, 6);
+      st.tip.v += rand(-3, 3);
+    }
+
+    /*
+     * What it can jump on, in pixels from the host's top left: { id, x, y, w, h }.
+     * An empty list means nothing is in reach right now. Something it has its teeth
+     * in going away, for instance under a window, lets it go.
+     */
+    function setPerches(list) {
+      st.perches = list || [];
+      if (st.biting && !perchAlive(st.biting.perch)) releaseBite();
+    }
+
+    /* ---------- The ball over a whole floor ---------- */
+
+    // How hard things fall and how much bounce they keep, pixels of art a second².
+    const BALL_GRAVITY = 560;
+    const BALL_BOUNCE = 0.82;
+
+    function worldBallFeet(b) {
+      return b.y - ballRadius();
+    }
+
+    /* In front, at about the height of its paws, and low enough to hit. */
+    function worldBallInReach(slack) {
+      const b = st.ball;
+      if (!b || b.x === null || b.held) return false;
+      const front = (b.x - catCenter()) * st.dir;
+      return b.z < 14 * st.px
+        && Math.abs(worldBallFeet(b) - st.y) < 16 * st.px
+        && front >= 4 * st.px
+        && front - ballRadius() <= pawFront() + slack * st.px;
+    }
+
+    function kickWorldBall(power) {
+      const b = st.ball;
+      const px = st.px;
+      const spread = rand(-0.75, 0.75);
+      const speed = rand(110, 330) * px * power;
+      b.vx = st.dir * speed * Math.cos(spread);
+      b.vy = speed * Math.sin(spread);
+      b.vz = rand(40, 190) * px * power;
+      st.ant[0].v += rand(-3, 3);
+      st.ant[1].v += rand(-3, 3);
+      st.brain.kicks = (st.brain.kicks || 0) + 1;
+    }
+
+    /* Flies, drops, bounces lower each time, rolls out; and comes off every edge. */
+    function stepWorldBall(dt) {
+      const b = st.ball;
+      if (!b || !st.laneW) return;
+      const r = ballRadius();
+      const px = st.px;
+      if (b.x === null) {
+        b.x = clamp(catCenter() + st.dir * (pawFront() + r * 2), r, st.laneW - r);
+        b.y = clamp((st.y ?? 0) + r, r, st.laneH - r);
+      }
+      if (b.held) return;
+      if (st.reduced) {
+        b.vx = 0;
+        b.vy = 0;
+        b.vz = 0;
+        b.z = 0;
+        return;
+      }
+      if (b.z > 0 || b.vz > 0) {
+        b.vz -= BALL_GRAVITY * px * dt;
+        b.z += b.vz * dt;
+        if (b.z <= 0) {
+          b.z = 0;
+          b.vz = -b.vz > 34 * px ? -b.vz * 0.6 : 0;
+        }
+      }
+      const drag = Math.exp(-(b.z > 0 ? 0.3 : 0.85) * dt);
+      b.vx *= drag;
+      b.vy *= drag;
+      const speed = Math.hypot(b.vx, b.vy);
+      if (speed < 3 * px) {
+        b.vx = 0;
+        b.vy = 0;
+      }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.x < r) {
+        b.x = r;
+        b.vx = Math.abs(b.vx) * BALL_BOUNCE;
+      } else if (b.x > st.laneW - r) {
+        b.x = st.laneW - r;
+        b.vx = -Math.abs(b.vx) * BALL_BOUNCE;
+      }
+      if (b.y < r) {
+        b.y = r;
+        b.vy = Math.abs(b.vy) * BALL_BOUNCE;
+      } else if (b.y > st.laneH - r) {
+        b.y = st.laneH - r;
+        b.vy = -Math.abs(b.vy) * BALL_BOUNCE;
+      }
+      for (const p of st.perches) bounceOffPerch(b, p, r);
+      b.angle += ((b.vx >= 0 ? 1 : -1) * speed * dt) / r;
+    }
+
+    function bounceOffPerch(b, p, r) {
+      const top = st.laneH - p.y;
+      const bottom = top - p.h;
+      const nearX = clamp(b.x, p.x, p.x + p.w);
+      const nearY = clamp(b.y, bottom, top);
+      const dx = b.x - nearX;
+      const dy = b.y - nearY;
+      const dist = Math.hypot(dx, dy);
+      if (dist >= r || b.z > p.h * 0.8) return;
+      const nx = dist > 0.01 ? dx / dist : 0;
+      const ny = dist > 0.01 ? dy / dist : 1;
+      b.x = nearX + nx * r;
+      b.y = nearY + ny * r;
+      const into = b.vx * nx + b.vy * ny;
+      if (into >= 0) return;
+      b.vx -= (1 + BALL_BOUNCE) * into * nx;
+      b.vy -= (1 + BALL_BOUNCE) * into * ny;
+      if (-into > 30 * st.px) onBump?.(p, Math.min(1, -into / (250 * st.px)));
+    }
+
+    /*
+     * Runs after the ball wherever it goes, and gets to it three ways: a dribble on
+     * the run, a pounce from a little way off, or sitting down for a proper whack.
+     * Every so often it has had enough for now, and goes off on an outing or sits.
+     */
+    function ballBrain(now) {
+      const br = st.brain;
+      const b = st.ball;
+      if (!b || b.x === null) return;
+      if (st.reduced) {
+        br.pose = "sit";
+        st.goalX = null;
+        st.goalY = null;
+        return;
+      }
+      if (purr.on || st.trans || st.carry || st.toss || st.leap) return;
+      if (st.errand) {
+        stepErrand(now);
+        return;
+      }
+
+      const px = st.px;
+      const r = ballRadius();
+      const dx = b.x - catCenter();
+      const side = dx >= 0 ? 1 : -1;
+      const heading = st.turn ? st.turn.to : st.dir;
+      const ballSpeed = Math.hypot(b.vx, b.vy);
+
+      // had enough for the moment
+      if ((br.kicks || 0) >= (br.patience ||= Math.ceil(rand(4, 9)))) {
+        br.kicks = 0;
+        br.patience = 0;
+        st.goalX = null;
+        st.goalY = null;
+        const outing = pickOuting();
+        if (outing) {
+          startErrand(outing.steps, outing.name);
+          return;
+        }
+        br.pose = "sit";
+        br.resting = now + rand(2200, 6000);
+        return;
+      }
+      if (br.resting) {
+        if (side !== heading && Math.abs(dx) > 8 * px) face(side);
+        if (now < br.resting && !b.held) return;
+        br.resting = 0;
+      }
+
+      if (b.held) {
+        // someone has the ball: it sits and stares
+        st.goalX = null;
+        st.goalY = null;
+        br.pose = "sit";
+        if (side !== heading && Math.abs(dx) > 8 * px) face(side);
+        return;
+      }
+
+      if (br.pose === "sit") {
+        if (side !== heading && Math.abs(dx) > 8 * px && !st.swat) {
+          face(side);
+          return;
+        }
+        if (!st.swat && !st.turn && worldBallInReach(8)) {
+          if (now >= (br.nextSwat || 0)) {
+            st.swat = { start: now, hit: false };
+            br.nextSwat = now + rand(500, 1100);
+          }
+          return;
+        }
+        if (st.swat) return;
+        br.pose = "walk";
+        return;
+      }
+
+      // running after it
+      if (side === heading && worldBallInReach(4)) {
+        if (ballSpeed < 90 * px && Math.random() < 0.55) {
+          // on the run: a shove with the paw, and off after it
+          kickWorldBall(0.55);
+          return;
+        }
+        st.goalX = null;
+        st.goalY = null;
+        br.pose = "sit";
+        br.nextSwat = now + rand(60, 200);
+        return;
+      }
+
+      const goalY = clamp(worldBallFeet(b), 0, laneRise());
+      const toX = b.x - side * (pawFront() + r - 2 * px) - stageWidth() / 2;
+      const distance = Math.hypot(toX - st.x, goalY - st.y);
+
+      // arrived, looking the wrong way
+      if (distance < 4 * px && side !== heading) {
+        st.goalX = null;
+        st.goalY = null;
+        face(side);
+        return;
+      }
+
+      // close enough to jump for it
+      if (distance > 45 * px && distance < 120 * px && b.z < 30 * px && now >= (br.nextPounce || 0)) {
+        br.nextPounce = now + rand(1400, 3800);
+        if (Math.random() < 0.55) {
+          leapTo(clamp(toX, 0, laneTravel()), goalY, clamp(distance / px / 3.6, 12, 34), {
+            then: () => {
+              if (worldBallInReach(16)) kickWorldBall(1.15);
+            },
+          });
+          return;
+        }
+      }
+
+      // no straight up or down: a steep way there starts off to the side
+      let goalX = toX;
+      if (Math.abs(goalY - st.y) > Math.abs(toX - st.x)) {
+        const reach = Math.abs(goalY - st.y);
+        goalX = st.x + (toX >= st.x ? reach : -reach);
+        if (goalX < 0 || goalX > laneTravel()) goalX = st.x + (toX >= st.x ? -reach : reach);
+      }
+      st.goalX = clamp(goalX, 0, laneTravel());
+      st.goalY = goalY;
+      br.pose = "walk";
+      br.speed = ballSpeed > 70 * px ? 34 : 24;
+    }
+
+    /* The ball can be picked up and thrown as well, for the cat to chase. */
+    function onBallDown(event) {
+      const b = st.ball;
+      if (st.activity !== "ball" || event.button !== 0 || !b) return;
+      b.held = { id: event.pointerId, target: event.currentTarget, samples: [[event.timeStamp, event.clientX, event.clientY]] };
+      b.vx = 0;
+      b.vy = 0;
+      b.vz = 0;
+      b.z = 0;
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch (error) {
+        // The pointer is already gone.
+      }
+      window.addEventListener("pointermove", onBallMove, true);
+      window.addEventListener("pointerup", onBallUp, true);
+      window.addEventListener("pointercancel", onBallUp, true);
+      event.stopPropagation();
+    }
+
+    function onBallMove(event) {
+      const b = st.ball;
+      if (!b?.held || event.pointerId !== b.held.id) return;
+      b.held.samples.push([event.timeStamp, event.clientX, event.clientY]);
+      while (b.held.samples.length > 2 && event.timeStamp - b.held.samples[0][0] > 100) b.held.samples.shift();
+      const rect = host.getBoundingClientRect();
+      const r = ballRadius();
+      b.x = clamp(event.clientX - rect.left, r, st.laneW - r);
+      b.y = clamp(rect.bottom - event.clientY, r, st.laneH - r);
+      event.preventDefault();
+    }
+
+    function onBallUp(event) {
+      const b = st.ball;
+      if (!b?.held || event.pointerId !== b.held.id) return;
+      const [t0, x0, y0] = b.held.samples[0];
+      const [t1, x1, y1] = b.held.samples[b.held.samples.length - 1];
+      const still = event.type === "pointercancel" || event.timeStamp - t1 > 60 || t1 - t0 < 8;
+      dropBall();
+      if (still) return;
+      const scale = Math.min(1, 2200 / (Math.hypot(x1 - x0, y1 - y0) / (t1 - t0) * 1000 || 1));
+      b.vx = (((x1 - x0) / (t1 - t0)) * 1000) * scale;
+      b.vy = (-((y1 - y0) / (t1 - t0)) * 1000) * scale;
+      b.vz = Math.min(320 * st.px, Math.hypot(b.vx, b.vy) * 0.25);
+    }
+
+    function dropBall() {
+      const b = st.ball;
+      if (!b?.held) return;
+      try {
+        b.held.target.releasePointerCapture(b.held.id);
+      } catch (error) {
+        // Nothing was captured.
+      }
+      b.held = null;
+      window.removeEventListener("pointermove", onBallMove, true);
+      window.removeEventListener("pointerup", onBallUp, true);
+      window.removeEventListener("pointercancel", onBallUp, true);
+    }
+
     /* ---------- Face ---------- */
 
     function baseEyes(now) {
       if (st.pose === "lie") return "shut";
       if (purr.on) return "happy";
-      if (st.activity === "play" && st.ball) return "look"; // eyes on the ball
+      if (st.biting) return Math.sin(st.clock * 1.3) > 0.2 ? "happy" : "look"; // very pleased with itself
+      if ((st.activity === "play" || st.activity === "ball") && st.ball) return "look"; // eyes on the ball
+      if (st.errand) return "look"; // up to something
       if (st.pose === "walk" && st.speed > 0) return "look";
       if (now < st.glance.until) return "look";
       if (now >= st.glance.next) {
@@ -2565,6 +3302,7 @@ const FireflyBuddy = (() => {
 
       if (st.activity === "roam") roamBrain(now);
       else if (st.activity === "play") playBrain(now);
+      else if (st.activity === "ball") ballBrain(now);
 
       if (!st.pose) showPose(targetPose(now));
       if (!st.trans && targetPose(now) !== st.pose) {
@@ -2576,8 +3314,9 @@ const FireflyBuddy = (() => {
 
       // walking — the walker keeps its place while the cat sits
       let walkerAccel = 0;
-      if (st.carry || st.toss) {
+      if (st.carry || st.toss || st.leap) {
         stepCarried(dt);
+        stepLeap(now);
         stepToss(dt);
         // the antennae feel it being swung about
         const vx = (st.x - st.moved.x) / st.px / Math.max(dt, 1 / 240);
@@ -2596,13 +3335,16 @@ const FireflyBuddy = (() => {
           keepInBounds();
         }
       }
-      if (!st.carry && !st.toss?.air) st.lift = 0;
-      if (!st.carry && !st.toss) st.moved.vx = 0;
+      if (!st.carry && !st.toss?.air && !st.leap) st.lift = 0;
+      if (!st.carry && !st.toss && !st.leap) st.moved.vx = 0;
       stepSwing(dt);
       st.moved.x = st.x ?? 0;
 
       if (st.activity === "play") {
         stepBall(dt);
+        stepSwat(now);
+      } else if (st.activity === "ball") {
+        stepWorldBall(dt);
         stepSwat(now);
       }
 
@@ -2662,7 +3404,7 @@ const FireflyBuddy = (() => {
             st.flick.to = (Math.random() < 0.5 ? -1 : 1) * rand(0.18, 0.32);
             st.flick.until = now + rand(250, 450);
             // a cat at play twitches its tail a lot more
-            st.flick.next = now + (st.activity === "play" ? rand(1100, 2800) : rand(2500, 7000));
+            st.flick.next = now + (st.activity === "play" || st.activity === "ball" ? rand(1100, 2800) : rand(2500, 7000));
           }
           const sway = 0.05 * Math.sin((2 * Math.PI * t) / 4.3);
           springStep(st.tip, now < st.flick.until ? st.flick.to : sway, 40, 0.28, h);
@@ -2694,7 +3436,15 @@ const FireflyBuddy = (() => {
 
       setTransform(dom.walker, `translate3d(${snap(st.x ?? 0)}px, ${snap(-(st.y ?? 0))}px, 0)`);
       setTransform(dom.turn, `scaleX(${turnScale(now).toFixed(3)})`);
-      setTransform(dom.rig, `scale(${st.squash[0].toFixed(3)}, ${st.squash[1].toFixed(3)})`);
+      setTransform(dom.rig, `scale(${st.squash[0].toFixed(3)}, ${(st.flip ? -st.squash[1] : st.squash[1]).toFixed(3)})`);
+      // Behind something: the real thing shows through wherever the cat is not drawn.
+      const clip = st.clipLine === null
+        ? "none"
+        : `inset(-999px -999px ${snap(st.laneH - (st.y ?? 0) - st.clipLine)}px -999px)`;
+      if (st.written.get("clip") !== clip) {
+        st.written.set("clip", clip);
+        dom.walker.style.clipPath = clip;
+      }
       // Off the floor: the cat rises (and swings, inside its mirror, so the
       // swing goes the same way on screen whichever way it faces); its shadow
       // stays down and shrinks.
@@ -2716,7 +3466,21 @@ const FireflyBuddy = (() => {
       setTransform(dom.near, st.pose === "sit" ? `rotate(${pawAngle(now).toFixed(4)}rad)` : "none");
 
       if (st.ball && st.ball.x !== null) {
-        setTransform(st.ball.el, `translate3d(${snap(st.ball.x - ballRadius())}px, 0, 0)`);
+        if (st.activity === "ball") {
+          const b = st.ball;
+          const r = ballRadius();
+          setTransform(b.el, `translate3d(${snap(b.x - r)}px, ${snap(-(b.y - r) - b.z)}px, 0)`);
+          const low = 1 - Math.min(0.6, b.z / (70 * st.px));
+          setTransform(b.shade, `translate3d(${snap(b.x - r)}px, ${snap(-(b.y - r))}px, 0) scale(${low.toFixed(2)})`);
+          // in front of the cat when it is nearer the bottom of the screen
+          const order = b.y - r < (st.y ?? 0) + 2 * st.px ? "2" : "0";
+          if (st.written.get("ballOrder") !== order) {
+            st.written.set("ballOrder", order);
+            b.el.style.zIndex = order;
+          }
+        } else {
+          setTransform(st.ball.el, `translate3d(${snap(st.ball.x - ballRadius())}px, 0, 0)`);
+        }
         setTransform(st.ball.body, `rotate(${st.ball.angle.toFixed(3)}rad)`);
       }
 
@@ -2739,7 +3503,8 @@ const FireflyBuddy = (() => {
       st.raf = requestAnimationFrame(frame);
       const now = nowMs();
       // 60 frames a second is plenty, even on a 120 Hz screen
-      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss;
+      const ballMoving = st.activity === "ball" && st.ball && (st.ball.held || st.ball.z > 0 || st.ball.vx !== 0 || st.ball.vy !== 0);
+      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss && !st.leap && !ballMoving;
       if (now - st.last < 1000 / ((still ? restFps : maxFps) + 2)) return;
       const dt = clamp((now - st.last) / 1000, 0, 0.1);
       st.last = now;
@@ -2819,7 +3584,8 @@ const FireflyBuddy = (() => {
       const rect = dom.walker.getBoundingClientRect();
       let x = (event.clientX - rect.left) / st.px;
       // held up off the floor, the picture is that much higher than its box
-      const y = (event.clientY - rect.top) / st.px + st.lift;
+      let y = (event.clientY - rect.top) / st.px + st.lift;
+      if (st.flip) y = 2 * (GROUND + FRAME.oy + 1) - y;
       if (st.dir < 0) x = FRAME.w - x;
       const mask = art.masks[st.pose];
       for (let dy = -1; dy <= 1; dy += 1) {
@@ -2839,6 +3605,11 @@ const FireflyBuddy = (() => {
     dom.walker.addEventListener("click", (event) => {
       // the click that ends a carry is not a pat
       if (!overCat(event) || nowMs() - st.droppedAt < 400) return;
+      // a click makes it let go of what it is chewing, before anything else
+      if (st.biting) {
+        releaseBite();
+        return;
+      }
       setPurring(!purr.on);
     });
 
@@ -2879,7 +3650,14 @@ const FireflyBuddy = (() => {
         plan: st.brain.pose,
         goal: st.goalX === null ? null : [st.goalX, st.goalY],
         swat: Boolean(st.swat),
-        ball: st.ball ? { x: st.ball.x, v: st.ball.v } : null,
+        ball: st.ball ? { x: st.ball.x, y: st.ball.y, z: st.ball.z, v: st.ball.v, vx: st.ball.vx, vy: st.ball.vy } : null,
+        activity: st.activity,
+        errand: st.errand?.name || null,
+        offstage: st.offstage,
+        flip: st.flip,
+        leap: Boolean(st.leap),
+        clip: st.clipLine,
+        biting: st.biting?.perch.id || null,
         lift: st.lift,
         carried: Boolean(st.carry),
         tossed: st.toss ? (st.toss.air ? "air" : "skid") : null,
@@ -2889,8 +3667,8 @@ const FireflyBuddy = (() => {
     }
 
     /*
-     * "timer", "roam" or "play" — see create(). `from`, as for create(), is
-     * where a cat sent out roaming starts from.
+     * "timer", "roam", "play" or "ball" — see create(). `from`, as for create(),
+     * is where a cat sent out on a whole floor starts from.
      */
     function setActivity(name, { from = null } = {}) {
       if (name === st.activity) return;
@@ -2902,13 +3680,13 @@ const FireflyBuddy = (() => {
       st.swat = null;
       st.pauseUntil = 0;
       st.brain = { pose: "sit", until: nowMs() + rand(800, 2200), nextSwat: 0, restless: 0 };
-      if (name === "play") ensureBall();
-      else removeBall();
+      removeBall();
+      if (name === "play" || name === "ball") ensureBall();
       // The host may just have moved somewhere else: measure it and stand in
       // the middle of it — or, roaming, wherever the cat was before.
       st.x = null;
       st.y = null;
-      st.place = name === "roam" ? from : null;
+      st.place = name === "roam" || name === "ball" ? from : null;
       if (!host.hidden) {
         measure();
         if (st.laneW) {
@@ -2982,7 +3760,14 @@ const FireflyBuddy = (() => {
       setPurring,
       togglePurring: () => setPurring(!purr.on),
       isPurring: () => purr.on,
+      setPerches,
+      scold,
       step,
+      // for tests: send it on an outing now, rather than whenever it feels like one
+      startOuting: (name) => {
+        const make = { peek: peekOuting, hop: hopOuting, hide: hideOuting, bite: biteOuting }[name];
+        if (make) startErrand(make(), name);
+      },
     };
   }
 

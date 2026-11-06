@@ -27,8 +27,10 @@ const {
   screen,
   session,
 } = require("electron");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const readline = require("readline");
 const WORDS = require("./words.js");
 
 const ROOT = path.join(__dirname, "..");
@@ -97,6 +99,11 @@ const PROGRAM_SETTINGS = `<div class="settings-grid desktop-settings">
           <input id="desktopLauncherShown" type="checkbox" />
           <span data-i18n="desktopLauncherLabel"></span>
         </label>
+        <label>
+          <input id="desktopCatIcons" type="checkbox" />
+          <span data-i18n="desktopCatIconsLabel"></span>
+        </label>
+        <p class="desktop-note" data-i18n="desktopCatIconsNote"></p>
       </div>
 
       `;
@@ -348,6 +355,95 @@ function openFullscreen() {
   updateScreen();
 }
 
+/* ---------- Where the desktop icons are, for the cat ---------- */
+
+/*
+ * A small helper program reads the positions: Electron cannot ask the shell itself.
+ * It runs only while the cat's game with the icons is switched on and the layer is
+ * open, and ends with the program, because its input goes with it.
+ */
+const ICONS_EVERY_MS = 2000;
+let iconHelper = null;
+let iconTimer = null;
+let iconsSent = "";
+let iconAnswers = [];
+
+const helperPath = () => (app.isPackaged
+  ? path.join(process.resourcesPath, "desktop-icons.exe")
+  : path.join(__dirname, "out", "desktop-icons.exe"));
+
+function askHelper(request) {
+  return new Promise((resolve) => {
+    if (!iconHelper) {
+      resolve(null);
+      return;
+    }
+    iconAnswers.push(resolve);
+    iconHelper.stdin.write(`${request}\n`);
+  });
+}
+
+function stopWatchingIcons() {
+  clearInterval(iconTimer);
+  iconTimer = null;
+  iconsSent = "";
+  const helper = iconHelper;
+  iconHelper = null;
+  for (const answer of iconAnswers.splice(0)) answer(null);
+  helper?.stdin.end();
+}
+
+/* From the helper's real screen pixels to this layer's, for the icons in plain view. */
+async function sendIcons() {
+  const answer = await askHelper("scan");
+  if (!overlay || !answer?.icons) return;
+  const display = screen.getPrimaryDisplay();
+  const scale = display.scaleFactor;
+  const { workArea } = display;
+  const iconSize = answer.iconSize / scale;
+  const [spaceX, spaceY] = (answer.spacing || [0, 0]).map((v) => v / scale);
+  const icons = answer.icons
+    .filter((icon) => icon.seen)
+    .map((icon) => {
+      const cell = { x: icon.x / scale - workArea.x, y: icon.y / scale - workArea.y, w: spaceX, h: spaceY };
+      return { id: icon.id, x: cell.x + (spaceX - iconSize) / 2, y: cell.y + 2, w: iconSize, h: iconSize, cell };
+    })
+    .filter((icon) => icon.cell.x >= 0 && icon.cell.y >= 0 && icon.cell.x < workArea.width && icon.cell.y < workArea.height);
+  const text = JSON.stringify(icons);
+  if (text === iconsSent) return;
+  iconsSent = text;
+  overlay.webContents.send("desktop-icons", icons);
+}
+
+function startWatchingIcons() {
+  if (iconHelper) return;
+  let helper;
+  try {
+    helper = spawn(helperPath(), [String(process.pid)], { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+  } catch (error) {
+    return;
+  }
+  iconHelper = helper;
+  iconAnswers = [];
+  // Without the helper the cat simply has no icons to play with.
+  helper.on("error", () => stopWatchingIcons());
+  helper.on("exit", () => {
+    if (iconHelper === helper) stopWatchingIcons();
+  });
+  helper.stdin.on("error", () => {});
+  readline.createInterface({ input: helper.stdout }).on("line", (line) => {
+    const answer = iconAnswers.shift();
+    if (!answer) return;
+    try {
+      answer(JSON.parse(line));
+    } catch (error) {
+      answer(null);
+    }
+  });
+  sendIcons();
+  iconTimer = setInterval(sendIcons, ICONS_EVERY_MS);
+}
+
 let licensesWindow = null;
 
 function openLicenses() {
@@ -407,6 +503,7 @@ function createOverlay(kind) {
   // Closing destroys the window while timers and messages may still reach for it.
   win.on("closed", () => {
     if (overlay === win) overlay = null;
+    stopWatchingIcons();
   });
   reopenIfItCrashes(win);
   win.once("ready-to-show", () => {
@@ -651,6 +748,14 @@ function listen() {
     else giveFocusBack(overlay);
   });
   ipcMain.on("close-widgets", () => setWidgets(false));
+  ipcMain.on("watch-icons", (_event, on) => {
+    if (on) startWatchingIcons();
+    else stopWatchingIcons();
+  });
+  ipcMain.handle("icon-image", async (_event, id) => {
+    const answer = await askHelper(`image ${String(id).replace(/[^0-9a-f]/g, "")}`);
+    return answer?.png ? `data:image/png;base64,${answer.png}` : null;
+  });
 
   ipcMain.on("launcher-click", () => setWidgets(!widgetsWanted()));
   ipcMain.on("launcher-move", (_event, x, y) => {
@@ -718,6 +823,7 @@ if (!app.requestSingleInstanceLock()) {
     stopTheTimer();
     saveStoreNow();
     quitting = true;
+    stopWatchingIcons();
   });
 
   app.whenReady().then(async () => {

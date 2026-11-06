@@ -15,6 +15,7 @@
   const kind = new URLSearchParams(location.search).get("kind") || "full";
   const TYPING = 'input:not([type="checkbox"])';
   const FIREFLIES_KEY = "desktopWidgetFireflies";
+  const ICONS_KEY = "desktopCatIcons";
 
   const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.5l1.9 6.6 6.6 1.9-6.6 1.9-1.9 6.6-1.9-6.6L3.5 12l6.6-1.9z"/></svg>';
 
@@ -50,6 +51,7 @@
   }
 
   function addControls({ piece, taskCard, render }) {
+    widgetRoot = piece.parentNode;
     fireflyButton = edgeButton("edge-fireflies", SPARK_ICON);
     fireflyButton.addEventListener("click", () => {
       firefliesOn = !firefliesOn;
@@ -77,14 +79,101 @@
     labelButtons();
   }
 
-  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY]).then((data) => {
+  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY, ICONS_KEY]).then((data) => {
     timerState = data.pomodoro;
     firefliesOn = data[FIREFLIES_KEY] === true;
     labelButtons();
+    if (kind === "full") syncIcons(data[ICONS_KEY] === true);
   });
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.pomodoro?.newValue) timerState = changes.pomodoro.newValue;
+    if (changes[ICONS_KEY] && kind === "full") syncIcons(changes[ICONS_KEY].newValue === true);
     labelButtons();
+  });
+
+  /* ---------- The cat and the icons on the desktop ---------- */
+
+  /*
+   * Only with the setting on, which is off to begin with: main.js then tells this
+   * page where the icons are that can be seen right now. The cat is not really
+   * behind them or on them, of course. It is drawn on this layer, over them, and
+   * the real icons show through the layer wherever it draws nothing.
+   */
+  let cat = null;
+  let iconsWanted = false;
+  let widgetRoot = null;
+  const iconImages = new Map();
+  const biteMarks = new Map();
+
+  // A chunk gone from the corner, with teeth marks round it.
+  const BITE_MARK = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M100 0v52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16L27 0z" fill="rgba(24,12,34,.9)"/><path d="M100 52c-8 4-15 2-19-5-7 5-15 3-19-4-7 4-15 1-17-7-8 1-14-5-13-13-6-3-9-9-7-16" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="4" stroke-dasharray="7 5"/></svg>`;
+
+  function markBitten(perch) {
+    if (!widgetRoot || biteMarks.has(perch.id)) return;
+    // Over the whole icon with its label: while it is bitten, clicks stop here.
+    const guard = document.createElement("div");
+    guard.className = "icon-guard";
+    guard.style.cssText = `left:${perch.cell.x}px;top:${perch.cell.y}px;width:${perch.cell.w}px;height:${perch.cell.h}px`;
+    const mark = document.createElement("div");
+    mark.className = "icon-bite";
+    mark.innerHTML = BITE_MARK;
+    mark.style.cssText = `left:${perch.x - perch.cell.x}px;top:${perch.y - perch.cell.y}px;width:${perch.w}px;height:${perch.h}px`;
+    guard.append(mark);
+    // Tried anyway: the cat is not impressed. Only it can give the icon back.
+    guard.addEventListener("click", () => cat?.scold());
+    guard.addEventListener("dblclick", () => cat?.scold());
+    // First in the widget, so that it lies under the cat, which has to stay clickable.
+    widgetRoot.prepend(guard);
+    biteMarks.set(perch.id, guard);
+  }
+
+  function unmarkBitten(perch) {
+    const guard = biteMarks.get(perch.id);
+    biteMarks.delete(perch.id);
+    if (!guard) return;
+    guard.style.pointerEvents = "none";
+    const fading = guard.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, easing: "ease-out" });
+    fading.onfinish = () => guard.remove();
+    fading.oncancel = () => guard.remove();
+  }
+
+  /* Hit by the ball: a copy of the icon jumps about on top of the real one for a moment. */
+  async function wobbleIcon(perch, strength) {
+    if (!widgetRoot) return;
+    let source = iconImages.get(perch.id);
+    if (source === undefined) {
+      source = (await door.iconImage(perch.id).catch(() => null)) || null;
+      iconImages.set(perch.id, source);
+    }
+    const spin = (4 + 14 * strength) * (Math.random() < 0.5 ? -1 : 1);
+    const copy = document.createElement(source ? "img" : "div");
+    copy.className = "icon-wobble";
+    if (source) copy.src = source;
+    copy.style.cssText = `left:${perch.x}px;top:${perch.y}px;width:${perch.w}px;height:${perch.h}px`;
+    widgetRoot.prepend(copy);
+    const jolt = copy.animate(
+      [
+        { transform: "none" },
+        { transform: `translateY(${-6 - 12 * strength}px) rotate(${spin}deg) scale(1.08)`, offset: 0.25 },
+        { transform: `translateY(2px) rotate(${-spin * 0.6}deg) scale(0.97)`, offset: 0.55 },
+        { transform: `rotate(${spin * 0.25}deg)`, offset: 0.8 },
+        { transform: "none" },
+      ],
+      { duration: 620, easing: "ease-out" }
+    );
+    jolt.onfinish = () => copy.remove();
+    jolt.oncancel = () => copy.remove();
+  }
+
+  function syncIcons(wanted) {
+    if (wanted === iconsWanted) return;
+    iconsWanted = wanted;
+    door.watchIcons(wanted);
+    if (!wanted) cat?.setPerches([]);
+  }
+
+  door.onDesktopIcons((icons) => {
+    cat?.setPerches(iconsWanted ? icons : []);
   });
 
   window.__FIREFLY_DESKTOP__ = {
@@ -95,7 +184,19 @@
     // whatever the size of the window: measured, 30 a second takes half the
     // graphics card that 60 does, and a walk this slow looks no different. A cat
     // sitting still, with only its breath and antennae moving, needs fewer yet.
-    buddy: { maxFps: 30, restFps: 15 },
+    buddy: {
+      maxFps: 30,
+      restFps: 15,
+      edges: true,
+      onBite: markBitten,
+      onBiteEnd: unmarkBitten,
+      onBump: wobbleIcon,
+    },
+    buddyReady(buddy) {
+      cat = buddy;
+      window.__FIREFLY_DESKTOP__.cat_ = buddy; // for the tests
+      door.onCatReady?.();
+    },
     fireflies: () => firefliesOn,
     mount: addControls,
     // Anything that moves by itself would redraw the whole layer at the screen's
@@ -156,6 +257,26 @@
       }
       .piece:hover .edge-btn:disabled {
         opacity: 0.4;
+      }
+
+      .icon-guard {
+        position: fixed;
+        cursor: not-allowed;
+        pointer-events: auto;
+      }
+      .icon-bite {
+        position: absolute;
+        pointer-events: none;
+      }
+      .icon-bite svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .icon-wobble {
+        position: fixed;
+        pointer-events: none;
+        will-change: transform;
       }
 
       .quick-on-widget {

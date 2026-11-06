@@ -13,6 +13,7 @@ The Windows program, built on Electron. It runs the timer and the pages in the r
 | `words.js` | The program's own words, in all seven languages |
 | `panel.js`, `panel.css` | What the program adds to the shared pages, which do not know about it |
 | `quick_timer.js` | The small card for the timer's rhythm: a preset with one click, each length with − and + |
+| `helper/desktop-icons.cs` | A small program that tells the cat where the desktop icons are. Built with the compiler that comes with Windows, by `tools/build-helper.js` |
 
 ## What is on the screen
 
@@ -20,6 +21,8 @@ The Windows program, built on Electron. It runs the timer and the pages in the r
 - **The widgets** are the timer, the tasks and the cat. Settings choose which of them to show. A click on the time goes on to the fullscreen timer. With the pointer on the timer, small buttons appear on its top edge: fireflies on the widget (off to begin with, as they cost processor time), the timer's rhythm, and hide.
 - **The main window** holds everything else: tasks, statistics, settings. Its X only minimizes it, so the timer carries on and the taskbar button stays, with the timer's progress on it.
 - **The fullscreen timer** fills the screen, clean of everything else. The icon and the widgets step aside for it.
+
+**The cat** chases a ball all over the screen, which can be picked up and thrown as well, and slips off the screen's edges to peek back in. With the game with desktop icons switched on in the settings, which is off by default, it also jumps on them, hides behind them and bites them. A bitten icon does not open with the mouse until you click the cat, drag it away or turn on the ball, and the same happens by itself if a window comes over the icon. The cat is not really behind or on an icon: it is drawn on the layer over it, and where it should be behind, it just is not drawn. Nothing about the icons themselves ever changes.
 
 The timer's rhythm opens from the widget's button, or in the main window and the fullscreen timer from a button among the small ones there or a click on the time. It saves as it goes. A stage already running finishes as it is, and changes apply from the next one.
 

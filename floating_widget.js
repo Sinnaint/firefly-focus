@@ -1288,13 +1288,16 @@
     buddyPending = null;
   }
 
-  /* On its shelf to play, or out on the tab itself to wander. */
+  /* On its shelf to play, or out on the tab itself to wander. In the program it
+     plays out on the screen as well, all over it. */
   function placeBuddyHost() {
-    const target = buddyMode === "roam" ? nodes.floor : nodes.stage;
+    const target = buddyMode === "roam" || DESKTOP ? nodes.floor : nodes.stage;
     if (nodes.buddyHost.parentNode === target) return false;
     target.prepend(nodes.buddyHost);
     return true;
   }
+
+  const activityFor = (mode) => (DESKTOP && mode === "play" ? "ball" : mode);
 
   /* Just above the pill, where the shelf is: a roaming cat sets off from there. */
   function shelfSpot() {
@@ -1323,10 +1326,11 @@
       if (tornDown || buddy) return;
       buddy = FireflyBuddy.create(nodes.buddyHost, {
         onPurrChange: () => render(),
-        activity: buddyMode,
-        from: buddyMode === "roam" ? shelfSpot() : null,
+        activity: activityFor(buddyMode),
+        from: buddyMode === "roam" || DESKTOP ? shelfSpot() : null,
         ...DESKTOP?.buddy
       });
+      DESKTOP?.buddyReady(buddy);
       render();
     };
     buddyPending = window.requestIdleCallback
@@ -1345,10 +1349,10 @@
     buddyMode = mode;
     // The floor has to be showing before the cat lands on it, or the cat
     // measures a floor of nothing and starts off in the corner.
-    nodes.floor.hidden = mode !== "roam" || nodes.buddyPiece.hidden;
+    nodes.floor.hidden = (mode !== "roam" && !DESKTOP) || nodes.buddyPiece.hidden;
     const moved = placeBuddyHost();
     if (buddy) {
-      buddy.setActivity(mode, { from });
+      buddy.setActivity(activityFor(mode), { from });
       // Back on the shelf from wherever it had got to, it pops in there.
       if (moved && mode === "play") buddy.appear();
     }
@@ -1915,7 +1919,7 @@
     if (DESKTOP && enabled && !showTimer && !showCompanion) DESKTOP.nothingShown();
     nodes.timerPiece.hidden = !showTimer;
     nodes.buddyPiece.hidden = !showCompanion;
-    nodes.floor.hidden = !(showCompanion && buddyMode === "roam");
+    nodes.floor.hidden = !(showCompanion && (buddyMode === "roam" || DESKTOP));
 
     nodes.fw.dataset.theme = settings.theme || "midnight";
     nodes.fw.dataset.mode = state.mode;

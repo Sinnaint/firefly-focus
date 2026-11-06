@@ -5,6 +5,7 @@
   "description": "Firefly Focus as a Windows program.",
   "main": "main.js",
   "scripts": {
+    "prestart": "node tools/build-helper.js",
     "start": "electron .",
     "tiles": "electron tools/make-tiles.js",
     "dist": "node tools/build.js",

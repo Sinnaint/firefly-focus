@@ -44,6 +44,14 @@ body.is-app #ring {
   margin-top: 10px;
 }
 
+.desktop-note {
+  margin: -3px 0 0 26px;
+  color: var(--subtle);
+  font-size: calc(11.5px * var(--text-scale, 1));
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .desktop-about {
   display: grid;
   gap: 8px;

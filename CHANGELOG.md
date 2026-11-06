@@ -11,6 +11,8 @@ The first version of the program for the Microsoft Store, with its own version n
 - **Widgets over every program.** The floating widget and the cat now live on a see-through layer above all your windows. Clicks pass through everywhere except on them.
 - **An on-screen icon** whose ring shows the timer's progress. A click opens or closes the widgets, a drag moves it, the right button opens the menu.
 - **Quick timer card** with presets and − and + for each length, from the widget, the main window and the fullscreen timer.
+- **A livelier cat.** It chases a bouncing ball all over the screen, by running, pouncing and batting it, and the ball can be picked up and thrown. It slips off the edges of the screen and peeks back in from any side.
+- **Mischief with desktop icons**, off until switched on in the settings: the cat jumps on them, hides behind them and bites them. A bitten icon will not open with the mouse until the cat is clicked or pulled away or the ball comes out. The ball bounces off the icons, and they jump when hit.
 - **Choose what the widget shows:** just the timer, the timer and tasks, or those and the cat. Fireflies on the widget have a button of their own.
 - **Everything can be put away** with the timer running on, its progress on the taskbar button. **Close the program and stop the timer** ends it all.
 - **About section** in the settings, with the version, a privacy note and the licenses of the components.
