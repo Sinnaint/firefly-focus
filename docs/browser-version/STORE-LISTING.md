@@ -107,7 +107,7 @@ Used only to inject the optional draggable floating timer widget onto web pages 
 - **Sold to third parties:** No
 - **Used or transferred for purposes unrelated to the item's core functionality:** No
 - **Used or transferred to determine creditworthiness / for lending:** No
-- **Privacy policy URL:** `https://github.com/Sinnaint/firefly-focus/blob/main/PRIVACY.md`
+- **Privacy policy URL:** `https://github.com/Sinnaint/firefly-focus/blob/main/docs/browser-version/PRIVACY.md`
 
 ---
 

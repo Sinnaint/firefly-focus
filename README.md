@@ -1,106 +1,58 @@
-| `icon128.png` | Extension icon. |
-| `index.html` / `ambient.html` | App shells — the window and the whole-screen view. |
-| `app/shim.js` | Maps `chrome.*` onto plain web APIs so the app can run the extension's own code. |
-| `app/boot.js` / `app/app.css` | App load order and window layout. |
-| `manifest.webmanifest` / `sw.js` | Web app manifest and offline cache. |
 <p align="center">
   <img src="assets/logo/icon.svg" alt="Firefly Focus icon" width="112" height="112" />
 </p>
 
-# Firefly Focus — Pomodoro Timer & Tasks
+# Firefly Focus
 
-> A calm, private Pomodoro timer for Chrome. A draggable floating widget follows you across tabs, tasks can have deadlines, gentle fireflies drift over the timer, and three hand-tuned themes keep it easy on the eyes. Everything stays on your device — no accounts, no tracking, no network.
+> A calm, private focus timer for Windows. A small icon and a compact timer stay over your other programs, a pixel-art cat keeps you company, and one click opens a clean fullscreen timer. Everything stays on your computer: no account, no tracking, no network.
 
-![Version](https://img.shields.io/badge/version-2.5.0-6366f1)
-![Manifest](https://img.shields.io/badge/manifest-v3-0d9488)
+![Version](https://img.shields.io/badge/version-1.0.0-6366f1)
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0d9488)
 ![License](https://img.shields.io/badge/license-MIT-f59e0b)
 ![Privacy](https://img.shields.io/badge/data-100%25%20local-22c55e)
-
-<!--
-  Screenshots — uncomment once real captures land in docs/screenshots/.
-  Until then these files do not exist and GitHub renders three broken images.
-<p align="center">
-  <img src="docs/screenshots/side-panel.png" alt="Side panel" width="30%" />
-  <img src="docs/screenshots/floating-widget.png" alt="Floating widget" width="30%" />
-  <img src="docs/screenshots/themes.png" alt="Themes" width="30%" />
-</p>
--->
 
 ---
 
 ## ✨ Features
 
-- **Classic Pomodoro cycles** — focus, short break and long break, with configurable durations and auto-continue.
-- **Floating widget on any page** — two small things float over the sites you work on: the timer with your open tasks in a drawer underneath, and the ginger study cat on a little shelf. The cat either plays with a ball right there or wanders about the page, where you can pick it up and toss it somewhere else; pet it to make it purr.
-- **Full side panel** — the complete UI in Chrome's native side panel: timer, tasks, daily stats and settings.
-- **Fullscreen mode** — open the timer as a whole-screen ambient clock on a spare monitor. The controls fade away while you work and return on the first mouse move.
-- **Tasks with deadlines** — add an optional due date to any task. Overdue tasks are flagged in red, tasks due soon in amber. Your tasks persist across days and restarts — pick up unfinished work the next morning.
-- **Firefly animation** — continuous, softly glowing fireflies drift over the widget and panel. Their colour follows the active theme and mode.
-- **Three themes** — **Midnight** (dark), **Daylight** (light) and **Sage** (calm green), each with its own tasteful accent palette.
-- **Warm sound signals** — four expressive, non-harsh sound styles (Bright, Arcade, Bell, Soft) for stage changes and reminders.
-- **Desktop notifications** — start/stop alerts plus a configurable "almost done" reminder.
-- **Daily stats & goal** — sessions completed today, focus time and progress toward your daily goal.
-- **7 interface languages** — English, Ukrainian, German, Spanish, Italian, Slovak and Czech, switchable on the fly.
-- **Private by design** — 100% local storage, no sign-in, no analytics, no external requests.
+- **Stays over your other programs** — a small icon shows how far the timer has got, and a compact timer with your tasks floats beside your work. Clicks pass through to the program underneath everywhere except on them.
+- **A cat for company** — it strolls across your screen, or plays with a ball on its shelf, and purrs when you pet it. Pick it up and toss it wherever you like.
+- **Fullscreen timer** — one click on the time opens a clean, whole-screen timer with drifting fireflies. The controls fade away while you work and return on the first mouse move.
+- **Easy to set** — ready-made rhythms (25/5, 50/10, 52/17, 90/20, 15/3) or your own, with − and + right on the widget.
+- **Pomodoro-style cycles** — focus, short break and long break, with auto-continue if you want it.
+- **Tasks with deadlines** — overdue tasks turn red, tasks due soon turn amber, and they stay until you are done with them.
+- **Runs in the background** — put the icon and widgets away, and the timer keeps going with its progress on the taskbar button.
+- **Your choice of look** — the Midnight, Daylight and Sage themes, three timer faces, and fireflies if you want them.
+- **Warm sound signals** — four non-harsh sound styles for stage changes and reminders, plus Windows notifications.
+- **Daily stats and goal** — sessions completed today, focus time and progress toward your goal.
+- **7 languages** — English, Ukrainian, German, Spanish, Italian, Slovak and Czech. It starts in your system's language.
+- **Private by design** — no sign-in, no analytics, and it does not go online at all.
 
 ---
 
 ## 📦 Install
 
-### As a Windows program
 > _Microsoft Store link coming soon._
 
-The widgets, the on-screen icon and the cat stay over all your other programs, and it works without any browser. See [desktop/README.md](desktop/README.md) to run it from source.
-
-### From the Chrome Web Store
-> _Store link coming soon._
-
-### Manual (load unpacked)
-1. Download or clone this repository.
-2. Open `chrome://extensions` in Chrome (or any Chromium browser, v116+).
-3. Enable **Developer mode** (top-right).
-4. Click **Load unpacked** and select the project folder.
-5. Pin the extension and click its icon to open the side panel.
-
-### As an app (no extension needed)
-Firefly Focus also runs as an installable web app. Serve the repository root over HTTP and open it:
-
-```
-python3 -m http.server 8080     # or any static server
-```
-
-Then visit `http://localhost:8080/` and use your browser's **Install** action. The app opens in its own window, keeps working offline, and shows the timer on the taskbar icon. It runs the same code as the extension — only the floating widget is missing, since that one has to be a browser extension. The app keeps time while its window is minimised or covered, but it can only ring while the window is open; close it and the timer catches up the next time you open it.
+To run it from source, see [desktop/README.md](desktop/README.md).
 
 ---
 
 ## 🚀 Usage
 
-- **Open the panel** — click the toolbar icon to open the side panel with the full timer, tasks and settings. Close it whenever you like: the timer keeps running and still rings at the end of each stage. If Chrome itself is closed through a stage end, the timer catches up when Chrome starts again — and if the next stage would have finished as well, it waits for **Start**.
-- **Floating widget** — appears automatically on regular web pages (`http`/`https`) as two pieces you can drag apart: the **timer** (click the time to open the panel; the handle under it folds the task drawer away, and "+ New task" adds one) and the **cat** on its shelf (🐾 lets it wander the whole page — drag it to pick it up, let go to drop or throw it — ⚽ keeps it home playing with a ball, the wave makes it purr; a tap on the cat purrs too). Hover either and press **×** to hide it on the current page (it comes back on reload). To turn it off everywhere, use **Settings → Floating widget on websites**.
-- **Add a deadline** — click the date pill under a task to set or change its due date; clear the date to remove it.
-- **Switch theme / language** — both selectors live at the top of the side panel.
-- **Tune it** — set focus/break lengths, long-break cadence, reminder time, daily goal, sound style and firefly frequency in **Settings**.
+- **The icon** — click it to open or close the widgets, drag it anywhere, right-click it for the menu.
+- **The widget** — press Start or Pause, and click the time for the fullscreen timer. With the pointer on it, small buttons appear on its top edge: fireflies, the timer's rhythm, and hide. Drag it by any free spot.
+- **The cat** — 🐾 lets it wander the screen, where you can drag it to pick it up and let go to drop or throw it. ⚽ keeps it home playing with a ball, and the wave makes it purr. A tap on the cat purrs too.
+- **The main window** — holds your tasks, statistics and settings. Its X only minimizes it, because the timer keeps running.
+- **Quitting** — use **Close the program and stop the timer** in the menu or at the bottom of the settings.
 
-> Note: like all Chrome extensions, the floating widget cannot run on browser system pages (`chrome://…`, the Web Store, the New Tab page). Open a normal website to see it.
+The widgets and the cat appear on your main display.
 
 ---
 
 ## 🔒 Privacy
 
-Firefly Focus stores your timer state, tasks, settings and statistics **locally** using `chrome.storage.local`. Nothing is sent anywhere — there are no accounts, no analytics and no network requests. See [PRIVACY.md](PRIVACY.md) for the full policy.
-
----
-
-## 🔑 Permissions
-
-| Permission | Why it's needed |
-|---|---|
-| `alarms` | Fire the timer's end and pre-end reminder even when the panel is closed. |
-| `storage` | Save your timer state, tasks, settings and daily stats on your device. |
-| `notifications` | Show desktop alerts when a focus or break stage starts or ends. |
-| `offscreen` | Play the short completion/reminder sounds via the Web Audio API (a service worker can't play audio on its own). |
-| `sidePanel` | Show the full timer UI in Chrome's side panel. |
-| Host access (`http://*/*`, `https://*/*`) | Inject the optional floating widget onto web pages so the timer stays visible. **No page content is read, modified or transmitted.** |
+Your timer state, tasks, settings and statistics stay on your computer. Nothing is sent anywhere: there are no accounts, no analytics and no network requests. See [PRIVACY.md](PRIVACY.md) for the full policy.
 
 ---
 
@@ -108,25 +60,24 @@ Firefly Focus stores your timer state, tasks, settings and statistics **locally*
 
 | File | Role |
 |---|---|
-| `manifest.json` | MV3 manifest, permissions and entry points. |
-| `service_worker.js` | Background logic: timer state, alarms, cycles, stats, tasks, settings. |
-| `shared.js` | Translations and firefly palettes shared by the extension's pages. |
-| `sidepanel.html` / `sidepanel.css` / `sidepanel.js` | The full side-panel UI. |
-| `fullscreen.html` / `fullscreen.css` / `fullscreen.js` | The whole-screen ambient timer. |
-| `floating_widget.js` | The draggable in-page widget (Shadow DOM content script). |
-| `offscreen.html` / `offscreen.js` | Web Audio sound synthesis for signals. |
-| `icon128.png` | Extension icon. |
+| `desktop/` | The program itself: windows, data, tray, on-screen icon, packaging. See [desktop/README.md](desktop/README.md). |
+| `service_worker.js` | The timer: state, alarms, cycles, stats, tasks, settings. |
+| `sidepanel.html` / `.css` / `.js` | The main window's page. |
+| `fullscreen.html` / `.css` / `.js` | The fullscreen timer. |
+| `floating_widget.js` | The timer and task widget. |
+| `buddy.js` | The cat: drawing, animation and purr. |
+| `offscreen.js` | Sound synthesis for the signals. |
+| `shared.js` | Translations and what the pages share. |
+| `manifest.json`, `index.html`, `ambient.html`, `sw.js`, `app/` | A browser version made from the same files. It is not part of the program; its notes are in `docs/browser-version/`. |
 
 ---
 
 ## 🛠️ Tech
 
-- **Manifest V3**, no build step — plain HTML/CSS/JavaScript.
-- **Shadow DOM** isolates the floating widget from host-page styles.
-- **Web Audio API** synthesises all sounds (no audio files shipped).
-- **CSS custom properties** power the theming and firefly palettes.
-- **One codebase, two targets** — the app loads the extension's own pages and logic through a small `chrome.*` adapter, so nothing is duplicated.
-- Zero third-party dependencies.
+- **Electron**, with plain HTML, CSS and JavaScript and no frameworks.
+- **Web Audio API** synthesises all sounds, including the purr. No audio files are shipped.
+- **The cat is drawn from shapes** when the program starts. There are no image files for it.
+- Packaged for the Microsoft Store with electron-builder.
 
 ---
 

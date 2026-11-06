@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## Windows program [1.0.0] — unreleased
 
-The first version of the program for the Microsoft Store, with its own version number. It runs the extension's code.
+The first version of the program for the Microsoft Store, with its own version number.
 
 ### Added
 - **Widgets over every program.** The floating widget and the cat now live on a see-through layer above all your windows. Clicks pass through everywhere except on them.

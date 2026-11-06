@@ -1,6 +1,6 @@
 # Microsoft Store: що куди вписувати
 
-Усе для подання в Partner Center. Правила звірено з [Microsoft Store Policies 7.20](https://learn.microsoft.com/en-us/windows/apps/publish/store-policies) (вересень 2026). Лістинг для Chrome Web Store окремо, у `STORE-LISTING.md` у корені.
+Усе для подання в Partner Center. Правила звірено з [Microsoft Store Policies 7.20](https://learn.microsoft.com/en-us/windows/apps/publish/store-policies) (вересень 2026).
 
 ## Порядок дій
 
