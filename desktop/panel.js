@@ -15,7 +15,7 @@
     if (i18n[language]) Object.assign(i18n[language], words.pages);
   }
 
-  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden", "desktopCatIcons", "desktopCatMoves", "desktopCatDemo"];
+  const KEYS = ["pomodoro", "desktopWidgetKind", "desktopLauncherHidden", "desktopCatWindows", "desktopCatIcons", "desktopCatMoves", "desktopCatDemo"];
   const isMainWindow = location.pathname === "/sidepanel.html";
 
   function show(data) {
@@ -24,6 +24,8 @@
     if (kindSelect) kindSelect.value = kind;
     const launcherBox = document.getElementById("desktopLauncherShown");
     if (launcherBox) launcherBox.checked = !data.desktopLauncherHidden;
+    const windowsBox = document.getElementById("desktopCatWindows");
+    if (windowsBox) windowsBox.checked = data.desktopCatWindows !== false;
     const iconsBox = document.getElementById("desktopCatIcons");
     if (iconsBox) iconsBox.checked = data.desktopCatIcons === true;
     // Moving them is a part of the game with them, and means nothing without it.
@@ -98,6 +100,8 @@
       chrome.storage.local.set({ desktopWidgetKind: event.target.value });
     } else if (event.target.id === "desktopLauncherShown") {
       chrome.storage.local.set({ desktopLauncherHidden: !event.target.checked });
+    } else if (event.target.id === "desktopCatWindows") {
+      chrome.storage.local.set({ desktopCatWindows: event.target.checked });
     } else if (event.target.id === "desktopCatIcons") {
       // Off, it takes the moving with it: that was agreed to as a part of the game.
       chrome.storage.local.set(event.target.checked

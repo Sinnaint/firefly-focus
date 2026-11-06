@@ -13,8 +13,8 @@ The Windows program, built on Electron. It runs the timer and the pages in the r
 | `words.js` | The program's own words, in all seven languages |
 | `panel.js`, `panel.css` | What the program adds to the shared pages, which do not know about it |
 | `quick_timer.js` | The small card for the timer's rhythm: a preset with one click, each length with − and + |
-| `cat_demo.js` | "Show what the cat can do": one run through all of it, on folders drawn on the layer |
-| `helper/desktop-icons.cs` | A small program that tells the cat where the desktop icons are, and moves one when the cat drags it. Built with the compiler that comes with Windows, by `tools/build-helper.js` |
+| `cat_demo.js` | "Show what the cat can do": one run through all of it, on folders and a window drawn on the layer |
+| `helper/desktop-icons.cs` | A small program that tells the cat where the desktop icons and the windows are, and moves an icon when the cat drags it. It reads no names or titles. Built with the compiler that comes with Windows, by `tools/build-helper.js` |
 
 ## What is on the screen
 
@@ -23,7 +23,9 @@ The Windows program, built on Electron. It runs the timer and the pages in the r
 - **The main window** holds everything else: tasks, statistics, settings. Its X only minimizes it, so the timer carries on and the taskbar button stays, with the timer's progress on it.
 - **The fullscreen timer** fills the screen, clean of everything else. The icon and the widgets step aside for it.
 
-**The cat** chases a ball all over the screen, which can be picked up and thrown as well, slips off the screen's edges to peek back in, hunts a firefly and the mouse pointer, and now and then tears across the screen for no reason. During a running focus session it does none of the wilder things, and it is delighted when one ends. A button on its toolbar, the settings and the menu all run through what it can do, on folders of its own.
+**The cat** chases a ball all over the screen, which can be picked up and thrown as well, slips off the screen's edges to peek back in, hunts a firefly and the mouse pointer, and now and then tears across the screen for no reason. During a running focus session it does none of the wilder things, and it is delighted when one ends. A button on its toolbar, the settings and the menu all run through what it can do, on folders and a window of its own.
+
+It also jumps up on the top edge of a window and rides along, and it can be put down there by hand. It stays on through a slow move and falls off when the window is yanked, closed, minimized or maximized, landing on another window if there is one below. If something comes over its spot, it gets down. A window needs about 90 pixels of room above it, for the cat's head, so maximized ones are out. This is on by default and has a switch in the settings. The helper tells it only where the windows are, and only around these rides.
 
 With the game with desktop icons switched on in the settings, which is off by default, it also jumps on them, hides behind them and bites them. A bitten icon does not open with the mouse until you click the cat, drag it away or turn on the ball, and the same happens by itself if a window comes over the icon. The cat is not really behind or on an icon: it is drawn on the layer over it, and where it should be behind, it just is not drawn.
 

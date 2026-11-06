@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld("fireflyHost", {
   planIcon: (id) => ipcRenderer.invoke("plan-icon", id),
   moveIcon: (id, x, y) => ipcRenderer.send("move-icon", id, x, y),
   dropIcon: (id, x, y) => ipcRenderer.send("drop-icon", id, x, y),
+  windowSeats: () => ipcRenderer.invoke("window-seats"),
+  followWindow: (id) => ipcRenderer.send("follow-window", id),
+  onWindowMoved: (fn) => ipcRenderer.on("window-moved", (_event, info) => fn(info)),
 
   // The icon on the screen.
   launcherClick: () => ipcRenderer.send("launcher-click"),

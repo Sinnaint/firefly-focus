@@ -12,10 +12,11 @@ The first version of the program for the Microsoft Store, with its own version n
 - **An on-screen icon** whose ring shows the timer's progress. A click opens or closes the widgets, a drag moves it, the right button opens the menu.
 - **Quick timer card** with presets and − and + for each length, from the widget, the main window and the fullscreen timer.
 - **A livelier cat.** It chases a bouncing ball all over the screen, by running, pouncing and batting it, and the ball can be picked up and thrown. It slips off the edges of the screen and peeks back in from any side. It stalks and pounces on a firefly and on the mouse pointer, and now and then tears across the screen for no reason.
+- **The cat rides your windows.** It jumps up on a window's top edge, sits, naps or strolls along it, and goes wherever the window goes. It holds on through a slow move and falls off when the window is yanked, closed, minimized or maximized, landing on another window if there is one below. It can be put down on a window by hand too. Only the windows' positions are read, never their titles or contents, and there is a switch in the settings.
 - **The cat knows about the timer.** Through a running focus session it does none of the wilder things, and when a session ends it is delighted.
 - **Mischief with desktop icons**, off until switched on in the settings: the cat jumps on them, hides behind them and bites them. A bitten icon will not open with the mouse until the cat is clicked or pulled away or the ball comes out. The ball bounces off the icons, and they jump when hit.
 - **The cat drags icons**, with a second setting, also off to begin with. It takes one in its teeth and pulls it somewhere else on the desktop, walking backwards. Only the icon's place changes, not the file, and icons go back when this is switched off or the program closes.
-- **Show what the cat can do**, from a button on its toolbar, the settings and the menu: a run through all of it with captions, on folders of its own.
+- **Show what the cat can do**, from a button on its toolbar, the settings and the menu: a run through all of it with captions, on folders and a window of its own.
 - **Choose what the widget shows:** just the timer, the timer and tasks, or those and the cat. Fireflies on the widget have a button of their own.
 - **Everything can be put away** with the timer running on, its progress on the taskbar button. **Close the program and stop the timer** ends it all.
 - **About section** in the settings, with the version, a privacy note and the licenses of the components.

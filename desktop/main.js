@@ -100,6 +100,11 @@ const PROGRAM_SETTINGS = `<div class="settings-grid desktop-settings">
           <span data-i18n="desktopLauncherLabel"></span>
         </label>
         <label>
+          <input id="desktopCatWindows" type="checkbox" />
+          <span data-i18n="desktopCatWindowsLabel"></span>
+        </label>
+        <p class="desktop-note" data-i18n="desktopCatWindowsNote"></p>
+        <label>
           <input id="desktopCatIcons" type="checkbox" />
           <span data-i18n="desktopCatIconsLabel"></span>
         </label>
@@ -368,7 +373,8 @@ function openFullscreen() {
 /*
  * A small helper program reads the positions: Electron cannot ask the shell itself.
  * It runs only while the cat's game with the icons is switched on and the layer is
- * open, and ends with the program, because its input goes with it.
+ * open, or around the cat's sitting on a window, and ends with the program, because
+ * its input goes with it.
  */
 const ICONS_EVERY_MS = 2000;
 // The cat puts one back before it takes a third.
@@ -394,15 +400,19 @@ function askHelper(request) {
   });
 }
 
+function stopHelper() {
+  const helper = iconHelper;
+  iconHelper = null;
+  for (const answer of iconAnswers.splice(0)) answer(null);
+  helper?.stdin.end();
+}
+
 function stopWatchingIcons() {
   clearInterval(iconTimer);
   iconTimer = null;
   iconsSent = "";
   lastScan = null;
-  const helper = iconHelper;
-  iconHelper = null;
-  for (const answer of iconAnswers.splice(0)) answer(null);
-  helper?.stdin.end();
+  if (followedWindow === null) stopHelper();
 }
 
 /* The helper counts in real screen pixels, and of the icon's whole cell; the layer in its own, of the picture. */
@@ -599,7 +609,8 @@ function putIconsBack() {
   saveTimer = setTimeout(saveStoreNow, 200);
 }
 
-function startWatchingIcons() {
+function ensureHelper() {
+  clearTimeout(helperRestTimer);
   if (iconHelper) return;
   let helper;
   try {
@@ -609,11 +620,14 @@ function startWatchingIcons() {
   }
   iconHelper = helper;
   iconAnswers = [];
-  // Without the helper the cat simply has no icons to play with.
-  helper.on("error", () => stopWatchingIcons());
-  helper.on("exit", () => {
-    if (iconHelper === helper) stopWatchingIcons();
-  });
+  // Without the helper the cat simply has no icons to play with and no windows to sit on.
+  const gone = () => {
+    if (iconHelper !== helper) return;
+    stopHelper();
+    stopWatchingIcons();
+  };
+  helper.on("error", gone);
+  helper.on("exit", gone);
   helper.stdin.on("error", () => {});
   readline.createInterface({ input: helper.stdout }).on("line", (line) => {
     const answer = iconAnswers.shift();
@@ -624,8 +638,119 @@ function startWatchingIcons() {
       answer(null);
     }
   });
+}
+
+function startWatchingIcons() {
+  if (iconTimer) return;
+  ensureHelper();
+  if (!iconHelper) return;
   sendIcons();
   iconTimer = setInterval(sendIcons, ICONS_EVERY_MS);
+}
+
+/* ---------- Where the windows are, for the cat ---------- */
+
+/*
+ * So that it can sit on one and go along when it moves. Where each window is and how
+ * big, top first, and nothing else: the helper asks for no titles or program names.
+ * Asked when the cat is about to pick a window, and while it is up on one: often
+ * when the window is on the move, and less so when it stands still, as it mostly does.
+ */
+const FOLLOW_MOVING_MS = 33;
+const FOLLOW_STILL_MS = 100;
+const FOLLOW_CALM_AFTER_MS = 1000;
+const HELPER_REST_MS = 20000;
+let followedWindow = null;
+let followTimer = null;
+let followTurn = 0;
+let followChangedAt = 0;
+let followSent = "";
+let helperRestTimer = null;
+
+const handleOf = (win) => (win && !win.isDestroyed() ? Number(win.getNativeWindowHandle().readBigUInt64LE()) : null);
+
+/* In the layer's pixels, with the stretches of each top edge not covered by anything above it. */
+function windowsOnLayer(answer) {
+  const { scaleFactor: scale, workArea } = screen.getPrimaryDisplay();
+  const own = [handleOf(overlay), handleOf(launcher)];
+  const above = [];
+  const seats = [];
+  for (const shown of answer.windows) {
+    if (own.includes(shown.id)) continue;
+    const box = {
+      id: shown.id,
+      x: shown.x / scale - workArea.x,
+      y: shown.y / scale - workArea.y,
+      r: shown.r / scale - workArea.x,
+      b: shown.b / scale - workArea.y,
+    };
+    let free = box.y < 0 || box.y >= workArea.height
+      ? []
+      : [[Math.max(0, box.x), Math.min(workArea.width, box.r)]];
+    for (const over of above) {
+      if (over.y > box.y || over.b <= box.y) continue;
+      free = free.flatMap(([a, b]) => {
+        if (over.r <= a || over.x >= b) return [[a, b]];
+        const parts = [];
+        if (over.x > a) parts.push([a, over.x]);
+        if (over.r < b) parts.push([over.r, b]);
+        return parts;
+      });
+    }
+    above.push(box);
+    if (shown.seat) seats.push({ id: box.id, x: box.x, y: box.y, r: box.r, free: free.filter(([a, b]) => b > a) });
+  }
+  return seats;
+}
+
+/* Finished with it for now: a while later, with nothing else needing it, it ends. */
+function restHelperSoon() {
+  clearTimeout(helperRestTimer);
+  helperRestTimer = setTimeout(() => {
+    if (!iconTimer && followedWindow === null) stopHelper();
+  }, HELPER_REST_MS);
+}
+
+async function windowSeats() {
+  if (store.desktopCatWindows === false || !overlay) return [];
+  ensureHelper();
+  const answer = await askHelper("windows");
+  if (followedWindow === null) restHelperSoon();
+  return answer?.windows ? windowsOnLayer(answer) : [];
+}
+
+async function checkFollowedWindow(turn) {
+  const id = followedWindow;
+  const answer = await askHelper("windows");
+  if (turn !== followTurn || !overlay) return;
+  // Closed, minimized, maximized, or the helper gone: nothing to sit on any more.
+  const seat = answer?.windows ? windowsOnLayer(answer).find((other) => other.id === id) : null;
+  const info = seat || { id, gone: true };
+  const text = JSON.stringify(info);
+  const now = Date.now();
+  if (text !== followSent) {
+    followSent = text;
+    followChangedAt = now;
+    // When it was seen there: on a busy computer, word of it can arrive in a bunch,
+    // and going by that, a slow move would look like a yank.
+    overlay.webContents.send("window-moved", { ...info, at: performance.now() });
+  }
+  const wait = now - followChangedAt < FOLLOW_CALM_AFTER_MS ? FOLLOW_MOVING_MS : FOLLOW_STILL_MS;
+  followTimer = setTimeout(() => checkFollowedWindow(turn), wait);
+}
+
+function followWindow(id) {
+  clearTimeout(followTimer);
+  followTimer = null;
+  followTurn += 1;
+  followSent = "";
+  followedWindow = Number.isFinite(id) && store.desktopCatWindows !== false ? id : null;
+  if (followedWindow === null) {
+    restHelperSoon();
+    return;
+  }
+  ensureHelper();
+  checkFollowedWindow(followTurn);
 }
 
 let licensesWindow = null;
@@ -687,6 +812,7 @@ function createOverlay(kind) {
   // Closing destroys the window while timers and messages may still reach for it.
   win.on("closed", () => {
     if (overlay === win) overlay = null;
+    followWindow(null);
     stopWatchingIcons();
   });
   reopenIfItCrashes(win);
@@ -952,6 +1078,8 @@ function listen() {
   ipcMain.handle("plan-icon", (_event, id) => planIconMove(safeIconId(id)));
   ipcMain.on("move-icon", (_event, id, x, y) => moveIconTo(id, x, y));
   ipcMain.on("drop-icon", (_event, id, x, y) => dropIcon(id, x, y));
+  ipcMain.handle("window-seats", () => windowSeats());
+  ipcMain.on("follow-window", (_event, id) => followWindow(id));
 
   ipcMain.on("launcher-click", () => setWidgets(!widgetsWanted()));
   ipcMain.on("launcher-move", (_event, x, y) => {
@@ -1020,6 +1148,7 @@ if (!app.requestSingleInstanceLock()) {
     stopTheTimer();
     saveStoreNow();
     quitting = true;
+    followWindow(null);
     stopWatchingIcons();
   });
 

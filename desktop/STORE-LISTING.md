@@ -48,7 +48,7 @@ Microsoft передає IARC ім'я видавця й пошту акаунт�
 **Restricted capabilities, чому потрібен `runFullTrust`:**
 
 ```
-Firefly Focus is a desktop application built with Electron and packaged as a full-trust Win32 app, an app model that requires runFullTrust. The app uses it to run its own windows and to show a small always-on-top icon and a click-through layer with its timer widget over other programs. An optional game, off by default, also asks the shell for the positions of desktop icons, through its documented interfaces, so that an animated cat can play around them, and a second setting, also off by default, lets the cat move icons to other places on the desktop. The app does not read the contents of other programs' windows, the user's files or keystrokes, and it makes no network requests.
+Firefly Focus is a desktop application built with Electron and packaged as a full-trust Win32 app, an app model that requires runFullTrust. The app uses it to run its own windows and to show a small always-on-top icon and a click-through layer with its timer widget over other programs. An animated cat on that layer can sit on the top edge of other windows, for which a helper in the package reads only their positions and sizes, never their titles or contents. This has a switch in the settings. An optional game, off by default, also asks the shell for the positions of desktop icons, through its documented interfaces, so that an animated cat can play around them, and a second setting, also off by default, lets the cat move icons to other places on the desktop. The app does not read the contents of other programs' windows, the user's files or keystrokes, and it makes no network requests.
 ```
 
 **Notes for certification:**
@@ -67,7 +67,8 @@ To test:
 - The widgets appear on the main display only. The language follows the system's, falling back to English, and can be changed in the main window.
 - Optional, off by default: "The cat gets up to mischief with desktop icons" in the settings. With it on, and the desktop in view, the cat jumps on icons, hides behind them and sometimes bites one. While it holds a bitten icon, the app's own transparent layer takes mouse clicks on that icon, so it does not open with the mouse. Nothing about the icon changes and the keyboard still opens it. Clicking the cat, dragging it away, turning on the ball, or a window covering the icon all release it at once, and the cat lets go by itself after a minute or so. It is a helper program in the package, desktop-icons.exe, that reads the positions. It reads no names and does not use the network.
 - Optional, off by default, and only available with the above on: "The cat can drag icons around the desktop". The cat then takes an icon in its teeth and pulls it somewhere else on the desktop. This changes only the icon's position, through the shell's documented IFolderView interface, the same as dragging it with the mouse: no file is moved, renamed or changed. It keeps at most two icons out of place. They go back when this or the game is switched off and when the app closes, or at the next start after a crash. An icon the user has moved since is left where it is.
-- "Show what the cat can do", on the cat's toolbar, in the settings and in the menu, runs through all of the above on folders the app draws on its own layer. It touches no real icon and needs neither setting. Skip on with "Next" or end it with "Finish".
+- On by default, with a switch in the settings: "The cat can sit on windows and ride along". Now and then the cat jumps on the top edge of a window with about 90 pixels of room above it, which rules out maximized ones. To see it at once, drag the cat onto such an edge. Move the window slowly and the cat rides along, yank it and the cat falls off. The same helper program reads only the positions and sizes of windows, through EnumWindows and the Desktop Window Manager, never their titles or contents, and nothing about them changes. Clicks reach the window everywhere except on the cat itself.
+- "Show what the cat can do", on the cat's toolbar, in the settings and in the menu, runs through all of the above on folders and a window the app draws on its own layer. It touches no real icon or window and needs none of these settings. Skip on with "Next" or end it with "Finish".
 - During a running focus session the cat does not bite or drag icons or hunt, so to see those, leave the timer stopped or use a break.
 ```
 
@@ -101,6 +102,7 @@ WHAT IT DOES
 • Tasks with optional deadlines: overdue ones turn red, those due soon turn amber.
 • Choose what the widget shows: just the timer, the timer and tasks, or all that and the cat.
 • Put everything away when you want to: the timer keeps running in the background, with its progress on the taskbar button.
+• It sits on your windows: the cat jumps up on a window's top edge and rides along while you move it slowly. Yank the window, and off it falls.
 • If you like, a little mischief: switch on the cat's game with your desktop icons, and it hides behind them, jumps on them and bites one now and then. A bitten icon will not open with the mouse until you click the cat, pull it away or turn on the ball. It stays off until you switch it on. With a second setting it also drags icons to new places, never touching the files, and puts them back when you switch that off or close the program.
 • A cat with a life of its own: it hunts a firefly and your mouse pointer, and now and then tears across the whole screen. During a focus session it behaves, and when one ends it is delighted. One click shows you all it can do.
 • Daily statistics and a daily goal.
@@ -144,6 +146,7 @@ Firefly Focus — спокійний таймер фокусу, який лиш�
 • Задачі з необов'язковими дедлайнами: прострочені стають червоними, а ті, що скоро, бурштиновими.
 • Ви обираєте, що показує віджет: лише таймер, таймер із задачами або ще й кота.
 • Усе можна прибрати з екрана: таймер працює далі у фоні, а його хід видно на кнопці панелі завдань.
+• Сидить на ваших вікнах: кіт вистрибує на верхній край вікна й їде разом із ним, поки ви рухаєте його повільно. Смикнете різко, і він упаде.
 • Якщо хочеться, трохи пустощів: увімкніть гру кота зі значками на робочому столі, і він ховатиметься за ними, стрибатиме по них і часом надкусить якийсь. Надкушений значок не відкривається мишею, поки не клацнете по коту, не відтягнете його або не ввімкнете м'ячик. Без вашого вмикання цього не буде. Окреме налаштування дозволяє йому ще й тягати значки на нові місця. Файлів це не чіпає, а значки повертаються, щойно ви це вимкнете або закриєте програму.
 • Кіт із власним характером: полює на світлячка й курсор миші, а часом мчить через увесь екран. Під час фокусу не пустує, а коли фокус закінчився, радіє. Один клік показує все, що він уміє.
 • Статистика за день і денна ціль.
@@ -187,6 +190,7 @@ WAS ES KANN
 • Aufgaben mit optionalen Fristen: Überfällige werden rot, bald fällige bernsteinfarben.
 • Du bestimmst, was das Widget zeigt: nur den Timer, Timer und Aufgaben oder dazu die Katze.
 • Alles lässt sich wegräumen: Der Timer läuft im Hintergrund weiter, sein Fortschritt ist auf der Taskleisten-Schaltfläche zu sehen.
+• Sitzt auf deinen Fenstern: Die Katze springt auf die Oberkante eines Fensters und fährt mit, solange du es langsam bewegst. Reißt du es weg, fällt sie herunter.
 • Wenn du magst, ein wenig Unfug: Schalte das Spiel der Katze mit deinen Desktop-Symbolen ein, dann versteckt sie sich dahinter, springt darauf und beißt ab und zu in eines. Ein angebissenes Symbol öffnet sich nicht per Maus, bis du die Katze anklickst, wegziehst oder den Ball einschaltest. Ohne dein Einschalten bleibt es aus. Mit einer zweiten Einstellung zieht sie Symbole auch an neue Plätze. Die Dateien bleiben unberührt, und die Symbole kehren zurück, sobald du das ausschaltest oder das Programm schließt.
 • Eine Katze mit eigenem Kopf: Sie jagt ein Glühwürmchen und deinen Mauszeiger und rast ab und zu über den ganzen Bildschirm. Während einer Fokus-Sitzung benimmt sie sich, und wenn sie endet, freut sie sich. Ein Klick zeigt dir alles, was sie kann.
 • Tagesstatistik und Tagesziel.
@@ -230,6 +234,7 @@ QUÉ HACE
 • Tareas con fecha límite opcional: las vencidas se ponen en rojo y las próximas, en ámbar.
 • Elige qué muestra el widget: solo el temporizador, el temporizador y las tareas, o además el gato.
 • Guárdalo todo cuando quieras: el temporizador sigue en segundo plano y su progreso se ve en el botón de la barra de tareas.
+• Se sienta en tus ventanas: el gato salta al borde superior de una ventana y viaja con ella mientras la mueves despacio. Dale un tirón y se cae.
 • Si quieres, algo de travesura: activa el juego del gato con los iconos del escritorio, y se esconderá detrás, saltará sobre ellos y de vez en cuando morderá uno. Un icono mordido no se abre con el ratón hasta que hagas clic en el gato, lo apartes o actives la pelota. Sigue desactivado hasta que lo actives. Con un segundo ajuste también arrastra iconos a otros lugares, sin tocar los archivos, y los devuelve en cuanto lo desactivas o cierras el programa.
 • Un gato con vida propia: caza una luciérnaga y el puntero del ratón, y de vez en cuando cruza toda la pantalla a toda velocidad. Durante una sesión de enfoque se porta bien, y cuando termina se alegra. Un clic te muestra todo lo que sabe hacer.
 • Estadísticas diarias y un objetivo diario.
@@ -273,6 +278,7 @@ COSA FA
 • Attività con scadenze facoltative: quelle scadute diventano rosse, quelle vicine color ambra.
 • Scegli cosa mostra il widget: solo il timer, il timer e le attività, oppure anche il gatto.
 • Metti via tutto quando vuoi: il timer continua in background e il suo avanzamento si vede sul pulsante della barra delle applicazioni.
+• Si siede sulle tue finestre: il gatto salta sul bordo superiore di una finestra e viaggia con lei finché la muovi piano. Dalle uno strattone e cade giù.
 • Se ti va, qualche birichinata: attiva il gioco del gatto con le icone del desktop, e si nasconderà dietro, ci salterà sopra e ogni tanto ne morderà una. Un'icona morsa non si apre con il mouse finché non clicchi sul gatto, non lo sposti o non attivi la pallina. Resta disattivato finché non lo attivi. Con una seconda impostazione trascina anche le icone in altri posti, senza toccare i file, e le rimette a posto appena la disattivi o chiudi il programma.
 • Un gatto con una vita tutta sua: caccia una lucciola e il puntatore del mouse, e ogni tanto attraversa di corsa tutto lo schermo. Durante una sessione di concentrazione si comporta bene, e quando finisce è contento. Un clic ti mostra tutto ciò che sa fare.
 • Statistiche giornaliere e un obiettivo giornaliero.
@@ -316,6 +322,7 @@ Spoločnosť vám robí pixelová mačka: prechádza sa po obrazovke, vykúka sp
 • Úlohy s voliteľnými termínmi: po termíne sú červené a tie, čo sa blížia, jantárové.
 • Vyberiete si, čo widget ukazuje: iba časovač, časovač a úlohy, alebo aj mačku.
 • Všetko môžete odložiť: časovač beží ďalej na pozadí a jeho priebeh vidno na tlačidle na paneli úloh.
+• Sedí na vašich oknách: mačka vyskočí na horný okraj okna a vezie sa s ním, kým ním hýbete pomaly. Trhnite ním a spadne.
 • Ak chcete, trochu šibalstva: zapnite hru mačky s ikonami na ploche a bude sa za nimi skrývať, skákať po nich a občas do niektorej zahryzne. Nahryznutá ikona sa myšou neotvorí, kým nekliknete na mačku, neodtiahnete ju alebo nezapnete loptičku. Bez vášho zapnutia to nebude. S druhým nastavením ťahá ikony aj na nové miesta. Súbory to neovplyvní a ikony sa vrátia, hneď ako to vypnete alebo zavriete program.
 • Mačka s vlastným životom: poľuje na svetlušku a kurzor myši a občas preletí cez celú obrazovku. Počas sedenia sústredenia sa správa slušne a keď sa skončí, teší sa. Jedno kliknutie ukáže všetko, čo vie.
 • Denná štatistika a denný cieľ.
@@ -359,6 +366,7 @@ CO UMÍ
 • Úkoly s volitelnými termíny: po termínu jsou červené a ty, které se blíží, jantarové.
 • Vyberete si, co widget ukazuje: jen časovač, časovač a úkoly, nebo i kočku.
 • Všechno můžete odložit: časovač běží dál na pozadí a jeho průběh je vidět na tlačítku na hlavním panelu.
+• Sedí na vašich oknech: kočka vyskočí na horní okraj okna a veze se s ním, dokud s ním hýbete pomalu. Trhněte jím a spadne.
 • Chcete-li, trochu lumpárny: zapněte hru kočky s ikonami na ploše a bude se za nimi schovávat, skákat po nich a občas do některé kousne. Nakousnutá ikona se myší neotevře, dokud nekliknete na kočku, neodtáhnete ji nebo nezapnete míček. Bez vašeho zapnutí se to nestane. S druhým nastavením tahá ikony i na nová místa. Soubory to neovlivní a ikony se vrátí, jakmile to vypnete nebo zavřete program.
 • Kočka s vlastním životem: loví světlušku a kurzor myši a občas proletí přes celou obrazovku. Během sezení soustředění se chová slušně a když skončí, raduje se. Jedno kliknutí ukáže všechno, co umí.
 • Denní statistika a denní cíl.

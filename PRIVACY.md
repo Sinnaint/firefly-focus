@@ -32,7 +32,13 @@ This data is used only to run the timer and show your tasks and statistics. It i
 
 ## "Uses all system resources"
 
-Windows and the Microsoft Store list the program as being able to use "all system resources". This is how desktop programs work in general, and Firefly Focus needs it to draw its widgets and icon over your other programs. It does not use it to look at them: it does not read your screen, files, keystrokes or the contents of other windows. It sees the mouse pointer's position over the screen only to know when the pointer is on one of its own widgets and for the cat to chase it, keeps no record of it, and it sees what you type only while you are typing into one of its own fields.
+Windows and the Microsoft Store list the program as being able to use "all system resources". This is how desktop programs work in general, and Firefly Focus needs it to draw its widgets and icon over your other programs. It does not use it to look at them: it does not read your screen, files, keystrokes or the contents of other windows. It knows where other windows are and how big they are, for the cat to sit on them, as described below. It sees the mouse pointer's position over the screen only to know when the pointer is on one of its own widgets and for the cat to chase it, keeps no record of it, and it sees what you type only while you are typing into one of its own fields.
+
+## The cat on your windows
+
+The cat can sit on top of a window and ride along with it. For this, a small helper inside the program asks Windows where the windows on the screen are, how big they are and which is in front of which. It does not ask for their titles, which program they belong to or anything in them.
+
+It asks only when the cat is about to pick a window and while it is sitting on one, and it ends shortly after. None of this is saved or sent anywhere, and nothing about the windows themselves changes. You can switch this off in the settings, with **The cat can sit on windows and ride along**.
 
 ## The cat's game with desktop icons
 
@@ -46,7 +52,7 @@ A bitten icon does not open with the mouse while the cat has hold of it, because
 
 So that they can go back, the program saves where each moved icon came from in its data file: a number that identifies the icon but says nothing about what it is, and its old position. They go back when you switch this or the game off and when you close the program, or at the next start if it did not get to close properly, and then the record is gone. An icon you have moved yourself in the meantime stays where you put it.
 
-**Show what the cat can do** plays on folders the program draws itself. It touches no real icon, and needs neither setting.
+**Show what the cat can do** plays on folders and a window the program draws itself. It touches no real icon or window, and needs none of these settings.
 
 ## Your control over your data
 

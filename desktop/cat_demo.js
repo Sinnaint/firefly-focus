@@ -35,6 +35,24 @@ const FireflyCatDemo = (() => {
       width: 48px;
       height: 48px;
     }
+    .demo-window {
+      position: fixed;
+      box-sizing: border-box;
+      border-radius: 10px;
+      border: 1px solid var(--w-border-strong);
+      background: var(--w-pill);
+      box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.55);
+      pointer-events: none;
+      will-change: transform;
+    }
+    .demo-window::before {
+      content: "";
+      display: block;
+      height: 30px;
+      border-bottom: 1px solid var(--w-border);
+      border-radius: 10px 10px 0 0;
+      background: var(--w-soft);
+    }
     .demo-card {
       position: fixed;
       z-index: 5;
@@ -92,7 +110,7 @@ const FireflyCatDemo = (() => {
     }
   `;
 
-  function start({ cat, root, say, images, onEnd }) {
+  function start({ cat, root, say, images, under, onEnd }) {
     const center = window.innerWidth / 2;
     const row = Math.round(window.innerHeight * 0.56);
     const place = document.createElement("div");
@@ -154,6 +172,47 @@ const FireflyCatDemo = (() => {
 
     const roam = () => cat.setActivity("roam", { from: cat.whereabouts() });
 
+    /* A window of its own to sit on, moved about the way a person would. */
+    function drawnWindow() {
+      const W = 460;
+      const box = { x: Math.max(40, center - 330), y: Math.round(window.innerHeight * 0.36), w: W, h: 230 };
+      const element = document.createElement("div");
+      element.className = "demo-window";
+      element.style.cssText = `left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`;
+      under(element);
+      // The window goes over them, and the theme's colours let a little through.
+      place.style.visibility = "hidden";
+      const from = { x: box.x, y: box.y };
+      const seat = () => ({ id: "demo-window", fake: true, x: box.x, y: box.y, r: box.x + box.w, free: [[box.x, box.x + box.w]] });
+      const put = (x, y) => {
+        box.x = x;
+        box.y = y;
+        element.style.transform = `translate(${x - from.x}px, ${y - from.y}px)`;
+        cat.windowMoved(seat());
+      };
+      const glide = (dx, dy, ms, live) => new Promise((resolve) => {
+        const x0 = box.x;
+        const y0 = box.y;
+        const toX = Math.min(window.innerWidth - W - 8, Math.max(8, x0 + dx));
+        const began = performance.now();
+        const timer = setInterval(() => {
+          const p = Math.min(1, (performance.now() - began) / ms);
+          if (live()) put(x0 + (toX - x0) * p, y0 + dy * p);
+          if (p >= 1 || !live()) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 33);
+      });
+      const remove = () => {
+        place.style.visibility = "";
+        const fading = element.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: "ease-out" });
+        fading.onfinish = () => element.remove();
+        fading.oncancel = () => element.remove();
+      };
+      return { seat, glide, remove };
+    }
+
     const steps = [
       { words: say.demoHop, run: () => cat.perform("hop", { route: folders }) },
       { words: say.demoHide, run: () => cat.perform("hide", { perch: folders[1], peeks: 1 }) },
@@ -175,6 +234,26 @@ const FireflyCatDemo = (() => {
           await pause(1500);
           if (live()) cat.rollBallAt(folders[1].x + 24, folders[1].y + 24);
           await pause(9000);
+        },
+      },
+      {
+        words: say.demoRide,
+        run: async (live, pause) => {
+          const drawn = drawnWindow();
+          try {
+            cat.perform("ride", { seat: drawn.seat(), holdMs: 60000 });
+            while (live() && !cat.isRiding()) await pause(100);
+            await pause(1100);
+            if (live()) await drawn.glide(190, 26, 1500, live);
+            await pause(600);
+            if (live()) await drawn.glide(-120, -40, 1200, live);
+            await pause(800);
+            // And now a good yank.
+            if (live()) await drawn.glide(-420, 0, 230, live);
+            await pause(2300);
+          } finally {
+            drawn.remove();
+          }
         },
       },
       { words: say.demoPeek, run: () => cat.perform("peek", { edges: ["right", "top"], rounds: 2, pace: 120 }) },

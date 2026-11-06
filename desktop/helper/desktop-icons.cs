@@ -15,6 +15,10 @@
  * dragging it there. The file stays where it is. The program asks for this only with
  * a setting of its own switched on, and to put back what was moved.
  *
+ * "windows" lists the windows on the screen, top first: where each one is and how
+ * big, for the cat to sit on. A number stands for each. It never asks a window for
+ * its title, its program or anything in it.
+ *
  * Built with the C# compiler that comes with Windows, see tools/build-helper.js.
  */
 using System;
@@ -80,8 +84,12 @@ static class Program {
   const uint SVSI_POSITIONITEM = 0x80;
   const int SWC_DESKTOP = 8;
   const int SWFO_NEEDDISPATCH = 1;
+  const int GWL_STYLE = -16;
   const int GWL_EXSTYLE = -20;
+  const int WS_CAPTION = 0x00C00000;
   const int WS_EX_TRANSPARENT = 0x20;
+  const int WS_EX_TOOLWINDOW = 0x80;
+  const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
   const int DWMWA_CLOAKED = 14;
   const int SIIGBF_BIGGERSIZEOK = 1;
   const int SIIGBF_ICONONLY = 4;
@@ -91,12 +99,14 @@ static class Program {
   [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr data);
   [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hwnd);
   [DllImport("user32.dll")] static extern bool IsIconic(IntPtr hwnd);
+  [DllImport("user32.dll")] static extern bool IsZoomed(IntPtr hwnd);
   [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
   [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr hwnd, int index);
   [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
   [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr hwnd, ref POINT point);
   [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
+  [DllImport("dwmapi.dll", EntryPoint = "DwmGetWindowAttribute")] static extern int DwmGetWindowBounds(IntPtr hwnd, int attribute, out RECT value, int size);
   [DllImport("shell32.dll")] static extern uint ILGetSize(IntPtr pidl);
   [DllImport("shell32.dll", PreserveSig = false)]
   static extern void SHCreateItemWithParent(IntPtr parentPidl, [MarshalAs(UnmanagedType.IUnknown)] object parentFolder, IntPtr pidl, [In] ref Guid iid, [MarshalAs(UnmanagedType.IUnknown)] out object item);
@@ -121,6 +131,7 @@ static class Program {
         if (line == "scan") answer = Scan();
         else if (line.StartsWith("image ")) answer = Image(line.Substring(6));
         else if (line.StartsWith("move ")) answer = Move(line.Split(' '));
+        else if (line == "windows") answer = Windows();
         else answer = "{\"error\":\"unknown request\"}";
       } catch (Exception error) {
         answer = "{\"error\":\"" + error.GetType().Name + "\"}";
@@ -268,6 +279,36 @@ static class Program {
       }
     }
     return "{\"id\":\"" + id + "\",\"gone\":true}";
+  }
+
+  /*
+   * What can be seen on the screen, top first. "seat" says it is a proper window with a
+   * title bar, not maximized, which a cat could sit on; the others only cover things.
+   * The edges are the ones drawn on the screen: a window's own rectangle has an
+   * invisible border round it, for grabbing.
+   */
+  static string Windows() {
+    var text = new StringBuilder("{\"windows\":[");
+    bool first = true;
+    EnumWindows(delegate (IntPtr hwnd, IntPtr data) {
+      if (!IsWindowVisible(hwnd) || IsIconic(hwnd)) return true;
+      int extended = GetWindowLong(hwnd, GWL_EXSTYLE);
+      if ((extended & WS_EX_TRANSPARENT) != 0) return true;
+      int cloaked;
+      if (DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out cloaked, 4) == 0 && cloaked != 0) return true;
+      RECT rect;
+      if (DwmGetWindowBounds(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, out rect, 16) != 0 && !GetWindowRect(hwnd, out rect)) return true;
+      if (rect.R <= rect.L || rect.B <= rect.T) return true;
+      bool seat = (GetWindowLong(hwnd, GWL_STYLE) & WS_CAPTION) == WS_CAPTION
+        && (extended & WS_EX_TOOLWINDOW) == 0
+        && !IsZoomed(hwnd);
+      if (!first) text.Append(",");
+      first = false;
+      text.Append("{\"id\":" + hwnd.ToInt64() + ",\"x\":" + rect.L + ",\"y\":" + rect.T + ",\"r\":" + rect.R + ",\"b\":" + rect.B + ",\"seat\":" + (seat ? "true" : "false") + "}");
+      return true;
+    }, IntPtr.Zero);
+    text.Append("]}");
+    return text.ToString();
   }
 
   /* One icon's picture, only so that a copy of it can wobble when the ball hits it. */

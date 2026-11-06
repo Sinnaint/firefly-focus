@@ -1489,7 +1489,9 @@ const FireflyBuddy = (() => {
    * For a cat on a whole screen: `edges` lets it slip off the sides and peek back
    * in, and setPerches() gives it things to jump on and hide behind. `onBite` and
    * `onBiteEnd` say when it has its teeth in one of them, `onBump` when the ball
-   * hits one. A page that passes none of this gets the cat it always had.
+   * hits one. `canRide` and `onSeats` let it sit on real windows and `onRide` says
+   * which one to keep an eye on, with windowMoved() as the answer. A page that passes
+   * none of this gets the cat it always had.
    */
   function create(host, {
     onPurrChange = null,
@@ -1505,6 +1507,9 @@ const FireflyBuddy = (() => {
     onDragPlan = null,
     onDrag = null,
     onDragEnd = null,
+    canRide = null,
+    onSeats = null,
+    onRide = null,
   } = {}) {
     adoptStyles(host.getRootNode());
     const art = buildArt();
@@ -1599,6 +1604,11 @@ const FireflyBuddy = (() => {
       happyUntil: 0,
       focus: false, // a focus session is on: it keeps out of the way
       scripted: false, // someone else picks its outings for now
+      riding: null, // on top of a window, going where it goes
+      fall: null, // the window moved too fast: on its way down
+      lean: { x: 0, v: 0 }, // left behind by a moving window, leaning the other way
+      seats: [], // windows it could land on: { id, x, y, r, free }
+      dazedUntil: 0,
     };
 
     const dom = buildDom();
@@ -1770,7 +1780,7 @@ const FireflyBuddy = (() => {
 
     function targetPose(now) {
       // held up, or flying: all four legs hang
-      if (st.carry || st.toss?.air || (st.leap && !st.leap.keepPose)) return "walk";
+      if (st.carry || st.toss?.air || st.fall || (st.leap && !st.leap.keepPose)) return "walk";
       if (st.activity !== "timer") {
         // a purring cat settles where it is
         if (purr.on) return st.pose === "lie" ? "lie" : "sit";
@@ -1996,7 +2006,7 @@ const FireflyBuddy = (() => {
         st.goalY = null;
         return;
       }
-      if (purr.on || st.trans || st.carry || st.toss || st.leap) return;
+      if (purr.on || st.trans || st.carry || st.toss || st.leap || st.fall) return;
       if (st.errand) {
         stepErrand(now);
         return;
@@ -2135,6 +2145,7 @@ const FireflyBuddy = (() => {
       }
       st.carry = null;
       st.toss = null;
+      st.fall = null;
       st.lift = 0;
       endErrand();
       dom.walker.classList.remove("is-carried");
@@ -2147,8 +2158,11 @@ const FireflyBuddy = (() => {
       // Where on the cat the hand caught it, so it hangs from that point.
       st.carry = { dx: g.x0 - rect.left, dy: rect.bottom - g.y0 - st.lift * st.px, vx: 0 };
       st.toss = null;
+      st.fall = null;
       // pulled away mid-outing: whatever it was up to is over, teeth included
       endErrand();
+      // it may get put down on a window
+      refreshSeats();
       st.goalX = null;
       st.goalY = null;
       st.brain.pose = "sit";
@@ -2189,6 +2203,8 @@ const FireflyBuddy = (() => {
         st.lift = 0;
         st.toss = null;
         land(false);
+        const seat = seatAtPaws();
+        if (seat) sitOnArrival(seat);
         return;
       }
       // a hard throw goes up a little before it comes down
@@ -2213,7 +2229,7 @@ const FireflyBuddy = (() => {
         st.carry.vx *= Math.exp(-dt / 0.08); // the hand has stopped unless it says otherwise
       }
       if (st.pose === "walk" && !st.trans) {
-        st.stride = (st.stride + dt * (st.toss?.air || st.leap ? 2.6 : 1.1)) % 1;
+        st.stride = (st.stride + dt * (st.fall ? 4.2 : st.toss?.air || st.leap ? 2.6 : 1.1)) % 1;
         setLegs(Math.floor(st.stride * WALK.frames) % WALK.frames);
       }
       st.speed = 0;
@@ -2223,6 +2239,7 @@ const FireflyBuddy = (() => {
     function stepSwing(dt) {
       if (st.reduced) st.swing = { x: 0, v: 0 };
       else if (st.carry) springStep(st.swing, clamp(-st.carry.vx / 1600, -0.45, 0.45), 60, 0.3, dt);
+      else if (st.fall) springStep(st.swing, clamp(st.fall.vx / 1200, -0.5, 0.5) + 0.25 * Math.sin(st.clock * 9), 60, 0.3, dt); // flailing
       else springStep(st.swing, 0, 90, 0.5, dt);
     }
 
@@ -2247,7 +2264,9 @@ const FireflyBuddy = (() => {
         if (st.lift <= 0) {
           st.lift = 0;
           tz.air = false;
-          land(true);
+          const seat = seatAtPaws();
+          land(!seat);
+          if (seat) sitOnArrival(seat);
         }
         return;
       }
@@ -2445,6 +2464,7 @@ const FireflyBuddy = (() => {
     function endErrand() {
       if (st.biting) releaseBite();
       if (st.dragging) stopDrag();
+      leaveWindow();
       if (st.prey && !st.prey.leaving) st.prey.leaving = 2.2;
       const had = st.errand;
       st.errand = null;
@@ -2481,6 +2501,8 @@ const FireflyBuddy = (() => {
         if (roll < 0.36) return outing("hop");
         if (roll < 0.48) return outing("hide");
       }
+      // Quiet enough for a focus session: it just goes and sits on a window.
+      if (roaming && roll >= 0.48 && roll < 0.62 && canRide?.()) return outing("ride");
       if (edges) {
         if (playful && roll > 0.94) return outing("zoomies");
         if (playful && roll > 0.89) return outing("firefly");
@@ -3025,6 +3047,346 @@ const FireflyBuddy = (() => {
       yield waitFor(1200, "sit");
     }
 
+    /* ---------- On top of a window ---------- */
+
+    // How wide it sits, each side of its middle, and how much room its head needs
+    // under the top of the screen, art pixels.
+    const SEAT_HALF = 13;
+    const HEAD_ROOM = 56;
+    // Pixels a second a window can go with the cat keeping its feet; how fast going
+    // quicker than that tips it over; and a jump, at one go, that nothing holds on through.
+    const RIDE_SAFE = 340;
+    const RIDE_TIP = 4;
+    const RIDE_JOLT = 150;
+
+    /* The window's top edge, in pixels from the top of the floor, is where its paws go. */
+    const feetOnLine = (line) => st.laneH - line - 2 * st.px;
+
+    /* The stretch of the edge in sight has room for a cat with its middle here. */
+    function seatFits(seat, center) {
+      const half = SEAT_HALF * st.px;
+      return (seat.free || []).some(([a, b]) => a <= center - half && b >= center + half);
+    }
+
+    function choosableSeats(list) {
+      const half = SEAT_HALF * st.px;
+      return (list || []).filter((seat) => seat.y >= HEAD_ROOM * st.px
+        && seat.y < st.laneH - 20 * st.px
+        && seat.free?.some(([a, b]) => b - a >= 2 * half));
+    }
+
+    function* askForSeats() {
+      let seats = [];
+      let answered = false;
+      Promise.resolve(onSeats?.()).then(
+        (list) => {
+          seats = choosableSeats(list);
+          answered = true;
+        },
+        () => {
+          answered = true;
+        }
+      );
+      yield () => answered;
+      return seats;
+    }
+
+    /* What is there to land on, for a cat that has started coming down. */
+    function refreshSeats() {
+      st.seats = [];
+      if (!canRide?.() || st.scripted) return;
+      Promise.resolve(onSeats?.()).then((list) => {
+        st.seats = choosableSeats(list);
+      }, () => {});
+    }
+
+    /* Somewhere along the part of the edge that can be seen, as a place to stand. */
+    function spotOn(seat) {
+      const half = SEAT_HALF * st.px;
+      const [a, b] = pick(seat.free.filter(([from, to]) => to - from >= 2 * half));
+      return rand(a + half, b - half) - stageWidth() / 2;
+    }
+
+    function boardWindow(seat, onBoard) {
+      st.riding = {
+        id: seat.id,
+        fake: Boolean(seat.fake),
+        x: seat.x,
+        y: seat.y,
+        r: seat.r,
+        free: seat.free,
+        at: nowMs(), // when word of it last came
+        seenAt: null, // and when that was true, by the clock of whoever is telling
+        vx: 0,
+        vy: 0,
+        speed: 0,
+        balance: 0,
+        onBoard,
+        // The first word about a real window only says where it is: it was not a move.
+        settling: !seat.fake,
+        coveredSince: null,
+      };
+      if (!seat.fake) onRide?.(seat.id);
+    }
+
+    function leaveWindow() {
+      const r = st.riding;
+      if (!r) return;
+      st.riding = null;
+      st.crouchWanted = 0;
+      if (!r.fake) onRide?.(null);
+    }
+
+    /* Let go with its paws about at a window's top edge: that is where it stays. */
+    function seatAtPaws() {
+      if (st.activity !== "roam" || !st.seats.length) return null;
+      const near = 18 * st.px;
+      const center = catCenter();
+      return st.seats.find((seat) => Math.abs(feetOnLine(seat.y) - st.y) <= near && seatFits(seat, center)) || null;
+    }
+
+    function sitOnArrival(seat) {
+      st.goalX = null;
+      st.goalY = null;
+      startErrand(rideOuting({ landed: true }), "ride");
+      st.offstage = true;
+      st.y = feetOnLine(seat.y);
+      boardWindow(seat, true);
+    }
+
+    /*
+     * Up onto a window's top edge. There it sits, lies down for a nap or strolls along
+     * the edge, and goes wherever the window goes. It stays on if the window moves
+     * slowly. See stepRide() for when it does not.
+     */
+    function* rideOuting({ seat: given = null, holdMs = null, landed = false } = {}) {
+      const px = st.px;
+      if (!landed) {
+        let seat = given;
+        if (!seat) {
+          const seats = yield* askForSeats();
+          // the ones on top are the ones most likely to be looked at
+          seat = seats.length ? pick(seats.slice(0, 3)) : null;
+        }
+        if (!seat) return;
+        st.offstage = true;
+        let x = spotOn(seat);
+        yield* stroll(...launchFor(x, feetOnLine(seat.y)), given ? SHOWN_PACE : undefined);
+        // A walk across the screen takes a while, and windows do get moved.
+        if (!seat.fake) {
+          const id = seat.id;
+          seat = (yield* askForSeats()).find((other) => other.id === id);
+          if (!seat) {
+            st.offstage = false;
+            return;
+          }
+          x = spotOn(seat);
+        }
+        face(x > st.x ? 1 : -1);
+        st.crouchWanted = 1;
+        yield waitFor(rand(600, 1000), "walk");
+        st.crouchWanted = 0;
+        boardWindow(seat, false);
+        yield leapTo(x, feetOnLine(seat.y), rand(26, 40), { then: () => {
+          if (st.riding) st.riding.onBoard = true;
+        } });
+      }
+
+      const stay = (ms, pose) => {
+        st.brain.pose = pose;
+        const end = nowMs() + ms;
+        return (now) => !st.riding || (now >= end && !st.trans);
+      };
+      if (given) {
+        yield stay(holdMs ?? 30000, "sit");
+      } else {
+        yield stay(rand(1500, 3000), "sit");
+        const until = nowMs() + (holdMs ?? rand(30000, 90000));
+        while (st.riding && nowMs() < until) {
+          const roll = Math.random();
+          if (roll < 0.3) {
+            const half = SEAT_HALF * px;
+            const center = catCenter();
+            const span = st.riding.free.find(([a, b]) => a <= center && b >= center);
+            if (span) {
+              const to = clamp(center + pick([-1, 1]) * rand(40, 130) * px, span[0] + half, span[1] - half);
+              if (Math.abs(to - center) > 12 * px) yield walkTo(to - stageWidth() / 2, st.y, ROAM_SPEED);
+            }
+            yield stay(rand(3000, 7000), "sit");
+          } else if (roll < 0.65) {
+            yield stay(rand(10000, 24000), "lie");
+          } else {
+            yield stay(rand(4000, 10000), "sit");
+          }
+        }
+      }
+      leaveWindow();
+      const [outX, outY] = launchFor(st.x, st.y);
+      yield leapTo(outX, outY, rand(18, 30));
+      st.offstage = false;
+    }
+
+    /*
+     * Word of where its window is now: { id, x, y, r, free }, or { id, gone: true } if
+     * it has been closed, minimized or maximized. The cat, and wherever it was walking
+     * to, go the same way at once, without waiting for the next frame.
+     */
+    function windowMoved(info) {
+      const r = st.riding;
+      if (!r || info.id !== r.id) return;
+      if (info.gone) {
+        if (r.onBoard) fallOff();
+        else leaveWindow();
+        return;
+      }
+      const now = nowMs();
+      const dx = info.x - r.x;
+      const dy = info.y - r.y;
+      const seenAt = info.at ?? now;
+      const dt = r.seenAt === null ? 0.1 : clamp((seenAt - r.seenAt) / 1000, 0.004, 0.1);
+      r.seenAt = seenAt;
+      // All at once: the window is simply gone from under it, and it drops from where it was.
+      if (r.onBoard && !r.settling && Math.hypot(dx, dy) > RIDE_JOLT) {
+        fallOff();
+        return;
+      }
+      r.x = info.x;
+      r.y = info.y;
+      r.r = info.r;
+      r.free = info.free || r.free;
+      r.at = now;
+      if (st.leap) {
+        st.leap.x1 += dx;
+        st.leap.y1 -= dy;
+      }
+      if (!r.onBoard) return;
+      if (!st.leap) {
+        st.x += dx;
+        st.y -= dy;
+        if (st.goalX !== null) {
+          st.goalX += dx;
+          st.goalY -= dy;
+        }
+        // Against the side of the screen it gets pushed along the edge.
+        const half = SEAT_HALF * st.px;
+        const center = catCenter();
+        st.x += clamp(center, half, st.laneW - half) - center;
+      }
+      if (r.settling) {
+        r.settling = false;
+        if (st.enabled && st.pose) render(now);
+        return;
+      }
+      const vx = dx / dt;
+      const vy = dy / dt;
+      // Shaken back and forth is worse than going fast one way.
+      if (vx * r.vx + vy * r.vy < 0 && r.speed > RIDE_SAFE) r.balance += 0.35;
+      const follow = 1 - Math.exp(-dt / 0.05);
+      r.vx += (vx - r.vx) * follow;
+      r.vy += (vy - r.vy) * follow;
+      r.speed = Math.hypot(r.vx, r.vy);
+      if (st.enabled && st.pose) render(now);
+    }
+
+    /*
+     * Each frame up there: how it keeps its balance, and what it returns goes to the
+     * antennae. A slow move it rides out, low and holding on. Faster, it loses its
+     * balance the quicker the faster it goes, and off it falls.
+     */
+    function stepRide(now, dt) {
+      const r = st.riding;
+      springStep(st.lean, r?.onBoard && !st.reduced ? clamp(-r.vx / 1400, -0.32, 0.32) : 0, 70, 0.35, dt);
+      if (!r?.onBoard) return 0;
+      const before = r.vx;
+      // Nothing heard for a moment: the window has stopped.
+      if (now - r.at > 110) {
+        const calm = Math.exp(-dt / 0.08);
+        r.vx *= calm;
+        r.vy *= calm;
+        r.speed = Math.hypot(r.vx, r.vy);
+        if (r.speed < 2) {
+          r.vx = 0;
+          r.vy = 0;
+          r.speed = 0;
+        }
+      }
+      const over = r.speed - RIDE_SAFE;
+      r.balance = over > 0 ? r.balance + (over / RIDE_SAFE) * RIDE_TIP * dt : Math.max(0, r.balance - 0.9 * dt);
+      if (r.balance >= 1) {
+        fallOff();
+        return 0;
+      }
+      const moving = r.speed > 30;
+      // no sleeping through that
+      if (moving && st.brain.pose === "lie") st.brain.pose = "sit";
+      st.crouchWanted = moving ? clamp(0.3 + r.speed / 900 + r.balance, 0, 1) : 0;
+      // Something came over the spot, or the edge has gone out of reach: it gets down.
+      if (r.y >= 20 * st.px && seatFits(r, catCenter())) r.coveredSince = null;
+      else if (r.coveredSince === null) r.coveredSince = now;
+      else if (now - r.coveredSince > 450) leaveWindow();
+      return clamp(((r.vx - before) / st.px) / Math.max(dt, 1 / 240), -600, 600);
+    }
+
+    /* The window went without it: off it comes, legs going, with a little of its speed. */
+    function fallOff() {
+      const r = st.riding;
+      if (!r) return;
+      const vx = clamp(r.vx * 0.2, -320, 320);
+      const vy = clamp(-r.vy * 0.3, -200, 400) + 70 * st.px;
+      const from = r.id;
+      endErrand();
+      if (purr.on) setPurring(false);
+      st.goalX = null;
+      st.goalY = null;
+      if (st.reduced) {
+        st.y = 0;
+        land(false);
+        return;
+      }
+      st.offstage = true;
+      st.fall = { vx, vy, from };
+      st.ant[0].v -= 8;
+      st.ant[1].v += 8;
+      st.tip.v += rand(-4, 4);
+      refreshSeats();
+    }
+
+    /* All the way down, unless there is another window in the way. */
+    function stepFall(dt) {
+      const f = st.fall;
+      if (!f) return;
+      const before = st.y;
+      f.vy -= GRAVITY * st.px * dt;
+      f.vx *= Math.exp(-0.8 * dt);
+      st.x += f.vx * dt;
+      st.y += f.vy * dt;
+      const travel = laneTravel();
+      if (st.x < 0 || st.x > travel) {
+        st.x = clamp(st.x, 0, travel);
+        f.vx *= -0.4;
+      }
+      if (f.vy < 0) {
+        const center = catCenter();
+        const seat = st.seats.find((other) => {
+          const line = feetOnLine(other.y);
+          return other.id !== f.from && line <= before && line >= st.y && seatFits(other, center);
+        });
+        if (seat) {
+          st.fall = null;
+          land(false);
+          sitOnArrival(seat);
+          return;
+        }
+      }
+      if (st.y <= 0) {
+        st.y = 0;
+        st.fall = null;
+        st.offstage = false;
+        st.dazedUntil = nowMs() + 1500;
+        land(false);
+      }
+    }
+
     const OUTINGS = {
       peek: peekOuting,
       hop: hopOuting,
@@ -3035,6 +3397,7 @@ const FireflyBuddy = (() => {
       cursor: cursorOuting,
       zoomies: zoomiesOuting,
       cheer: cheerOuting,
+      ride: rideOuting,
     };
 
     /* A mouthful: the head goes down hard, and a crumb or two falls. */
@@ -3391,9 +3754,11 @@ const FireflyBuddy = (() => {
     function baseEyes(now) {
       if (st.pose === "lie") return "shut";
       if (purr.on || now < st.happyUntil) return "happy";
+      if (st.fall) return "open"; // wide awake, all of a sudden
+      if (now < st.dazedUntil) return "half";
       if (st.biting) return Math.sin(st.clock * 1.3) > 0.2 ? "happy" : "look"; // very pleased with itself
       if ((st.activity === "play" || st.activity === "ball") && st.ball) return "look"; // eyes on the ball
-      if (st.errand) return "look"; // up to something
+      if (st.errand && !st.riding?.onBoard) return "look"; // up to something
       if (st.pose === "walk" && st.speed > 0) return "look";
       if (now < st.glance.until) return "look";
       if (now >= st.glance.next) {
@@ -3658,10 +4023,11 @@ const FireflyBuddy = (() => {
 
       // walking — the walker keeps its place while the cat sits
       let walkerAccel = 0;
-      if (st.carry || st.toss || st.leap) {
+      if (st.carry || st.toss || st.leap || st.fall) {
         stepCarried(dt);
         stepLeap(now);
         stepToss(dt);
+        stepFall(dt);
         // the antennae feel it being swung about
         const vx = (st.x - st.moved.x) / st.px / Math.max(dt, 1 / 240);
         walkerAccel = clamp((vx - st.moved.vx) / Math.max(dt, 1 / 240), -600, 600);
@@ -3685,6 +4051,7 @@ const FireflyBuddy = (() => {
       st.moved.x = st.x ?? 0;
       stepDrag();
       stepPrey(dt);
+      walkerAccel += stepRide(now, dt);
       st.crouchAmt += (st.crouchWanted - st.crouchAmt) * (1 - Math.exp(-dt / 0.12));
 
       if (st.activity === "play") {
@@ -3790,7 +4157,9 @@ const FireflyBuddy = (() => {
       const wide = st.squash[0] * (1 + 0.1 * low);
       const tall = st.squash[1] * (1 - 0.24 * low);
       const wiggle = low > 0.7 ? Math.sin(t * 17) * 0.02 * low : 0;
-      setTransform(dom.rig, `scale(${wide.toFixed(3)}, ${(st.flip ? -tall : tall).toFixed(3)})${wiggle ? ` rotate(${wiggle.toFixed(4)}rad)` : ""}`);
+      // The rig is inside the mirror: a lean is the same way on screen whichever way it faces.
+      const tilt = wiggle + st.lean.x * (st.dir < 0 ? -1 : 1);
+      setTransform(dom.rig, `scale(${wide.toFixed(3)}, ${(st.flip ? -tall : tall).toFixed(3)})${Math.abs(tilt) > 0.0005 ? ` rotate(${tilt.toFixed(4)}rad)` : ""}`);
       if (st.prey) {
         const f = st.prey;
         setTransform(f.el, `translate3d(${snap(f.x)}px, ${snap(-f.y)}px, 0)`);
@@ -3811,7 +4180,7 @@ const FireflyBuddy = (() => {
       setTransform(dom.lift, st.lift > 0.01 || Math.abs(swing) > 0.001
         ? `translate3d(0, ${toPx(-st.lift)}px, 0) rotate(${swing.toFixed(4)}rad)`
         : "none");
-      setTransform(dom.shadow, st.lift > 0.01 ? `scale(${(1 - Math.min(0.45, st.lift / 30)).toFixed(3)})` : "none");
+      setTransform(dom.shadow, st.fall ? "scale(0)" : st.lift > 0.01 ? `scale(${(1 - Math.min(0.45, st.lift / 30)).toFixed(3)})` : "none");
 
       if (st.pose === "walk") {
         setTransform(dom.body, `translate3d(0, ${toPx(st.bodyY)}px, 0)`);
@@ -3863,7 +4232,7 @@ const FireflyBuddy = (() => {
       const now = nowMs();
       // 60 frames a second is plenty, even on a 120 Hz screen
       const ballMoving = st.activity === "ball" && st.ball && (st.ball.held || st.ball.z > 0 || st.ball.vx !== 0 || st.ball.vy !== 0);
-      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss && !st.leap && !ballMoving && !st.prey;
+      const still = st.pose !== "walk" && !st.trans && !st.turn && !st.swat && !st.carry && !st.toss && !st.leap && !ballMoving && !st.prey && !st.fall && !(st.riding?.speed > 0);
       if (now - st.last < 1000 / ((still ? restFps : maxFps) + 2)) return;
       const dt = clamp((now - st.last) / 1000, 0, 0.1);
       st.last = now;
@@ -4003,7 +4372,8 @@ const FireflyBuddy = (() => {
         shift += 1000 / 60;
         update(nowMs(), 1 / 60);
       }
-      st.last = nowMs();
+      // Only looking, it takes nothing away from the real loop's next frame.
+      if (ms > 0) st.last = nowMs();
       render(nowMs());
       return {
         pose: st.pose,
@@ -4027,6 +4397,11 @@ const FireflyBuddy = (() => {
         dragging: st.dragging?.perch.id || null,
         backing: st.backing,
         crouch: st.crouchAmt,
+        riding: st.riding ? { id: st.riding.id, onBoard: st.riding.onBoard, speed: st.riding.speed, balance: st.riding.balance, x: st.riding.x, y: st.riding.y } : null,
+        falling: Boolean(st.fall),
+        seats: st.seats.length,
+        lean: st.lean.x,
+        laneH: st.laneH,
         prey: st.prey ? { x: st.prey.x, y: st.prey.y, held: st.prey.held, leaving: st.prey.leaving } : null,
         focus: st.focus,
         lift: st.lift,
@@ -4136,6 +4511,8 @@ const FireflyBuddy = (() => {
       setPerches,
       scold,
       step,
+      windowMoved,
+      isRiding: () => Boolean(st.riding?.onBoard),
       // Send it on an outing now, rather than whenever it feels like one. The promise
       // is kept when the outing is over, however it ended; false if it never started.
       perform: (name, options) => new Promise((resolve) => {
@@ -4157,7 +4534,7 @@ const FireflyBuddy = (() => {
         if (on && ["bite", "drag", "firefly", "cursor", "zoomies"].includes(st.errand?.name) && !st.scripted) endErrand();
       },
       cheer() {
-        if (!st.enabled || st.reduced || st.scripted || st.carry || st.toss || purr.on || !st.laneW) return;
+        if (!st.enabled || st.reduced || st.scripted || st.carry || st.toss || st.fall || purr.on || !st.laneW) return;
         startErrand(cheerOuting(), "cheer");
       },
       rollBallAt(x, yFromTop, speed = 380) {

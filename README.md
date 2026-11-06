@@ -16,7 +16,7 @@
 ## ✨ Features
 
 - **Stays over your other programs** — a small icon shows how far the timer has got, and a compact timer with your tasks floats beside your work. Clicks pass through to the program underneath everywhere except on them.
-- **A cat for company** — it strolls across your screen, peeks in from behind its edges, chases a bouncing ball all over it, hunts a firefly and your mouse pointer, and purrs when you pet it. Pick it, or the ball, up and toss it wherever you like. It behaves during a focus session and is delighted when one ends. One button shows all it can do.
+- **A cat for company** — it strolls across your screen, peeks in from behind its edges, chases a bouncing ball all over it, hunts a firefly and your mouse pointer, and purrs when you pet it. It jumps up on your windows and rides along while you move them slowly, and yank one out from under it and off it falls. Pick it, or the ball, up and toss it wherever you like. It behaves during a focus session and is delighted when one ends. One button shows all it can do.
 - **Mischief, if you want it** — switch it on in the settings and the cat hides behind your desktop icons, jumps on them and bites one now and then. A bitten icon will not open with the mouse until you click the cat, pull it away or turn on the ball. A second setting lets it drag icons to new places too, never touching the files, and they go back when you switch that off or close the program. Both are off by default.
 - **Fullscreen timer** — one click on the time opens a clean, whole-screen timer with drifting fireflies. The controls fade away while you work and return on the first mouse move.
 - **Easy to set** — ready-made rhythms (25/5, 50/10, 52/17, 90/20, 15/3) or your own, with − and + right on the widget.
@@ -43,7 +43,7 @@ To run it from source, see [desktop/README.md](desktop/README.md).
 
 - **The icon** — click it to open or close the widgets, drag it anywhere, right-click it for the menu.
 - **The widget** — press Start or Pause, and click the time for the fullscreen timer. With the pointer on it, small buttons appear on its top edge: fireflies, the timer's rhythm, and hide. Drag it by any free spot.
-- **The cat** — 🐾 lets it wander the screen, where you can drag it to pick it up and let go to drop or throw it. ⚽ gives it a ball to chase around the screen, which you can pick up and throw too, and the wave makes it purr. A tap on the cat purrs too. The last button shows everything it can do, on folders of its own.
+- **The cat** — 🐾 lets it wander the screen, where you can drag it to pick it up and let go to drop or throw it. Put it down on a window's top edge and it stays up there, if the window has room above it for a cat. ⚽ gives it a ball to chase around the screen, which you can pick up and throw too, and the wave makes it purr. A tap on the cat purrs too. The last button shows everything it can do, on folders of its own.
 - **The main window** — holds your tasks, statistics and settings. Its X only minimizes it, because the timer keeps running.
 - **Quitting** — use **Close the program and stop the timer** in the menu or at the bottom of the settings.
 
@@ -61,7 +61,7 @@ Your timer state, tasks, settings and statistics stay on your computer. Nothing 
 
 | File | Role |
 |---|---|
-| `desktop/` | The program itself: windows, data, tray, on-screen icon, the helper for the desktop icons, packaging. See [desktop/README.md](desktop/README.md). |
+| `desktop/` | The program itself: windows, data, tray, on-screen icon, the helper that says where desktop icons and windows are, packaging. See [desktop/README.md](desktop/README.md). |
 | `service_worker.js` | The timer: state, alarms, cycles, stats, tasks, settings. |
 | `sidepanel.html` / `.css` / `.js` | The main window's page. |
 | `fullscreen.html` / `.css` / `.js` | The fullscreen timer. |

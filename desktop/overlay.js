@@ -17,6 +17,7 @@
   const FIREFLIES_KEY = "desktopWidgetFireflies";
   const ICONS_KEY = "desktopCatIcons";
   const MOVES_KEY = "desktopCatMoves";
+  const WINDOWS_KEY = "desktopCatWindows";
   const DEMO_KEY = "desktopCatDemo";
   const MODE_KEY = "pomodoroBuddyMode";
 
@@ -99,10 +100,11 @@
     labelButtons();
   }
 
-  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY, ICONS_KEY, MOVES_KEY, DEMO_KEY]).then((data) => {
+  chrome.storage.local.get(["pomodoro", FIREFLIES_KEY, ICONS_KEY, MOVES_KEY, WINDOWS_KEY, DEMO_KEY]).then((data) => {
     timerState = data.pomodoro;
     firefliesOn = data[FIREFLIES_KEY] === true;
     movesWanted = data[MOVES_KEY] === true;
+    ridesWanted = data[WINDOWS_KEY] !== false;
     labelButtons();
     if (kind === "full") {
       syncIcons(data[ICONS_KEY] === true);
@@ -120,6 +122,10 @@
       // Taken back in the middle of a move: it drops what it has.
       if (!movesWanted && !demoRun) cat?.endOuting();
     }
+    if (changes[WINDOWS_KEY]) {
+      ridesWanted = changes[WINDOWS_KEY].newValue !== false;
+      if (!ridesWanted && !demoRun && cat?.isRiding()) cat.endOuting();
+    }
     if (changes[ICONS_KEY] && kind === "full") syncIcons(changes[ICONS_KEY].newValue === true);
     if (changes[DEMO_KEY] && kind === "full") syncDemo(changes[DEMO_KEY].newValue === true);
     labelButtons();
@@ -136,6 +142,7 @@
   let cat = null;
   let iconsWanted = false;
   let movesWanted = false;
+  let ridesWanted = false;
   let latestIcons = [];
   let widgetRoot = null;
   const iconImages = new Map();
@@ -223,6 +230,9 @@
     giveCatIcons();
   });
 
+  // Where the window it is sitting on has got to.
+  door.onWindowMoved((info) => cat?.windowMoved(info));
+
   /*
    * Its teeth in an icon and walking off with it. The real icon follows along, a
    * dozen and more steps a second, which is as fast as the desktop needs to look
@@ -271,6 +281,7 @@
       root: widgetRoot,
       say: wordsNow().widget,
       images: iconImages,
+      under: underCat,
       onEnd: endDemo,
     });
   }
@@ -313,6 +324,9 @@
       onDragPlan: (perch) => (perch ? door.planIcon(perch.id) : null),
       onDrag: iconDragged,
       onDragEnd: iconDropped,
+      canRide: () => ridesWanted,
+      onSeats: () => door.windowSeats(),
+      onRide: (id) => door.followWindow(id),
     },
     buddyReady(buddy) {
       cat = buddy;
