@@ -1,6 +1,6 @@
 # Firefly Focus for Windows
 
-The Windows program, in progress, built on Electron. Like the app, it is not a rewrite: it runs the extension's own `service_worker.js`, `offscreen.js`, `sidepanel.html`, `fullscreen.html` and `buddy.js`, with no copies of them here.
+The Windows program, in progress, built on Electron. Like the app, it is not a rewrite: it runs the extension's own `service_worker.js`, `offscreen.js`, `sidepanel.html`, `fullscreen.html`, `floating_widget.js` and `buddy.js`, with no copies of them here.
 
 | File | What it does |
 |---|---|
@@ -8,11 +8,21 @@ The Windows program, in progress, built on Electron. Like the app, it is not a r
 | `shim.js` | `chrome.*` on top of that, for the pages. The counterpart of `app/shim.js` |
 | `preload.js` | The narrow door between a page and `main.js` |
 | `engine.html`, `engine.js` | A hidden window that is always open, with the timer and its sounds in it |
-| `overlay.html`, `overlay.js` | A see-through layer over every other program, where the cat wanders |
+| `overlay.html`, `overlay.js` | A see-through layer over every other program, with the widget from `floating_widget.js` on it |
+| `launcher.html`, `launcher.js` | The small icon over every other program, its ring showing how far the timer has got |
+| `words.js` | The program's own words, in all seven languages |
+| `panel.js`, `panel.css` | What the program adds to the extension's pages, which do not know about it |
 
-So far: the timer runs with every window shut, the main window holds the tasks, statistics and settings, the fullscreen timer is the extension's own, and the cat comes out on the layer when neither window is in front of you. Clicks anywhere but on the cat reach the program underneath. The small widgets and the on-screen icon come next.
+## What is on the screen
 
-Shutting the main window only hides it, and the timer carries on. **Quit** in the tray icon's menu stops the timer and ends the program.
+- **The icon** stays over every other program. A click opens or closes the widgets, a drag moves it, the right button opens the menu.
+- **The widgets** are the timer, the tasks and the cat. Settings choose which of them to show. A click on the time goes on to the fullscreen timer.
+- **The main window** holds everything else: tasks, statistics, settings. Its X only minimizes it, so the timer carries on and the taskbar button stays, with the timer's progress on it.
+- **The fullscreen timer** is the extension's own. The icon and the widgets step aside for it.
+
+The icon and the widgets can each be put away, from the settings or the menu, and then the program runs on the taskbar and in the tray only. They are shut rather than hidden, and with both gone it uses no processor or graphics card at all.
+
+**Close the program and stop the timer**, in the settings or the menu, ends the program. The timer is paused where it was, with no sound.
 
 ## Running it
 

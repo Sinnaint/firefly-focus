@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Firefly Focus</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+
+    /* The program's icon, except that its ring is the real one. */
+    #mark {
+      position: absolute;
+      inset: 4px;
+      filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+      cursor: pointer;
+      transition: transform 0.12s ease;
+    }
+
+    #mark:hover {
+      transform: scale(1.05);
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.16);
+      stroke-width: 4.5;
+    }
+
+    .arc {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 4.5;
+      stroke-linecap: round;
+    }
+
+    .spark {
+      fill: #fff;
+      filter: drop-shadow(0 0 2.5px var(--ink));
+    }
+
+    body {
+      --ink: #e77fe0;
+    }
+
+    body[data-mode="shortBreak"] {
+      --ink: #4fc9e0;
+    }
+
+    body[data-mode="longBreak"] {
+      --ink: #9a8cf2;
+    }
+
+    /* Paused or waiting, it stays where it got to, more quietly. */
+    body[data-running="false"] .arc {
+      opacity: 0.55;
+    }
+
+    body[data-running="false"] .spark {
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body data-mode="work" data-running="false">
+  <div id="mark" title="Firefly Focus">
+    <svg viewBox="0 0 52 52" aria-hidden="true">
+      <defs>
+        <radialGradient id="ground" cx="50%" cy="30%" r="80%">
+          <stop offset="0" stop-color="#43175f"/>
+          <stop offset="1" stop-color="#190427"/>
+        </radialGradient>
+      </defs>
+      <rect x="1" y="1" width="50" height="50" rx="14" fill="url(#ground)" stroke="rgba(255,255,255,.16)"/>
+      <circle class="track" cx="26" cy="26" r="14"/>
+      <circle id="arc" class="arc" cx="26" cy="26" r="14" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 26 26)"/>
+      <circle id="spark" class="spark" cx="26" cy="12" r="3.2"/>
+    </svg>
+  </div>
+  <script src="/desktop/launcher.js"></script>
+</body>
+</html>

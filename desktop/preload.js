@@ -15,5 +15,16 @@ contextBridge.exposeInMainWorld("fireflyHost", {
   notify: (options) => ipcRenderer.send("notify", options),
   setBadge: (text) => ipcRenderer.send("badge", text),
   openFullscreen: () => ipcRenderer.send("open-fullscreen"),
+  quit: () => ipcRenderer.send("quit"),
+
+  // The layer the widgets live on.
   clickThrough: (through) => ipcRenderer.send("click-through", through),
+  takeKeyboard: (wanted) => ipcRenderer.send("take-keyboard", wanted),
+  closeWidgets: () => ipcRenderer.send("close-widgets"),
+
+  // The icon on the screen.
+  launcherClick: () => ipcRenderer.send("launcher-click"),
+  launcherMove: (x, y) => ipcRenderer.send("launcher-move", x, y),
+  launcherMoved: () => ipcRenderer.send("launcher-moved"),
+  launcherMenu: () => ipcRenderer.send("launcher-menu"),
 });

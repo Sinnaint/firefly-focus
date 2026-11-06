@@ -26,6 +26,14 @@
   const HOST_ID = "ai-pomodoro-floating-widget-host";
   const MAX_TASKS = 4;
 
+  /*
+   * In the Windows program this same widget lives on a layer over every other
+   * program, and desktop/overlay.js sets this first: which pieces to show, the
+   * words that differ there, how the cat is to run. On a website it is absent.
+   * A page cannot set it either: a content script has a window object of its own.
+   */
+  const DESKTOP = window.__FIREFLY_DESKTOP__ || null;
+
   const i18n = {
     uk: {
       close: "Сховати",
@@ -292,7 +300,8 @@
   }
 
   function t() {
-    return i18n[getLanguage()];
+    const language = getLanguage();
+    return DESKTOP ? { ...i18n[language], ...DESKTOP.words[language]?.widget } : i18n[language];
   }
 
   function getModeLabel(mode) {
@@ -1185,7 +1194,7 @@
     root = host.attachShadow({ mode: "open" });
 
     const style = document.createElement("style");
-    style.textContent = STYLES;
+    style.textContent = STYLES + (DESKTOP?.styles || "");
 
     const fw = document.createElement("div");
     fw.className = "fw";
@@ -1314,7 +1323,8 @@
       buddy = FireflyBuddy.create(nodes.buddyHost, {
         onPurrChange: () => render(),
         activity: buddyMode,
-        from: buddyMode === "roam" ? shelfSpot() : null
+        from: buddyMode === "roam" ? shelfSpot() : null,
+        ...DESKTOP?.buddy
       });
       render();
     };
@@ -1782,6 +1792,7 @@
     if (!nodes.fireflyLayer) return;
 
     const enabled =
+      !DESKTOP && // they would keep the whole layer redrawing; see desktop/overlay.js
       state?.settings?.floatingWidgetEnabled !== false &&
       !dismissed.timer &&
       state?.settings?.fireflyAnimationEnabled !== false &&
@@ -1897,9 +1908,10 @@
     const dictionary = t();
     const enabled = settings.floatingWidgetEnabled !== false;
     const showTimer = enabled && !dismissed.timer;
-    const showCompanion = enabled && !dismissed.buddy;
+    const showCompanion = enabled && !dismissed.buddy && (!DESKTOP || DESKTOP.cat);
 
     host.style.display = showTimer || showCompanion ? "block" : "none";
+    if (DESKTOP && enabled && !showTimer && !showCompanion) DESKTOP.nothingShown();
     nodes.timerPiece.hidden = !showTimer;
     nodes.buddyPiece.hidden = !showCompanion;
     nodes.floor.hidden = !(showCompanion && buddyMode === "roam");
@@ -1924,7 +1936,9 @@
     nodes.pauseBtn.disabled = !state.running;
     label(nodes.hideTimer, dictionary.closeTitle);
 
-    const folded = settings.floatingWidgetCompact === true;
+    const noTasks = Boolean(DESKTOP && !DESKTOP.tasks);
+    const folded = noTasks || settings.floatingWidgetCompact === true;
+    nodes.foldBtn.hidden = noTasks;
     nodes.timerPiece.dataset.folded = String(folded);
     label(nodes.foldBtn, folded ? dictionary.expandTitle : dictionary.collapseTitle);
     nodes.foldBtn.setAttribute("aria-expanded", String(!folded));

@@ -10,26 +10,15 @@
       overflow: hidden;
       background: transparent;
     }
-
-    /* The same floor the widget gives a wandering cat on a website. */
-    .floor {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-    }
-
-    .floor .buddy {
-      --buddy-size: 112px;
-      position: absolute;
-      inset: 0;
-      height: auto;
-    }
   </style>
   <script src="/desktop/shim.js"></script>
 </head>
 <body>
-  <div class="floor"><div id="cat"></div></div>
+  <!-- The widget and the cat from a website, unchanged. overlay.js goes first:
+       it says what the widget is to show before the widget starts. -->
   <script src="/buddy.js"></script>
+  <script src="/desktop/words.js"></script>
   <script src="/desktop/overlay.js"></script>
+  <script src="/floating_widget.js"></script>
 </body>
 </html>

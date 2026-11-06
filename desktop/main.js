@@ -11,7 +11,9 @@
  *   main       sidepanel.html in an ordinary window; the side panel itself
  *              does not exist outside a browser
  *   fullscreen fullscreen.html, unchanged
- *   overlay    a see-through layer over everything, where the cat wanders
+ *   overlay    a see-through layer over everything, with floating_widget.js on
+ *              it; shut, not just hidden, while it is not wanted
+ *   launcher   the small icon over everything, showing how far the timer has got
  */
 const {
   app,
@@ -27,33 +29,21 @@ const {
 } = require("electron");
 const fs = require("fs");
 const path = require("path");
+const WORDS = require("./words.js");
 
 const ROOT = path.join(__dirname, "..");
 const SCHEME = "firefly";
 const pageUrl = (page) => `${SCHEME}://app/${page}`;
 const PRELOAD = path.join(__dirname, "preload.js");
 const ICON = path.join(ROOT, "icon128.png");
-
-// For measuring: where to write the samples, and when to hide the layer and quit.
-const METRICS_FILE = process.env.FIREFLY_METRICS || null;
-const HIDE_AFTER_MS = Number(process.env.FIREFLY_HIDE_AFTER_MS) || 0;
-const QUIT_AFTER_MS = Number(process.env.FIREFLY_QUIT_AFTER_MS) || 0;
-
-// The program's own words; the pages bring theirs in shared.js.
-const WORDS = {
-  uk: { open: "Відкрити Firefly Focus", cat: "Показати або сховати кота", quit: "Завершити роботу", hintTitle: "Firefly Focus працює далі", hint: "Вікно сховано, програма працює у фоні. Завершити роботу можна через значок біля годинника." },
-  en: { open: "Open Firefly Focus", cat: "Show or hide the cat", quit: "Quit", hintTitle: "Firefly Focus keeps running", hint: "The window is hidden and the program keeps running. To quit, use the icon by the clock." },
-  de: { open: "Firefly Focus öffnen", cat: "Katze ein- oder ausblenden", quit: "Beenden", hintTitle: "Firefly Focus läuft weiter", hint: "Das Fenster ist ausgeblendet, das Programm läuft weiter. Zum Beenden das Symbol neben der Uhr verwenden." },
-  es: { open: "Abrir Firefly Focus", cat: "Mostrar u ocultar el gato", quit: "Salir", hintTitle: "Firefly Focus sigue en marcha", hint: "La ventana está oculta y el programa sigue en marcha. Para salir, usa el icono junto al reloj." },
-  it: { open: "Apri Firefly Focus", cat: "Mostra o nascondi il gatto", quit: "Esci", hintTitle: "Firefly Focus resta attivo", hint: "La finestra è nascosta e il programma resta attivo. Per uscire, usa l'icona accanto all'orologio." },
-  sk: { open: "Otvoriť Firefly Focus", cat: "Zobraziť alebo skryť mačku", quit: "Ukončiť", hintTitle: "Firefly Focus beží ďalej", hint: "Okno je skryté a program beží ďalej. Ukončiť ho môžeš cez ikonu pri hodinách." },
-  cs: { open: "Otevřít Firefly Focus", cat: "Zobrazit nebo skrýt kočku", quit: "Ukončit", hintTitle: "Firefly Focus běží dál", hint: "Okno je skryté a program běží dál. Ukončit ho můžeš přes ikonu u hodin." },
-};
+const LAUNCHER_SIZE = 60;
 
 let engine = null;
 let mainWindow = null;
 let fullscreenWindow = null;
 let overlay = null;
+let overlayKind = null;
+let launcher = null;
 let tray = null;
 let quitting = false;
 
@@ -91,18 +81,42 @@ const CONTENT_TYPES = {
 };
 const POLICY = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'";
 
+// The settings only the program has; see panel.js. Their words are in words.js.
+const PROGRAM_SETTINGS = `<div class="settings-grid desktop-settings">
+        <label class="full">
+          <span data-i18n="desktopWidgetKindLabel"></span>
+          <select id="desktopWidgetKind">
+            <option value="timer" data-i18n="desktopKindTimer"></option>
+            <option value="tasks" data-i18n="desktopKindTasks"></option>
+            <option value="full" data-i18n="desktopKindFull"></option>
+          </select>
+        </label>
+      </div>
+      <div class="toggles desktop-toggles">
+        <label>
+          <input id="desktopLauncherShown" type="checkbox" />
+          <span data-i18n="desktopLauncherLabel"></span>
+        </label>
+      </div>
+
+      `;
+const QUIT_BUTTON = '\n      <button id="desktopQuit" type="button" data-i18n="desktopQuit"></button>';
+
 /*
  * The extension's pages come as they are, with the adapter put in front of
- * their scripts and the app's window layout after their styles: nothing in
- * sidepanel.html or fullscreen.html has to know where it is running. Pages of
- * desktop/ load what they need themselves.
+ * their scripts, the app's window layout after their styles and the program's
+ * own additions beside them: nothing in sidepanel.html or fullscreen.html has to
+ * know where it is running. Pages of desktop/ load what they need themselves.
  */
 function adaptPage(html) {
   return html
     .replace("<head>", '<head>\n  <script src="/desktop/shim.js"></script>')
-    .replace("</head>", '  <link rel="stylesheet" href="/app/app.css" />\n</head>')
+    .replace("</head>", '  <link rel="stylesheet" href="/app/app.css" />\n  <link rel="stylesheet" href="/desktop/panel.css" />\n</head>')
     .replace(/<body([^>]*?)class="([^"]*)"/, '<body$1class="$2 is-app"')
-    .replace(/<body(?![^>]*class=)([^>]*)>/, '<body class="is-app"$1>');
+    .replace(/<body(?![^>]*class=)([^>]*)>/, '<body class="is-app"$1>')
+    .replace('<script src="shared.js"></script>', '<script src="shared.js"></script>\n  <script src="/desktop/words.js"></script>\n  <script src="/desktop/panel.js"></script>')
+    .replace('<button id="saveBtn"', `${PROGRAM_SETTINGS}<button id="saveBtn"`)
+    .replace(/(<button id="saveBtn"[^]*?<\/button>)/, `$1${QUIT_BUTTON}`);
 }
 
 function serveFiles() {
@@ -155,7 +169,7 @@ function setStored(items) {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveStoreNow, 200);
   for (const win of BrowserWindow.getAllWindows()) win.webContents.send("storage-changed", changes);
-  if (changes.pomodoro?.oldValue?.settings?.language !== changes.pomodoro?.newValue?.settings?.language) buildTrayMenu();
+  updateScreen();
 }
 
 function getStored(query) {
@@ -165,7 +179,7 @@ function getStored(query) {
   return Object.fromEntries(keys.map((key) => [key, key in store ? store[key] : defaults[key]]));
 }
 
-const words = () => WORDS[store.pomodoro?.settings?.language] || WORDS.uk;
+const words = () => (WORDS[store.pomodoro?.settings?.language] || WORDS.uk).program;
 
 /* ---------- The engine, and messages to it ---------- */
 
@@ -219,12 +233,13 @@ function createMainWindow() {
     backgroundColor: "#210635",
     webPreferences: { preload: PRELOAD, spellcheck: false },
   });
-  // Shutting the window only hides it: the timer is meant to carry on. Quitting
-  // is a separate, deliberate step, and the first time, it says so.
+  // Shutting the window only minimizes it: the timer is meant to carry on, and
+  // the taskbar button stays, whatever else has been taken off the screen.
+  // Quitting is a separate, deliberate step, and the first time, it says so.
   mainWindow.on("close", (event) => {
     if (quitting) return;
     event.preventDefault();
-    mainWindow.hide();
+    mainWindow.minimize();
     if (!store.desktopCloseHintShown) {
       setStored({ desktopCloseHintShown: true });
       new Notification({ title: words().hintTitle, body: words().hint, icon: ICON }).show();
@@ -233,7 +248,6 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
-  for (const change of ["show", "hide", "minimize", "restore"]) mainWindow.on(change, updateCat);
   mainWindow.loadURL(pageUrl("sidepanel.html"));
   mainWindow.once("ready-to-show", () => mainWindow.show());
 }
@@ -265,7 +279,7 @@ function openFullscreen() {
   });
   fullscreenWindow.on("closed", () => {
     fullscreenWindow = null;
-    updateCat();
+    updateScreen();
   });
   fullscreenWindow.once("ready-to-show", () => {
     fullscreenWindow.maximize();
@@ -273,7 +287,7 @@ function openFullscreen() {
     fullscreenWindow.webContents.executeJavaScript("document.documentElement.requestFullscreen().catch(() => {})", true);
   });
   fullscreenWindow.loadURL(pageUrl("fullscreen.html"));
-  updateCat();
+  updateScreen();
 }
 
 /*
@@ -281,9 +295,9 @@ function openFullscreen() {
  * topmost window covering the entire display would have Windows treat it as a
  * fullscreen program and hold back notifications.
  */
-function createOverlay() {
+function createOverlay(kind) {
   const { workArea } = screen.getPrimaryDisplay();
-  overlay = new BrowserWindow({
+  const win = new BrowserWindow({
     x: workArea.x,
     y: workArea.y,
     width: workArea.width,
@@ -300,51 +314,156 @@ function createOverlay() {
     show: false,
     webPreferences: { preload: PRELOAD, spellcheck: false },
   });
-  overlay.setAlwaysOnTop(true, "screen-saver");
-  overlay.setIgnoreMouseEvents(true, { forward: true });
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.setIgnoreMouseEvents(true, { forward: true });
   // Closing destroys the window while timers and messages may still reach for it.
-  overlay.on("closed", () => {
-    overlay = null;
+  win.on("closed", () => {
+    if (overlay === win) overlay = null;
   });
-  overlay.loadURL(pageUrl("desktop/overlay.html"));
+  win.once("ready-to-show", () => {
+    win.showInactive();
+    launcher?.moveTop();
+  });
+  overlay = win;
+  overlayKind = kind;
+  win.loadURL(pageUrl(`desktop/overlay.html?kind=${kind}`));
 }
+
+function keepOnScreen({ x, y }) {
+  const { workArea } = screen.getDisplayNearestPoint({ x: Math.round(x), y: Math.round(y) });
+  return {
+    x: Math.round(Math.min(Math.max(workArea.x, x), workArea.x + workArea.width - LAUNCHER_SIZE)),
+    y: Math.round(Math.min(Math.max(workArea.y, y), workArea.y + workArea.height - LAUNCHER_SIZE)),
+  };
+}
+
+/* Where the icon goes: where it was left, if that is still on a screen. */
+function launcherSpot() {
+  if (store.desktopLauncherPosition) return keepOnScreen(store.desktopLauncherPosition);
+  const { workArea } = screen.getPrimaryDisplay();
+  return { x: workArea.x + workArea.width - LAUNCHER_SIZE - 24, y: workArea.y + 24 };
+}
+
+function createLauncher() {
+  const bounds = { ...launcherSpot(), width: LAUNCHER_SIZE, height: LAUNCHER_SIZE };
+  const win = new BrowserWindow({
+    ...bounds,
+    transparent: true,
+    frame: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    hasShadow: false,
+    skipTaskbar: true,
+    focusable: false,
+    show: false,
+    webPreferences: { preload: PRELOAD, spellcheck: false },
+  });
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.on("closed", () => {
+    if (launcher === win) launcher = null;
+  });
+  // On a scaled screen a see-through window comes out a little larger than asked,
+  // and would shrink at the first drag.
+  win.once("ready-to-show", () => {
+    win.setBounds(bounds);
+    win.showInactive();
+  });
+  launcher = win;
+  win.loadURL(pageUrl("desktop/launcher.html"));
+}
+
+const widgetsWanted = () => store.pomodoro?.settings?.floatingWidgetEnabled !== false;
 
 /*
- * One cat at a time. The main window and the fullscreen timer each have their
- * own, so the one on the layer comes out only when neither is in front of you.
+ * Every "should this be on the screen?" is answered here, from the data, each
+ * time the data changes. The layer and the icon are shut rather than hidden, to
+ * give their memory back. The fullscreen timer has a cat and a clock of its own
+ * and is meant to stay clean, so both step aside for it.
  */
-function updateCat() {
-  if (!overlay) return;
-  const mainShowing = mainWindow?.isVisible() && !mainWindow.isMinimized();
-  const wanted = !store.desktopCatHidden && !mainShowing && !fullscreenWindow;
-  if (wanted && !overlay.isVisible()) overlay.showInactive();
-  if (!wanted && overlay.isVisible()) overlay.hide();
+function updateScreen() {
+  if (quitting) return;
+  const free = !fullscreenWindow;
+  const kind = store.desktopWidgetKind || "full";
+
+  if (overlay && (!free || !widgetsWanted() || kind !== overlayKind)) {
+    const old = overlay;
+    overlay = null;
+    old.destroy();
+  }
+  if (!overlay && free && widgetsWanted()) createOverlay(kind);
+
+  const launcherWanted = free && !store.desktopLauncherHidden;
+  if (launcher && !launcherWanted) {
+    const old = launcher;
+    launcher = null;
+    old.destroy();
+  }
+  if (!launcher && launcherWanted) createLauncher();
+
+  updateTrayMenu();
+  showProgressOnTaskbar();
 }
 
-/* ---------- Tray ---------- */
+function setWidgets(wanted) {
+  const settings = store.pomodoro?.settings;
+  if (settings && widgetsWanted() !== wanted) {
+    askEngine({ type: "SAVE_SETTINGS", settings: { ...settings, floatingWidgetEnabled: wanted } });
+  }
+}
 
-function buildTrayMenu() {
-  if (!tray) return;
+/* The timer on the taskbar button: all that is left once everything else is put away. */
+function showProgressOnTaskbar() {
+  const state = store.pomodoro;
+  if (!mainWindow || !state?.settings) return;
+  const minutes = {
+    work: state.settings.workMinutes,
+    shortBreak: state.settings.shortBreakMinutes,
+    longBreak: state.settings.longBreakMinutes,
+  }[state.mode];
+  const total = minutes * 60000;
+  const left = state.running ? state.endsAt - Date.now() : state.remainingMs ?? total;
+  const done = Math.min(1, Math.max(0, 1 - left / total));
+  if (state.running) mainWindow.setProgressBar(done);
+  else if (done > 0) mainWindow.setProgressBar(done, { mode: "paused" });
+  else mainWindow.setProgressBar(-1);
+}
+
+/* ---------- Menu and tray ---------- */
+
+/* The same menu on the tray icon and on the small icon on the screen. */
+function programMenu() {
   const say = words();
-  tray.setContextMenu(Menu.buildFromTemplate([
+  return Menu.buildFromTemplate([
     { label: say.open, click: showMainWindow },
+    { label: say.widgets, type: "checkbox", checked: widgetsWanted(), click: () => setWidgets(!widgetsWanted()) },
     {
-      label: say.cat,
-      click: () => {
-        setStored({ desktopCatHidden: !store.desktopCatHidden });
-        updateCat();
-      },
+      label: say.launcher,
+      type: "checkbox",
+      checked: !store.desktopLauncherHidden,
+      click: () => setStored({ desktopLauncherHidden: !store.desktopLauncherHidden }),
     },
     { type: "separator" },
     { label: say.quit, click: () => app.quit() },
-  ]));
+  ]);
+}
+
+let trayMenuFor = "";
+
+function updateTrayMenu() {
+  if (!tray) return;
+  const now = [store.pomodoro?.settings?.language, widgetsWanted(), store.desktopLauncherHidden].join();
+  if (now === trayMenuFor) return;
+  trayMenuFor = now;
+  tray.setContextMenu(programMenu());
 }
 
 function createTray() {
   tray = new Tray(nativeImage.createFromPath(path.join(ROOT, "icon32.png")));
   tray.setToolTip("Firefly Focus");
   tray.on("click", showMainWindow);
-  buildTrayMenu();
+  updateTrayMenu();
 }
 
 /* ---------- Quitting ---------- */
@@ -361,32 +480,6 @@ function stopTheTimer() {
   store.pomodoro = { ...state, running: false, endsAt: null, remainingMs: Math.max(0, state.endsAt - Date.now()) };
 }
 
-/* ---------- Measuring ---------- */
-
-function measure() {
-  if (!METRICS_FILE) return;
-  const started = Date.now();
-  setInterval(() => {
-    if (!overlay) return;
-    const processes = app.getAppMetrics();
-    const sample = {
-      t: Math.round((Date.now() - started) / 1000),
-      visible: overlay.isVisible(),
-      cpu: processes.reduce((sum, p) => sum + p.cpu.percentCPUUsage, 0),
-      ramMb: processes.reduce((sum, p) => sum + p.memory.workingSetSize, 0) / 1024,
-      byType: processes.map((p) => ({
-        type: p.type,
-        pid: p.pid,
-        cpu: p.cpu.percentCPUUsage,
-        ramMb: p.memory.workingSetSize / 1024,
-      })),
-    };
-    fs.appendFileSync(METRICS_FILE, `${JSON.stringify(sample)}\n`);
-  }, 5000);
-  if (HIDE_AFTER_MS) setTimeout(() => overlay?.hide(), HIDE_AFTER_MS);
-  if (QUIT_AFTER_MS) setTimeout(() => app.quit(), QUIT_AFTER_MS);
-}
-
 /* ---------- Start ---------- */
 
 function listen() {
@@ -397,8 +490,12 @@ function listen() {
     saveStoreNow();
   });
 
-  ipcMain.handle("message", (_event, message) => {
-    if (message?.type === "OPEN_SIDE_PANEL") showMainWindow();
+  ipcMain.handle("message", (event, message) => {
+    // The widget's way on is the whole screen. Everywhere else, the main window.
+    if (message?.type === "OPEN_SIDE_PANEL") {
+      if (overlay && event.sender === overlay.webContents) openFullscreen();
+      else showMainWindow();
+    }
     return askEngine(message);
   });
   ipcMain.on("engine-ready", () => {
@@ -419,11 +516,45 @@ function listen() {
     tray?.setToolTip(text ? `Firefly Focus · ${text}` : "Firefly Focus");
   });
   ipcMain.on("open-fullscreen", openFullscreen);
+  ipcMain.on("quit", () => app.quit());
 
-  // The layer asks to take the mouse only while the pointer is over the cat.
+  // The layer takes the mouse only while the pointer is over the widget or the cat.
   ipcMain.on("click-through", (_event, through) => {
     overlay?.setIgnoreMouseEvents(through, { forward: true });
   });
+  // And the keyboard only while something on it is being typed into. Becoming
+  // focusable also puts a window on the taskbar, which this one never should be.
+  ipcMain.on("take-keyboard", (_event, wanted) => {
+    if (!overlay) return;
+    if (wanted) {
+      overlay.setFocusable(true);
+      overlay.setSkipTaskbar(true);
+      overlay.focus();
+    } else {
+      overlay.blur();
+      overlay.setFocusable(false);
+    }
+  });
+  ipcMain.on("close-widgets", () => setWidgets(false));
+
+  ipcMain.on("launcher-click", () => setWidgets(!widgetsWanted()));
+  ipcMain.on("launcher-move", (_event, x, y) => {
+    // The size each time: moving a see-through window can grow it on a scaled screen.
+    launcher?.setBounds({ ...keepOnScreen({ x, y }), width: LAUNCHER_SIZE, height: LAUNCHER_SIZE });
+  });
+  ipcMain.on("launcher-moved", () => {
+    if (!launcher) return;
+    const { x, y } = launcher.getBounds();
+    setStored({ desktopLauncherPosition: { x, y } });
+  });
+  ipcMain.on("launcher-menu", () => {
+    if (launcher) programMenu().popup({ window: launcher });
+  });
+
+  screen.on("display-metrics-changed", () => {
+    overlay?.setBounds(screen.getPrimaryDisplay().workArea);
+  });
+  setInterval(showProgressOnTaskbar, 5000);
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -445,13 +576,14 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(null);
     loadStore();
     loaded = true;
+    // Out on the screen the cat wanders from the start. Websites start it on its shelf.
+    store.pomodoroBuddyMode ??= "roam";
     refuseTheNetwork();
     serveFiles();
     listen();
     createEngine();
-    createOverlay();
     createMainWindow();
     createTray();
-    measure();
+    updateScreen();
   });
 }

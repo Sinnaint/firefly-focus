@@ -1,49 +1,98 @@
 /*
- * The cat from buddy.js, unchanged, out wandering across the screen.
+ * The layer: a see-through window over every other program, with the widget from
+ * floating_widget.js on it, the same one websites get.
  *
  * The window ignores the mouse, so clicks reach the program underneath, but
- * Windows still reports where the pointer is. Over the cat — or while it is
- * being carried, when a quick hand can outrun it — the window takes the mouse
- * for as long as that lasts.
+ * Windows still reports where the pointer is. Over a piece of the widget or the
+ * cat, and for as long as a button is held down, it takes the mouse.
+ *
+ * It never takes the focus either, so that working in another program stays
+ * undisturbed. The exception is typing into the widget, which needs the keyboard.
  */
-const host = document.getElementById("cat");
+(() => {
+  const HOST_ID = "ai-pomodoro-floating-widget-host";
+  const door = window.fireflyHost;
+  const kind = new URLSearchParams(location.search).get("kind") || "full";
+  const TYPING = 'input:not([type="checkbox"])';
 
-const buddy = FireflyBuddy.create(host, {
-  activity: "roam",
-  from: { centerX: window.innerWidth / 2, bottom: window.innerHeight / 2 },
-  // This runs all day beside other programs, and each frame costs the same
-  // whatever the size of the window: measured, 30 a second takes half the
-  // graphics card that 60 does, and a walk this slow looks no different. A cat
-  // sitting still, with only its breath and antennae moving, needs fewer yet.
-  maxFps: 30,
-  restFps: 15,
-});
+  window.__FIREFLY_DESKTOP__ = {
+    tasks: kind !== "timer",
+    cat: kind === "full",
+    words: DESKTOP_WORDS,
+    // This runs all day beside other programs, and each frame costs the same
+    // whatever the size of the window: measured, 30 a second takes half the
+    // graphics card that 60 does, and a walk this slow looks no different. A cat
+    // sitting still, with only its breath and antennae moving, needs fewer yet.
+    buddy: { maxFps: 30, restFps: 15 },
+    // Anything that moves by itself would redraw the whole layer at the screen's
+    // full rate, whatever the cat is holding to. Measured with the timer running:
+    // the ring's pulse and this blur took 40% of a core and 8% of the graphics
+    // card, and 1% and 0.2% without them. The blur has nothing behind it to blur
+    // anyway: a see-through window does not see the programs underneath.
+    styles: `
+      .fw[data-running="true"] .ring-inner::after {
+        animation: none;
+      }
+      .glass {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+      }
+    `,
+    // Every piece closed with its ×: the layer has nothing left to show, and the
+    // next click on the icon should open it again, not close it first.
+    nothingShown: () => door.closeWidgets(),
+  };
 
-function syncCat(state) {
-  buddy.sync({
-    enabled: state?.settings?.studyBuddyEnabled !== false,
-    running: Boolean(state?.running),
-    night: (state?.settings?.theme || "midnight") !== "daylight",
-  });
-}
+  const widget = () => document.getElementById(HOST_ID);
 
-chrome.storage.local.get("pomodoro").then((data) => syncCat(data.pomodoro));
-chrome.storage.onChanged.addListener((changes) => {
-  if (changes.pomodoro) syncCat(changes.pomodoro.newValue);
-});
+  /* ---------- The mouse ---------- */
 
-let through = true;
+  let through = true;
+  let pressed = false;
 
-function followPointer(event) {
-  const over = document.elementFromPoint(event.clientX, event.clientY)?.closest(".buddy-hit");
-  const next = !over && !host.hasAttribute("data-carried");
-  if (next === through) return;
-  through = next;
-  window.fireflyHost.clickThrough(through);
-}
+  function followPointer(event) {
+    // Whatever is in the widget's shadow root reads from out here as its host,
+    // and the host itself has no size: this is true only over something drawn.
+    const over = document.elementFromPoint(event.clientX, event.clientY) === widget();
+    const next = !over && !pressed;
+    if (next === through) return;
+    through = next;
+    door.clickThrough(through);
+  }
 
-window.addEventListener("pointermove", followPointer);
-window.addEventListener("pointerup", followPointer);
+  function release(event) {
+    pressed = false;
+    followPointer(event);
+  }
 
-// For the tests: lets them drive the cat by hand and read where it is.
-window.__buddy = buddy;
+  window.addEventListener("pointermove", followPointer, true);
+  window.addEventListener("pointerup", release, true);
+  window.addEventListener("pointercancel", release, true);
+
+  /* ---------- The keyboard ---------- */
+
+  let keyboard = false;
+
+  function askForKeyboard(wanted) {
+    if (wanted === keyboard) return;
+    keyboard = wanted;
+    door.takeKeyboard(wanted);
+  }
+
+  function checkKeyboard() {
+    const active = widget()?.shadowRoot?.activeElement;
+    askForKeyboard(Boolean(active?.matches(TYPING)));
+  }
+
+  // Asking on the press, before the click: the click is what opens the calendar
+  // of a date field, and that must not lose its window to the focus arriving late.
+  window.addEventListener("pointerdown", (event) => {
+    pressed = true;
+    if (event.composedPath()[0]?.matches?.(TYPING)) askForKeyboard(true);
+  }, true);
+
+  // "New task" opens the field and puts the cursor in it with a click, not a press.
+  window.addEventListener("click", () => setTimeout(checkKeyboard), true);
+  window.addEventListener("focusout", () => setTimeout(checkKeyboard), true);
+  window.addEventListener("blur", () => askForKeyboard(false));
+})();

@@ -1,0 +1,40 @@
+/*
+ * What the program adds to the extension's pages; see panel.js.
+ * The extension's own styles stay as they are.
+ */
+
+/* The cat is out on the layer, and so is its purr button. */
+body[data-cat-on-layer="true"] #studyBuddy,
+body[data-cat-on-layer="true"] #purrBtn {
+  display: none !important;
+}
+
+/*
+ * The cards blur what is behind them, which here is fireflies, moving all the
+ * time: each frame the blur is worked out again. Measured in the main window
+ * with the timer running: 29% of the graphics card with it, 7% without.
+ */
+body.is-app:not(.fs-body) .timer-shell,
+body.is-app:not(.fs-body) .panel-card,
+body.is-app:not(.fs-body) .stats-grid article {
+  backdrop-filter: none;
+}
+
+.desktop-settings {
+  margin-top: 14px;
+}
+
+.desktop-toggles {
+  margin-top: 10px;
+}
+
+#desktopQuit {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 15px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-weight: 800;
+}

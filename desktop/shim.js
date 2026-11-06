@@ -84,8 +84,16 @@
 
   window.chrome = {
     runtime: {
+      // floating_widget.js takes this going missing to mean the extension was
+      // switched off, and removes itself. The program does not go anywhere.
+      id: "firefly-desktop",
       getURL: (page) => `/${page}`,
-      sendMessage: (message) => (isEngine ? dispatch(message) : host.sendMessage(message)),
+      // The widget asks with a callback, as a content script does; the rest with a promise.
+      sendMessage(message, callback) {
+        const answer = isEngine ? dispatch(message) : host.sendMessage(message);
+        if (!callback) return answer;
+        answer.then(callback);
+      },
       onMessage: {
         addListener(fn) {
           listeners.push({ fn, context: currentContext });
@@ -107,6 +115,10 @@
       onChanged: {
         addListener(fn) {
           changeListeners.push(fn);
+        },
+        removeListener(fn) {
+          const index = changeListeners.indexOf(fn);
+          if (index >= 0) changeListeners.splice(index, 1);
         },
       },
     },
