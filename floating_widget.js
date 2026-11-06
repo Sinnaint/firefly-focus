@@ -1277,6 +1277,7 @@
     };
 
     bindEvents();
+    DESKTOP?.mount({ piece: nodes.timerPiece, taskCard: nodes.taskCard, render });
   }
 
   /* ---------- The cat ---------- */
@@ -1792,7 +1793,7 @@
     if (!nodes.fireflyLayer) return;
 
     const enabled =
-      !DESKTOP && // they would keep the whole layer redrawing; see desktop/overlay.js
+      (!DESKTOP || DESKTOP.fireflies()) &&
       state?.settings?.floatingWidgetEnabled !== false &&
       !dismissed.timer &&
       state?.settings?.fireflyAnimationEnabled !== false &&

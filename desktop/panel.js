@@ -31,9 +31,56 @@
       const outOnLayer = kind === "full" && data.pomodoro?.settings?.floatingWidgetEnabled !== false;
       document.body.dataset.catOnLayer = String(outOnLayer);
     }
+
+    const quickButton = document.getElementById("quickTimerBtn");
+    if (quickButton) {
+      const words = i18n[data.pomodoro?.settings?.language] || i18n.uk;
+      quickButton.title = words.quickTimerTitle;
+      quickButton.setAttribute("aria-label", words.quickTimerTitle);
+    }
   }
 
   const refresh = () => chrome.storage.local.get(KEYS).then(show);
+
+  /*
+   * The quick card for the timer's rhythm: from a button among the page's own
+   * small ones, or a click on the time itself. In the fullscreen timer that button
+   * fades with the rest of the corner, so the screen stays as clean as it was. The
+   * compact main window already takes a click on the time to mean "unfold".
+   */
+  function addQuickTimer() {
+    const corner = document.querySelector(".fs-corner");
+    const dock = document.querySelector(".buddy-dock");
+    const ring = document.getElementById("ring");
+    if (!(corner || dock) || !ring) return;
+
+    const button = document.createElement("button");
+    button.id = "quickTimerBtn";
+    button.type = "button";
+    button.className = corner ? "fs-icon" : "dock-btn";
+    button.setAttribute("aria-pressed", "false");
+    button.innerHTML = FireflyQuickTimer.ICON;
+    if (corner) corner.insertBefore(button, document.getElementById("settingsBtn"));
+    else dock.append(button);
+
+    const quick = FireflyQuickTimer.create(document.body, {
+      className: "quick-page",
+      onToggle: (open) => button.setAttribute("aria-pressed", String(open)),
+    });
+
+    button.addEventListener("click", () => quick.toggle());
+    ring.addEventListener("click", () => {
+      if (document.body.dataset.view !== "compact") quick.toggle();
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!quick.isOpen()) return;
+      const path = event.composedPath();
+      if (![quick.element, button, ring].some((node) => path.includes(node))) quick.close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") quick.close();
+    });
+  }
 
   document.addEventListener("change", (event) => {
     if (event.target.id === "desktopWidgetKind") {
@@ -52,6 +99,7 @@
   });
 
   document.addEventListener("DOMContentLoaded", () => {
+    addQuickTimer();
     refresh();
     // In the fullscreen timer the controls appear later, with the settings sheet.
     if (document.getElementById("desktopWidgetKind")) return;

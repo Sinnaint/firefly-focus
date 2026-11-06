@@ -20,6 +20,22 @@ body.is-app:not(.fs-body) .stats-grid article {
   backdrop-filter: none;
 }
 
+/* The quick card for the timer's rhythm; its insides are in quick_timer.js. */
+body.is-app #ring {
+  cursor: pointer;
+}
+
+.quick-page {
+  position: fixed;
+  top: 66px;
+  right: 18px;
+  z-index: 50; /* over the fullscreen timer's task card, which stands in the same corner */
+  width: min(290px, calc(100vw - 36px));
+  border: 1px solid var(--stroke-strong);
+  background: var(--surface-strong);
+  box-shadow: 0 30px 80px var(--shadow);
+}
+
 .desktop-settings {
   margin-top: 14px;
 }

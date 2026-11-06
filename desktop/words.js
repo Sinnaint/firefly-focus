@@ -28,11 +28,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Таймер, задачі й кіт",
       desktopLauncherLabel: "Ярлик поверх програм",
       desktopQuit: "Закрити програму й зупинити таймер",
+      quickTimerTitle: "Налаштувати таймер",
+      quickTimerRunning: "Етап, що йде, дограє як є. Зміни діють з наступного.",
     },
     widget: {
       closeTitle: "Сховати (поверне ярлик)",
       openHint: "Відкрити на весь екран",
       walkMode: "Гуляти по екрану",
+      fireflies: "Світлячки на віджеті",
     },
   },
   en: {
@@ -55,11 +58,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Timer, tasks and cat",
       desktopLauncherLabel: "Icon over other programs",
       desktopQuit: "Close the program and stop the timer",
+      quickTimerTitle: "Set the timer",
+      quickTimerRunning: "The running stage finishes as it is. Changes apply from the next one.",
     },
     widget: {
       closeTitle: "Hide (the on-screen icon brings it back)",
       openHint: "Open full screen",
       walkMode: "Walk around the screen",
+      fireflies: "Fireflies on the widget",
     },
   },
   de: {
@@ -82,11 +88,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Timer, Aufgaben und Katze",
       desktopLauncherLabel: "Symbol über anderen Programmen",
       desktopQuit: "Programm schließen und Timer stoppen",
+      quickTimerTitle: "Timer einstellen",
+      quickTimerRunning: "Die laufende Phase läuft unverändert zu Ende. Änderungen gelten ab der nächsten.",
     },
     widget: {
       closeTitle: "Ausblenden (das Symbol bringt es zurück)",
       openHint: "Im Vollbild öffnen",
       walkMode: "Über den Bildschirm laufen",
+      fireflies: "Glühwürmchen auf dem Widget",
     },
   },
   es: {
@@ -109,11 +118,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Temporizador, tareas y gato",
       desktopLauncherLabel: "Icono sobre otros programas",
       desktopQuit: "Cerrar el programa y detener el temporizador",
+      quickTimerTitle: "Ajustar el temporizador",
+      quickTimerRunning: "La etapa en curso termina tal cual. Los cambios se aplican desde la siguiente.",
     },
     widget: {
       closeTitle: "Ocultar (el icono lo trae de vuelta)",
       openHint: "Abrir a pantalla completa",
       walkMode: "Pasear por la pantalla",
+      fireflies: "Luciérnagas en el widget",
     },
   },
   it: {
@@ -136,11 +148,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Timer, attività e gatto",
       desktopLauncherLabel: "Icona sopra gli altri programmi",
       desktopQuit: "Chiudi il programma e ferma il timer",
+      quickTimerTitle: "Imposta il timer",
+      quickTimerRunning: "La fase in corso finisce così com'è. Le modifiche valgono dalla prossima.",
     },
     widget: {
       closeTitle: "Nascondi (l'icona lo riporta)",
       openHint: "Apri a schermo intero",
       walkMode: "Passeggiare per lo schermo",
+      fireflies: "Lucciole sul widget",
     },
   },
   sk: {
@@ -163,11 +178,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Časovač, úlohy a mačka",
       desktopLauncherLabel: "Ikona nad ostatnými programami",
       desktopQuit: "Zavrieť program a zastaviť časovač",
+      quickTimerTitle: "Nastaviť časovač",
+      quickTimerRunning: "Prebiehajúca fáza dobehne bez zmeny. Zmeny platia od ďalšej.",
     },
     widget: {
       closeTitle: "Skryť (ikona ho vráti)",
       openHint: "Otvoriť na celú obrazovku",
       walkMode: "Prechádzať sa po obrazovke",
+      fireflies: "Svetlušky na widgete",
     },
   },
   cs: {
@@ -190,11 +208,14 @@ const DESKTOP_WORDS = {
       desktopKindFull: "Časovač, úkoly a kočka",
       desktopLauncherLabel: "Ikona nad ostatními programy",
       desktopQuit: "Zavřít program a zastavit časovač",
+      quickTimerTitle: "Nastavit časovač",
+      quickTimerRunning: "Probíhající fáze doběhne beze změny. Změny platí od další.",
     },
     widget: {
       closeTitle: "Skrýt (ikona ho vrátí)",
       openHint: "Otevřít na celou obrazovku",
       walkMode: "Procházet se po obrazovce",
+      fireflies: "Světlušky na widgetu",
     },
   },
 };

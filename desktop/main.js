@@ -114,7 +114,7 @@ function adaptPage(html) {
     .replace("</head>", '  <link rel="stylesheet" href="/app/app.css" />\n  <link rel="stylesheet" href="/desktop/panel.css" />\n</head>')
     .replace(/<body([^>]*?)class="([^"]*)"/, '<body$1class="$2 is-app"')
     .replace(/<body(?![^>]*class=)([^>]*)>/, '<body class="is-app"$1>')
-    .replace('<script src="shared.js"></script>', '<script src="shared.js"></script>\n  <script src="/desktop/words.js"></script>\n  <script src="/desktop/panel.js"></script>')
+    .replace('<script src="shared.js"></script>', '<script src="shared.js"></script>\n  <script src="/desktop/words.js"></script>\n  <script src="/desktop/quick_timer.js"></script>\n  <script src="/desktop/panel.js"></script>')
     .replace('<button id="saveBtn"', `${PROGRAM_SETTINGS}<button id="saveBtn"`)
     .replace(/(<button id="saveBtn"[^]*?<\/button>)/, `$1${QUIT_BUTTON}`);
 }
@@ -271,6 +271,9 @@ function openFullscreen() {
     return;
   }
   fullscreenWindow = new BrowserWindow({
+    // Its real size from the start: the page places the task card by the window's
+    // width and remembers the spot, and at the default size it landed on the ring.
+    ...screen.getPrimaryDisplay().workArea,
     show: false,
     title: "Firefly Focus",
     icon: ICON,
@@ -372,6 +375,35 @@ function createLauncher() {
   });
   launcher = win;
   win.loadURL(pageUrl("desktop/launcher.html"));
+}
+
+/*
+ * The layer and the icon never take the focus from the program someone is working
+ * in, apart from these moments: typing into the widget, the icon's menu. Becoming
+ * focusable also puts a window on the taskbar, which these never should be.
+ */
+function takeFocus(win) {
+  win.setFocusable(true);
+  win.setSkipTaskbar(true);
+  win.focus();
+}
+
+/*
+ * Letting go hands the focus to the next window down, and among the windows kept
+ * on top that is the taskbar, so typing went nowhere. Off the top for a moment, the
+ * next one down is the program the person was working in. Only once: blur() as
+ * well would step on to the window after it. Having already lost the focus by a
+ * click elsewhere, there is nothing to hand over.
+ */
+function giveFocusBack(win) {
+  if (win.isDestroyed()) return;
+  const hadIt = win.isFocused();
+  if (hadIt) win.setAlwaysOnTop(false);
+  win.setFocusable(false);
+  if (hadIt) {
+    win.setAlwaysOnTop(true, "screen-saver");
+    if (!launcher?.isDestroyed()) launcher?.moveTop();
+  }
 }
 
 const widgetsWanted = () => store.pomodoro?.settings?.floatingWidgetEnabled !== false;
@@ -526,14 +558,8 @@ function listen() {
   // focusable also puts a window on the taskbar, which this one never should be.
   ipcMain.on("take-keyboard", (_event, wanted) => {
     if (!overlay) return;
-    if (wanted) {
-      overlay.setFocusable(true);
-      overlay.setSkipTaskbar(true);
-      overlay.focus();
-    } else {
-      overlay.blur();
-      overlay.setFocusable(false);
-    }
+    if (wanted) takeFocus(overlay);
+    else giveFocusBack(overlay);
   });
   ipcMain.on("close-widgets", () => setWidgets(false));
 
@@ -547,8 +573,12 @@ function listen() {
     const { x, y } = launcher.getBounds();
     setStored({ desktopLauncherPosition: { x, y } });
   });
+  // A menu closes on a click elsewhere only if its window has the focus to lose.
   ipcMain.on("launcher-menu", () => {
-    if (launcher) programMenu().popup({ window: launcher });
+    if (!launcher) return;
+    const win = launcher;
+    takeFocus(win);
+    programMenu().popup({ window: win, callback: () => giveFocusBack(win) });
   });
 
   screen.on("display-metrics-changed", () => {
@@ -585,5 +615,10 @@ if (!app.requestSingleInstanceLock()) {
     createMainWindow();
     createTray();
     updateScreen();
+    // The engine writes its state only when something changes, and on a new
+    // install nothing has yet. Everything here reads it, so it is there from the start.
+    askEngine({ type: "GET_STATE" }).then(({ state }) => {
+      if (state && !store.pomodoro) setStored({ pomodoro: state });
+    });
   });
 }
